@@ -1,0 +1,23 @@
+#! /bin/bash
+cd shift-sync
+./doit
+./res.sh
+cd ../shift-async
+./doit
+./res.sh
+cd ../alloc
+./doit
+./res.sh
+cd ../krca
+./doit
+./res.sh
+cd ../fischer
+./doit
+./res.sh
+cd ../lamp
+./doit
+./res.sh
+cd ..
+./res
+./clean-only-output
+

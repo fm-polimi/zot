@@ -1,0 +1,12 @@
+awk -f zf.awk result-alloc.txt       | sort  > alloc.csv
+awk -f zf.awk result-fischer.txt     | sort  > fischer.csv
+awk -f zf.awk result-krca.txt        | sort  > krca.csv
+awk -f zf.awk result-lamp.txt        | sort  > lamp.csv
+awk -f zf.awk result-shift-async.txt | sort  > shift-async.csv
+awk -f zf.awk result-shift-sync.txt  | sort  > shift-sync.csv
+
+more alloc.csv fischer.csv krca.csv lamp.csv shift*.csv > blob.csv
+
+# con le virgole per PL
+# cat blob.csv       |  sed 's/\./,/g' > blob-PL.csv
+
