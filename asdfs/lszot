@@ -1,0 +1,12 @@
+#! /bin/bash
+
+# ls -c "$( ./listprogs | dmenu )"
+
+
+paths=$(echo "$@" | sed 'y/:/ /')
+sbcl --noinform --load "$( ls $paths/*.lisp \
+              | sort | uniq | dmenu -p "Zot file>" )" --eval "(quit)"
+
+
+
+

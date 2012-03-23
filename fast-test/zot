@@ -1,0 +1,5 @@
+#! /bin/bash
+
+#ccl --load $1 --eval "(quit)"
+sbcl --script $1
+

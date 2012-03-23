@@ -1,0 +1,7 @@
+zot fischer-34-de.lisp &> out-3-4-de.txt 
+zot fischer-34-op.lisp &> out-3-4-op.txt 
+#zot fischer-45-de.lisp &> out-4-5-de.txt 
+#zot fischer-45-op.lisp &> out-4-5-op.txt 
+#zot fischer-34-ref+equiv.lisp &> out-3-4-ref+equiv.txt 
+#zot fischer-45-ref+equiv.lisp &> out-4-5-ref+equiv.txt 
+

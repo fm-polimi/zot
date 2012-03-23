@@ -1,0 +1,12 @@
+zot timed-lamp-10-op.lisp     &> out-timed-lamp-10-op.txt 
+zot timed-lamp-10-de.lisp     &> out-timed-lamp-10-de.txt 
+zot timed-lamp-10-ref.lisp    &> out-timed-lamp-10-ref.txt 
+
+# zot timed-lamp-15-op.lisp     &> out-timed-lamp-15-op.txt 
+# zot timed-lamp-15-de.lisp     &> out-timed-lamp-15-de.txt 
+# zot timed-lamp-15-ref.lisp    &> out-timed-lamp-15-ref.txt 
+# 
+# zot timed-lamp-20-op.lisp     &> out-timed-lamp-20-op.txt 
+# zot timed-lamp-20-de.lisp     &> out-timed-lamp-20-de.txt 
+# zot timed-lamp-20-ref.lisp    &> out-timed-lamp-20-ref.txt 
+

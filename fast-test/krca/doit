@@ -1,0 +1,25 @@
+
+zot Safe\&Util_op_MONO_trans.lisp  &> out-safe-util-op.txt
+zot Safe\&Util_de_MONO.lisp        &> out-safe-util-de.txt
+zot refineController_trans.lisp   &> out-refine-controller.txt
+zot refineInterlock_trans.lisp    &> out-refine-interlock.txt
+# zot big-refinement.lisp           &> out-big-refinement.txt
+# 
+# 
+# zot Safe\&Util_op_MONO_trans2.lisp  &> out-safe-util-op2.txt
+# zot Safe\&Util_de_MONO2.lisp        &> out-safe-util-de2.txt
+# 
+# zot refineController_trans2.lisp   &> out-refine-controller2.txt
+# zot refineInterlock_trans2.lisp    &> out-refine-interlock2.txt
+# zot big-refinement2.lisp           &> out-big-refinement2.txt
+# 
+# zot cont_de_alone.lisp              &> out-cont-de-alone.txt
+# zot cont_de_alone2.lisp             &> out-cont-de-alone2.txt
+# zot cont_op_alone.lisp              &> out-cont-op-alone.txt
+# zot cont_op_alone2.lisp             &> out-cont-op-alone2.txt
+# 
+# zot inter_de_alone.lisp              &> out-inter-de-alone.txt
+# zot inter_de_alone2.lisp             &> out-inter-de-alone2.txt
+# zot inter_op_alone.lisp              &> out-inter-op-alone.txt
+# zot inter_op_alone2.lisp             &> out-inter-op-alone2.txt
+
