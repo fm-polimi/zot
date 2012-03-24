@@ -2005,8 +2005,17 @@
 				  (write (kripke-formula *PROPS*) :stream k :escape nil :case :downcase)
 				  (format k ")")
 				  )
-		  (sb-ext:run-program "sed"
-				      '("-i" "s/int/Int/g" "output.smt.txt")  :input t :output nil :error t :search t :if-output-exists :supersede)
+		  (cond
+		   ((string-equal (software-type) "Linux")
+		    (sb-ext:run-program "sed"
+					'("-i" "s/int/Int/g" "output.smt.txt")  :input t :output nil :error t :search t :if-output-exists :supersede))
+		   ((string-equal (software-type) "Darwin")
+		    (sb-ext:run-program "sed"
+					'("-e s/int/Int/g" "-i \"\"" "output.smt.txt")  :input t :output nil :error t :search t :if-output-exists :supersede))
+		   ((string-equal (software-type) "Win" :end1 3)
+		    (sb-ext:run-program "sed"
+					'("-i" "s/int/Int/g" "output.smt.txt")  :input t :output nil :error t :search t :if-output-exists :supersede)))
+
 
 		  (to-smt-and-back *PROPS* smt-solver)
 		  
