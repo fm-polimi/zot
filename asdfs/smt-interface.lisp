@@ -1,6 +1,5 @@
 ; SMT-Interface, version 20100812
 ; Matteo Pradella
-; This version works well with z3 3.2
 ; --------------------------------------------------------------------------
 ;
 ; Copyright (C) 2010 Matteo Pradella (pradella@elet.polimi.it)
@@ -50,11 +49,6 @@
 	     (sb-ext:run-program "z3"
 				 '("-smt" "-st" "-m" "output.smt.txt") :input
 				 t :output "output.1.txt" :error t :search t :if-output-exists :supersede))
-	    (:z3par
-		(format t "Parallel z3...~% ")(force-output)
-	     (sb-ext:run-program "z3"
-				 '("-smt" "-st" "-m"  "PAR_NUM_THREADS=4" "RESTART_INITIAL=100{200,300,400}" "PAR_SHARING=2" "PAR_SHARING_LIMIT_NEAR=8" "output.smt.txt") :input ; "MODEL_V2=true" Modifica: Ferrucci Luca 
-				 t :output "output.1.txt" :error t :search t :if-output-exists :supersede))
 
 	    (:yices 
 	     (format t "yices...~% ")(force-output)
@@ -85,9 +79,6 @@
 			 (:z3 
 			  (format t "z3...~% ")(force-output)
 			  (funcall call-shell "z3 -smt -st -m output.smt.txt > output.1.txt"))
-			(:z3par
-			  (format t "z3...~% ")(force-output)
-			  (funcall call-shell "z3 -smt -st -m PAR_NUM_THREADS=2 RESTART_INITIAL=100{200} PAR_SHARING=2 PAR_SHARING_LIMIT_NEAR=8 output.smt.txt > output.1.txt"))
 
 			 (:yices 
 			  (format t "yices...~% ")(force-output)
@@ -134,7 +125,7 @@
 	 with x   = (read ff)
 	 with sep = (read ff)
 	 with y   = (read ff)
-	 unless (eq y '{)
+	 when (and (not (eq y '{))  (if (>= (length (string x)) 4) (not (string= (string x) "ZOT-" :start1 0 :end1 4)) t))
 	 do 
 	   (setf (gethash x dict) y)
 	 when (eq y '{)
@@ -143,8 +134,8 @@
 	      with tme = nil
 	      with lst = '()
 	      with ls  = nil
-	      with test = (not (member  (string-trim '(#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9) 
-						       (string x)) '("P" "A") :test #'equal))
+	      with test = (and (not (member  (string-trim '(#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9) (string x)) '("P" "A") :test #'equal))
+				        (if (>= (length (string x)) 4) (not (string= (string x) "ZOT-" :start1 0 :end1 4)) t))
 	      when (and test
 			(numberp tme) 
 			(<= 0 tme k)
@@ -217,12 +208,19 @@
 	     (cond 
 	      ((cddr val)
 	       (progn
-		(format t "~s~s = ~s~%" (car val) (cadr val) (caddr val))
-		(format ff "~s~s = ~s~%" (car val) (cadr val) (caddr val))))
+		 (format t "~s~s = ~s~%" (car val) (cadr val) (caddr val))
+		 ;; MR: next line added to write the value also in the output-hist.txt file
+		 (format ff "~s~s = ~s~%" (car val) (cadr val) (caddr val))))
+	      ((and (null (cddr val)) (numberp (cadr val)))
+	       (progn
+		 (format t "~s = ~s~%" (car val) (cadr val))
+		 ;; MR: next line added to write the value also in the output-hist.txt file
+		 (format ff "~s = ~s~%" (car val) (cadr val))))
 	      (t
 	       (progn
-		(format t "~s = ~s~%" (car val) (cadr val))
-		(format ff "~s = ~s~%" (car val) (cadr val)))))
+		 (format t "~s~s~%" (car val) (cadr val))
+		 ;; MR: next line added to write the value also in the output-hist.txt file
+		 (format ff "~s~s~%" (car val) (cadr val)))))
 
 	     ;manage symbol items
 	     when (and (symbolp val) (<= 0 i k))

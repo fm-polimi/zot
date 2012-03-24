@@ -80,6 +80,7 @@
     :true
     :unsat
     :sat
+    :unknown
     :forall
     :exists
     :pred
@@ -168,6 +169,10 @@
 (defvar *items* (make-hash-table :test #'equal))
 
 (defvar *arith-items* (make-hash-table :test #'equal))
+
+(defvar *periodic-arith-vars* nil)
+
+
 
 ; Call clean-up before loading other specs containing define-items or 
 ; define-array
@@ -357,7 +362,7 @@
 (defun trio-to-ltl (f)
   "defines the semantics of TRIO in terms of PLTL"
   (cond 
-    ((or (symbolp f) (stringp f) (integerp f) (typep f 'boolean))
+    ((or (symbolp f) (stringp f) (numberp f) (typep f 'boolean))
      f)
     (t
       (case (car f)
@@ -365,9 +370,12 @@
 	 `(or ,(trio-to-ltl `(not ,(second f))) ,(trio-to-ltl (third f))))
 
 	((iff)
-	 (let ((x (trio-to-ltl (second f)))
-	       (y (trio-to-ltl (third f))))
-	   `(and (or ,x (not ,y)) (or ,y (not ,x)))))
+	 ;; (let ((x (trio-to-ltl (second f)))
+	 ;;       (y (trio-to-ltl (third f))))
+	 ;;   `(and (or ,x (not ,y)) (or ,y (not ,x)))))
+	      (let ((x (trio-to-ltl (second f)))
+			 (y (trio-to-ltl (third f))))
+		    `(iff ,x ,y)))
 
 	((niff)
 	 (let ((x (trio-to-ltl (second f)))
@@ -771,7 +779,7 @@
 
 (defun define-tvar (varname &rest domain) 
   (setf (gethash (intern (symbol-name varname)) *arith-items*) 
-	(list 'timed (push "Int" domain ))))
+	(list 'timed domain)))
   
  
 	
