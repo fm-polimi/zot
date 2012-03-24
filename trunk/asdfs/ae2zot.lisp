@@ -86,7 +86,7 @@
 (defun predicatep (f) 
   (and (consp f) 
        (not 
-	     (in (car f) '(tempus not and or next until release since trigger zeta yesterday < > = <= >=)))))
+	     (in (car f) '(tempus not and or iff next until release since trigger zeta yesterday < > = <= >=)))))
 		
 	   
 
@@ -95,7 +95,7 @@
 
 (defun LTL-formulap (f) 
   (and (consp f)        
-	(in (car f) '(not and or next until release since trigger zeta yesterday))))
+	(in (car f) '(not and or iff next until release since trigger zeta yesterday))))
 
 (declaim (inline LTL-formulap))
 
@@ -179,6 +179,7 @@
 	    ((or) (deneg (cons 'and (mapcar 
 				     (lambda (x) (deneg `(not ,x)))
 				     (cdr a)))))
+	    ((iff) (list 'iff (deneg `(not ,(second a))) (third a)))
 	    ((next) `(next ,(deneg `(not ,(second a)))))
 	    ((until) 
 	     `(release ,(deneg `(not ,(second a))) ,(deneg `(not ,(third a)))))
@@ -414,7 +415,7 @@
 			      (unless (member fm '(true false **I_LOOP** **LOOPEX**))
 				    (push fm (kripke-atomic-formulae a-kripke)))
 			      (case (car fm)
-				    ((and or not) 
+				    ((and or not iff) 
 					  (push fm (kripke-bool a-kripke)))
 				    ((< = > >= <=) ; if fm is a interpreted RELATION 
 					  (progn
@@ -803,12 +804,12 @@
 			(call *PROPS* fma i)  
 			(case (car fma)
 			      ((not)
-				    (list 'not (call *PROPS* (second fma) i)))
-			      
+				    (list 'not (call *PROPS* (second fma) i)))			      
 			      ((and or)
 				    (cons (car fma) (mapcar #'(lambda (x)
 								    (call *PROPS* x i))
-							  (cdr fma)))))))))
+							  (cdr fma))))
+			      ((iff) (list 'iff (call *PROPS* (second fma) i) (call *PROPS* (second fma) i))))))))
 
 (defun gen-futr ()
       (format t "define LTL future formulae X, U, R~%")(force-output)
