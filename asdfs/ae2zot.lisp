@@ -1977,25 +1977,27 @@
 					     (kripke-timed-arith *PROPS*))
 
 
-				    (loop for partition in (kripke-related-IPC-vars *PROPS*) do
-					  (loop for term1 in partition do
-						(loop for term2 in partition do
-						      (format k ":extrafuns (( zot-index-i_~s_~s Int ))~%" term1 term2)
-						      (format k ":extrapreds (( zot-f_~s_~s Int Int Int))~%" term1 term2)
-						      (format k ":extrapreds (( zot-tilde-f_~s_~s Int Int Int))~%" term1 term2)
-						      (format k ":extrapreds (( zot-b_~s_~s Int Int Int ))~%" term1 term2)
-						      (format k ":extrapreds (( zot-tilde-b_~s_~s Int Int Int ))~%" term1 term2)
-						      (format k ":extrapreds (( zot-bigf_~s_~s Int Int Int Int ))~%" term1 term2)
-						      (format k ":extrapreds (( zot-tilde-bigf_~s_~s Int Int Int Int ))~%" term1 term2)
-						      (format k ":extrapreds (( zot-bigb_~s_~s Int Int Int Int ))~%" term1 term2)
-						      (format k ":extrapreds (( zot-tilde-bigb_~s_~s Int Int Int Int ))~%" term1 term2)
-						      (format k ":extrapreds (( zot-tf_~s_~s Int Int ))~%" term1 term2)
-						      (format k ":extrapreds (( zot-tb_~s_~s Int Int ))~%" term1 term2)
-						      (format k ":extrapreds (( zot-exc_~s_~s ))~%" term1 term2))
-						(format k ":extrapreds (( zot-lf_~s Int ))~%" term1)
-						(format k ":extrapreds (( zot-lb_~s Int ))~%" term1)
-						(format k ":extrapreds (( zot-tilde-lf_~s Int ))~%" term1)
-						(format k ":extrapreds (( zot-tilde-lb_~s Int ))~%" term1)))
+				    ;; MR added if to avoid producing the next predicates if ipc constraints are not used
+				    (if (not (null ipc-constraints))
+					(loop for partition in (kripke-related-IPC-vars *PROPS*) do
+					      (loop for term1 in partition do
+						    (loop for term2 in partition do
+							  (format k ":extrafuns (( zot-index-i_~s_~s Int ))~%" term1 term2)
+							  (format k ":extrapreds (( zot-f_~s_~s Int Int Int))~%" term1 term2)
+							  (format k ":extrapreds (( zot-tilde-f_~s_~s Int Int Int))~%" term1 term2)
+							  (format k ":extrapreds (( zot-b_~s_~s Int Int Int ))~%" term1 term2)
+							  (format k ":extrapreds (( zot-tilde-b_~s_~s Int Int Int ))~%" term1 term2)
+							  (format k ":extrapreds (( zot-bigf_~s_~s Int Int Int Int ))~%" term1 term2)
+							  (format k ":extrapreds (( zot-tilde-bigf_~s_~s Int Int Int Int ))~%" term1 term2)
+							  (format k ":extrapreds (( zot-bigb_~s_~s Int Int Int Int ))~%" term1 term2)
+							  (format k ":extrapreds (( zot-tilde-bigb_~s_~s Int Int Int Int ))~%" term1 term2)
+							  (format k ":extrapreds (( zot-tf_~s_~s Int Int ))~%" term1 term2)
+							  (format k ":extrapreds (( zot-tb_~s_~s Int Int ))~%" term1 term2)
+							  (format k ":extrapreds (( zot-exc_~s_~s ))~%" term1 term2))
+						    (format k ":extrapreds (( zot-lf_~s Int ))~%" term1)
+						    (format k ":extrapreds (( zot-lb_~s Int ))~%" term1)
+						    (format k ":extrapreds (( zot-tilde-lf_~s Int ))~%" term1)
+						    (format k ":extrapreds (( zot-tilde-lb_~s Int ))~%" term1))))
 				    
 
 				    (if (not (null smt-assumptions))
@@ -2005,17 +2007,23 @@
 				  (write (kripke-formula *PROPS*) :stream k :escape nil :case :downcase)
 				  (format k ")")
 				  )
-		  (cond
-		   ((string-equal (software-type) "Linux")
-		    (sb-ext:run-program "sed"
-					'("-i" "s/int/Int/g" "output.smt.txt")  :input t :output nil :error t :search t :if-output-exists :supersede))
-		   ((string-equal (software-type) "Darwin")
-		    (sb-ext:run-program "sed"
-					'("-e s/int/Int/g" "-i \"\"" "output.smt.txt")  :input t :output nil :error t :search t :if-output-exists :supersede))
-		   ((string-equal (software-type) "Win" :end1 3)
-		    (sb-ext:run-program "sed"
-					'("-i" "s/int/Int/g" "output.smt.txt")  :input t :output nil :error t :search t :if-output-exists :supersede)))
-
+		  (if (not (null ipc-constraints))
+		      (cond
+		       ((string-equal (software-type) "Linux")
+			(sb-ext:run-program "sed"
+					    '("-i" "s/int/Int/g" "output.smt.txt")  :input t :output nil :error t :search t :if-output-exists :supersede))
+		       ((string-equal (software-type) "Darwin")
+			(sb-ext:run-program "sed"
+					    '("-i.bak" "s/int/Int/g"  "output.smt.txt")  :input t :output nil :error t :search t :if-output-exists :supersede))
+		       ((string-equal (software-type) "Win" :end1 3)
+			(sb-ext:run-program "sed"
+					    '("-i" "s/int/Int/g" "output.smt.txt")  :input t :output nil :error t :search t :if-output-exists :supersede))
+		       (t
+			(progn
+			  (format t "~%Type of system unknown, using Unix sed syntax~%")
+			  (sb-ext:run-program "sed"
+					      '("-i" "s/int/Int/g" "output.smt.txt")  :input t :output nil :error t :search t :if-output-exists :supersede)))))
+			  
 
 		  (to-smt-and-back *PROPS* smt-solver)
 		  
