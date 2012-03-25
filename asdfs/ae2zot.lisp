@@ -809,7 +809,7 @@
 				    (cons (car fma) (mapcar #'(lambda (x)
 								    (call *PROPS* x i))
 							  (cdr fma))))
-			      ((iff) (list 'iff (call *PROPS* (second fma) i) (call *PROPS* (second fma) i))))))))
+			      ((iff) (list 'iff (call *PROPS* (second fma) i) (call *PROPS* (third fma) i))))))))
 
 (defun gen-futr ()
       (format t "define LTL future formulae X, U, R~%")(force-output)
