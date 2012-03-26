@@ -1072,32 +1072,32 @@
       (nconc
        
        (loop for partition in (kripke-related-IPC-vars *PROPS*) append
-	     (loop for term1 in partition append
-		   (loop for term2 in partition append
-			 (loop for j from 0 to (kripke-k *PROPS*) append   
-			       (loop for h from (- (kripke-max-Y *PROPS*)) to (kripke-max-X *PROPS*) append
-				     (loop for m from (- (kripke-max-Y *PROPS*)) to (kripke-max-X *PROPS*) append
-					   (if (<= h m) 
-					       (if (and (numberp term1) (numberp term2))
-						   `(
-						     (iff (,(the-f_xy term1 term2) ,j ,h ,m)
-							  ,(if (< term1 term2) 'true 'false))
-						     (iff (,(the-tilde-f_xy term1 term2) ,j ,h ,m) 
-							  ,(if (<= term1 term2) 'true 'false)))
-						 (if (and (= h m) (equal term1 term2))
-						     `(
-						       (iff (,(the-f_xy term1 term2) ,j ,h ,m) false)
-						       (iff (,(the-tilde-f_xy term1 term2) ,j ,h ,m) true))
-						   `(
-						     (iff (,(the-f_xy term1 term2) ,j ,h ,m)
-							  (< ,(if (>= h 0) (call *PROPS* (get-X-term term1 h) j) (call *PROPS* (get-Y-term term1 h) j))
-							     ,(if (>= m 0) (call *PROPS* (get-X-term term2 m) j) (call *PROPS* (get-Y-term term2 m) j))))
-						     (iff (,(the-tilde-f_xy term1 term2) ,j ,h ,m)
-							  (<= ,(if (>= h 0) (call *PROPS* (get-X-term term1 h) j) (call *PROPS* (get-Y-term term1 h) j))
-							      ,(if (>= m 0) (call *PROPS* (get-X-term term2 m) j) (call *PROPS* (get-Y-term term2 m) j)))))))
-					     `(
-					       (iff (,(the-f_xy term1 term2) ,j ,h ,m) false)
-					       (iff (,(the-tilde-f_xy term1 term2) ,j ,h ,m) false)))))))))
+       	     (loop for term1 in partition append
+       		   (loop for term2 in partition append
+       			 (loop for j from 0 to (kripke-k *PROPS*) append   
+       			       (loop for h from (- (kripke-max-Y *PROPS*)) to (kripke-max-X *PROPS*) append
+       				     (loop for m from (- (kripke-max-Y *PROPS*)) to (kripke-max-X *PROPS*) append
+       					   (if (<= h m) 
+       					       (if (and (numberp term1) (numberp term2))
+       						   `(
+       						     (iff (,(the-f_xy term1 term2) ,j ,h ,m)
+       							  ,(if (< term1 term2) 'true 'false))
+       						     (iff (,(the-tilde-f_xy term1 term2) ,j ,h ,m) 
+       							  ,(if (<= term1 term2) 'true 'false)))
+       						 (if (and (= h m) (equal term1 term2))
+       						     `(
+       						       (iff (,(the-f_xy term1 term2) ,j ,h ,m) false)
+       						       (iff (,(the-tilde-f_xy term1 term2) ,j ,h ,m) true))
+       						   `(
+       						     (iff (,(the-f_xy term1 term2) ,j ,h ,m)
+       							  (< ,(if (>= h 0) (call *PROPS* (get-X-term term1 h) j) (call *PROPS* (get-Y-term term1 h) j))
+       							     ,(if (>= m 0) (call *PROPS* (get-X-term term2 m) j) (call *PROPS* (get-Y-term term2 m) j))))
+       						     (iff (,(the-tilde-f_xy term1 term2) ,j ,h ,m)
+       							  (<= ,(if (>= h 0) (call *PROPS* (get-X-term term1 h) j) (call *PROPS* (get-Y-term term1 h) j))
+       							      ,(if (>= m 0) (call *PROPS* (get-X-term term2 m) j) (call *PROPS* (get-Y-term term2 m) j)))))))
+       					     `(
+       					       (iff (,(the-f_xy term1 term2) ,j ,h ,m) false)
+       					       (iff (,(the-tilde-f_xy term1 term2) ,j ,h ,m) false)))))))))
 
        
        
@@ -1489,7 +1489,7 @@
 								      ,(if (< term1 term2) 'true 'false))
 								 (iff (,(the-tilde-bigF_xy term1 term2) ,j ,h ,i ,m)
 								      ,(if (<= term1 term2) 'true 'false)))
-							     (if (and (> (abs shift) (+ (kripke-max-Y *PROPS*) (kripke-max-X *PROPS*))) (= h 0))
+							     (if (and (> (abs shift) (+ (kripke-max-Y *PROPS*) (kripke-max-X *PROPS*))) (= h (- (kripke-max-Y *PROPS*))))
 								 `(
 								   (iff (,(the-bigF_xy term1 term2) ,j ,h ,i ,m)
 									,(list-check 
@@ -1550,7 +1550,7 @@
 								      ,(if (< term1 term2) 'true 'false))
 								 (iff (,(the-tilde-bigB_xy term1 term2) ,j ,h ,i ,m)
 								      ,(if (<= term1 term2) 'true 'false)))
-							     (if (and (> (abs shift) (+ (kripke-max-Y *PROPS*) (kripke-max-X *PROPS*))) (= h 0))
+							     (if (and (> (abs shift) (+ (kripke-max-Y *PROPS*) (kripke-max-X *PROPS*))) (= h (kripke-max-X *PROPS*)))
 								 `(
 								   (iff (,(the-bigB_xy term1 term2) ,j ,h ,i ,m)
 									,(list-check
@@ -1748,7 +1748,7 @@
   (if periodic-arith-terms
 					;(format t "define arithmetic periodic terms~%")(force-output)
       (loop for term in periodic-arith-terms collect
-	    `(= ,(call *PROPS* term ,(the-iloop)) ,(call *PROPS* term (1+ (kripke-k *PROPS*)))))))
+	    `(= ,(call *PROPS* term (the-iloop)) ,(call *PROPS* term (1+ (kripke-k *PROPS*)))))))
 
 
 
