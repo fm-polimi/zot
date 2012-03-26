@@ -1748,7 +1748,7 @@
   (if periodic-arith-terms
 					;(format t "define arithmetic periodic terms~%")(force-output)
       (loop for term in periodic-arith-terms collect
-	    `(= ,(call *PROPS* term `(- ,(the-iloop) 1)) ,(call *PROPS* term (kripke-k *PROPS*))))))
+	    `(= ,(call *PROPS* term ,(the-iloop)) ,(call *PROPS* term (1+ (kripke-k *PROPS*)))))))
 
 
 
