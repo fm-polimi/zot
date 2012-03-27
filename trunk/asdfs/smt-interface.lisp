@@ -134,12 +134,13 @@
 	      with tme = nil
 	      with lst = '()
 	      with ls  = nil
-	      with test = (and (not (member  (string-trim '(#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9) (string x)) '("P" "A") :test #'equal))
+	      with test = (and ;(not (member  (string-trim '(#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9) (string x)) '("P" "A") :test #'equal))
 				        (if (>= (length (string x)) 4) (not (string= (string x) "ZOT-" :start1 0 :end1 4)) t))
 	      when (and test
 			(numberp tme) 
 			(<= 0 tme k)
-			 (or (numberp ls) (eq ls 'true)))
+			 (or (numberp ls) (eq ls 'true))
+			 )
 		 
 	      do (cond
 		  ((null lst)
