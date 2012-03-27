@@ -1008,6 +1008,7 @@
 	    
 	    (get-Y-term (term i)
 			(if (numberp term)
+			      term
 			    (if (> i 0)
 				(list 'yesterday (get-Y-term term (1- i)))
 			      term)))
@@ -1090,11 +1091,11 @@
        						       (iff (,(the-tilde-f_xy term1 term2) ,j ,h ,m) true))
        						   `(
        						     (iff (,(the-f_xy term1 term2) ,j ,h ,m)
-       							  (< ,(if (>= h 0) (call *PROPS* (get-X-term term1 h) j) (call *PROPS* (get-Y-term term1 h) j))
-       							     ,(if (>= m 0) (call *PROPS* (get-X-term term2 m) j) (call *PROPS* (get-Y-term term2 m) j))))
+       							  (< ,(if (>= h 0) (call *PROPS* (get-X-term term1 h) j) (call *PROPS* (get-Y-term term1 (- h)) j))
+       							     ,(if (>= m 0) (call *PROPS* (get-X-term term2 m) j) (call *PROPS* (get-Y-term term2 (- m)) j))))
        						     (iff (,(the-tilde-f_xy term1 term2) ,j ,h ,m)
-       							  (<= ,(if (>= h 0) (call *PROPS* (get-X-term term1 h) j) (call *PROPS* (get-Y-term term1 h) j))
-       							      ,(if (>= m 0) (call *PROPS* (get-X-term term2 m) j) (call *PROPS* (get-Y-term term2 m) j)))))))
+       							  (<= ,(if (>= h 0) (call *PROPS* (get-X-term term1 h) j) (call *PROPS* (get-Y-term term1 (- h)) j))
+       							      ,(if (>= m 0) (call *PROPS* (get-X-term term2 m) j) (call *PROPS* (get-Y-term term2 (- m)) j)))))))
        					     `(
        					       (iff (,(the-f_xy term1 term2) ,j ,h ,m) false)
        					       (iff (,(the-tilde-f_xy term1 term2) ,j ,h ,m) false)))))))))
@@ -1141,11 +1142,11 @@
 						       (iff (,(the-tilde-b_xy term1 term2) ,j ,h ,m) true))
 						   `(
 						     (iff (,(the-b_xy term1 term2) ,j ,h ,m)
-							  (< ,(if (>= h 0) (call *PROPS* (get-X-term term1 h) j) (call *PROPS* (get-Y-term term1 h) j))
-							     ,(if (>= m 0) (call *PROPS* (get-X-term term2 m) j) (call *PROPS* (get-Y-term term2 m) j))))
+							  (< ,(if (>= h 0) (call *PROPS* (get-X-term term1 h) j) (call *PROPS* (get-Y-term term1 (- h)) j))
+							     ,(if (>= m 0) (call *PROPS* (get-X-term term2 m) j) (call *PROPS* (get-Y-term term2 (- m)) j))))
 						     (iff (,(the-tilde-b_xy term1 term2) ,j ,h ,m)
-							  (<= ,(if (>= h 0) (call *PROPS* (get-X-term term1 h) j) (call *PROPS* (get-Y-term term1 h) j))
-							      ,(if (>= m 0) (call *PROPS* (get-X-term term2 m) j) (call *PROPS* (get-Y-term term2 m) j)))))))
+							  (<= ,(if (>= h 0) (call *PROPS* (get-X-term term1 h) j) (call *PROPS* (get-Y-term term1 (- h)) j))
+							      ,(if (>= m 0) (call *PROPS* (get-X-term term2 m) j) (call *PROPS* (get-Y-term term2 (- m)) j)))))))
 					     `(
 					       (iff (,(the-b_xy term1 term2) ,j ,h ,m) false)
 					       (iff (,(the-tilde-b_xy term1 term2) ,j ,h ,m) false)))))))))
@@ -1175,21 +1176,21 @@
 
 					; DEFINITION OF bigXX in 0 and K
        (loop for partition in (kripke-related-IPC-vars *PROPS*) append
-	     (loop for term1 in partition append
-		   (loop for term2 in partition append
-			 (loop for h from (- (kripke-max-Y *PROPS*)) to (kripke-max-X *PROPS*) append
-			       (loop for m from (- (kripke-max-Y *PROPS*)) to (kripke-max-X *PROPS*) append
-				     `(
-				       (and
-					(iff (,(the-bigF_xy term1 term2) ,(kripke-k *PROPS*) ,h ,(kripke-k *PROPS*) ,m)
-					     (,(the-f_xy term1 term2) ,(kripke-k *PROPS*) ,h ,m))
-					(iff (,(the-tilde-bigF_xy term1 term2) ,(kripke-k *PROPS*) ,h ,(kripke-k *PROPS*) ,m)
-					     (,(the-tilde-f_xy term1 term2) ,(kripke-k *PROPS*) ,h ,m)))
-				       (and		  				       
-					(iff (,(the-bigB_xy term1 term2) 0 ,h 0 ,m)
-					     (,(the-b_xy term1 term2) 0 ,h ,m))
-					(iff (,(the-tilde-bigB_xy term1 term2) 0 ,h 0 ,m)
-					     (,(the-tilde-b_xy term1 term2) 0 ,h ,m)))))))))
+       	     (loop for term1 in partition append
+       		   (loop for term2 in partition append
+       			 (loop for h from (- (kripke-max-Y *PROPS*)) to (kripke-max-X *PROPS*) append
+       			       (loop for m from (- (kripke-max-Y *PROPS*)) to (kripke-max-X *PROPS*) append
+       				     `(
+       				       (and
+       					(iff (,(the-bigF_xy term1 term2) ,(kripke-k *PROPS*) ,h ,(kripke-k *PROPS*) ,m)
+       					     (,(the-f_xy term1 term2) ,(kripke-k *PROPS*) ,h ,m))
+       					(iff (,(the-tilde-bigF_xy term1 term2) ,(kripke-k *PROPS*) ,h ,(kripke-k *PROPS*) ,m)
+       					     (,(the-tilde-f_xy term1 term2) ,(kripke-k *PROPS*) ,h ,m)))
+       				       (and		  				       
+       					(iff (,(the-bigB_xy term1 term2) 0 ,h 0 ,m)
+       					     (,(the-b_xy term1 term2) 0 ,h ,m))
+       					(iff (,(the-tilde-bigB_xy term1 term2) 0 ,h 0 ,m)
+       					     (,(the-tilde-b_xy term1 term2) 0 ,h ,m)))))))))
 
        ;; (loop for partition in (kripke-related-IPC-vars *PROPS*) append
        ;; 	(loop for term1 in partition append
@@ -1628,25 +1629,26 @@
 
 					; end LOOP
 
-
-
+	    (loop for partition in (kripke-related-IPC-vars *PROPS*) append
+	    	  (loop for term1 in partition append
+	    		(loop for term3 in partition 
+	    				when (not (and (numberp term1) (numberp term3))) 
+	    		      collect
+	    		      `(and (<= ,(the-iloop) ,(the-i_xy term1 term3)) (<= ,(the-i_xy term1 term3) ,(kripke-k *PROPS*))))))
+		  
        
 
 	  				; *** EXISTENCE CONDITION with EXISTS *** (correct) - better for output
        (loop for partition in (kripke-related-IPC-vars *PROPS*) collect
-	     (list 'not
-		   (cons 'or
+	     `(not
+		    ,(cons 'or
 			 (loop for term1 in partition append
 			       (loop for term3 in partition 
-				     when (not (and (numberp term1) (numberp term3))) collect
-				     `(exists (,(the-i_xy term1 term3) Int)					
-					      ,(list 'and
-						     `(and (<= ,(the-iloop) ,(the-i_xy term1 term3)) (<= ,(the-i_xy term1 term3) ,(kripke-k *PROPS*)))					   
-						     (cons 'or
-							   (loop for term2 in partition append
-								 (loop for term4 in partition 
-								       when (not (and (numberp term1) (numberp term3)))
-								       append	    			      					      
+				     when (not (equal term1 term3)) append
+					   (loop for term2 in partition append
+						 (loop for term4 in partition 
+					;when (not (and (numberp term1) (numberp term3)))
+						       append	    			      					      
 								       (loop for h from (- (kripke-max-Y *PROPS*)) to (kripke-max-X *PROPS*) append	  								  
 									     (loop for n from (- (kripke-max-Y *PROPS*)) to (kripke-max-X *PROPS*) append
 										   (loop for hp from (- (kripke-max-Y *PROPS*)) to (kripke-max-X *PROPS*) append		
@@ -1684,7 +1686,7 @@
 												  (or 
 												   (,(the-f_xy term4 term2) ,(the-i_xy term1 term3) ,np ,n)
 												   (,(the-b_xy term4 term2) ,(the-i_xy term1 term3) ,np ,n)))
-												 )))))))))))))))	
+												 ))))))))))))	
 
 					; *** EXISTENCE CONDITION with FORALL *** (correct)
        ;; (loop for partition in (kripke-related-IPC-vars *PROPS*) append			      						
