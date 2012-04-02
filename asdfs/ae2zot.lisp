@@ -59,6 +59,8 @@
 	   :QF_UFLIA
 	   :QF_AUFLIA
 	   :QF_UFLRA
+	   :smt
+	   :smt2
 	   :smt-assumptions
 	   :no-loop
 	   :with-time)) 
@@ -221,6 +223,46 @@
     (t
      (cons (car f) (mapcar #'deneg (cdr f))))))
 
+
+
+
+(defun to-smt-dialect (f smt)
+  (declare (optimize (debug 0)(safety 0)(speed 3)))
+      (cond     
+	    ((null f) 'false)
+	    ((eq f t) 'true)   	    
+	    ((or (symbolp f) (numberp f)) f)
+	    ((or (arith-cop (car f)) (arith-opp (car f))) f)
+	    (t
+		  (case (car f)
+			((impl)
+			      (case smt
+				    ((:smt)
+					  `(implies ,(to-smt-dialect (second f) smt) ,(to-smt-dialect (third f) smt)))
+				    ((:smt2)
+					   `(=> ,(to-smt-dialect (second f) smt) ,(to-smt-dialect (third f) smt)))
+				    (t
+					  `(or ,(to-smt-dialect `(not ,(second f)) smt) ,(to-smt-dialect (third f) smt)))))
+
+			((iff)
+			      (case smt
+				    ((:smt)
+					  `(iff ,(to-smt-dialect (second f) smt) ,(to-smt-dialect (third f) smt)))
+				    ((:smt2)
+					   `(and
+						  (=> ,(to-smt-dialect (second f) smt) ,(to-smt-dialect (third f) smt))
+						  (=> ,(to-smt-dialect (third f) smt) ,(to-smt-dialect (second f) smt))))
+				     (t
+					  `(and 
+						 (or ,(to-smt-dialect `(not ,(second f)) smt) ,(to-smt-dialect (third f) smt))
+						 (or ,(to-smt-dialect (second f) smt) ,(to-smt-dialect `(not ,(third f)) smt))))))
+			(t
+			      (cons (car f) (mapcar #'(lambda(x)
+							    (to-smt-dialect x smt)) (cdr f))))))))
+		  
+			
+
+ 
 
 
 
@@ -1352,7 +1394,7 @@
 	    (loop for partition in (kripke-related-IPC-vars *PROPS*) append
 	    	  (loop for term1 in partition append
 	    		(loop for term3 in partition 
-	    				when (not (and (numberp term1) (numberp term3))) 
+	    				when (and (not (equal term1 term3)) (not (and (numberp term1) (numberp term3))))
 	    		      collect
 	    		      `(and (<= ,(the-iloop) ,(the-i_xy term1 term3)) (<= ,(the-i_xy term1 term3) ,(kripke-k *PROPS*))))))
 		  
@@ -1367,7 +1409,7 @@
 				     when (not (equal term1 term3)) append
 					   (loop for term2 in partition append
 						 (loop for term4 in partition 
-					;when (not (and (numberp term1) (numberp term3)))
+					when (and (not (equal term1 term3)) (not (and (numberp term1) (numberp term3))))
 						       append	    			      					      
 								       (loop for h from (- (kripke-max-Y *PROPS*)) to (kripke-max-X *PROPS*) append	  								  
 									     (loop for n from (- (kripke-max-Y *PROPS*)) to (kripke-max-X *PROPS*) append
@@ -1522,6 +1564,7 @@
 		     (periodic-terms nil)	
 		     (gen-symbolic-val t)
 		     (ipc-constraints nil)
+		     (smt-lib :smt)
 		     )
 
 					;(setf *periodic-arith-vars* periodic-vars)
@@ -1560,27 +1603,29 @@
 		  (let ((trans (if transitions 
 				   (manage-transitions transitions the-time) 
 				 '(true))))
-		    (setf (kripke-formula *PROPS*)									
-			  (nconc (list 'and)						 
-				 ;; (when *zot-item-constraints*
-				 ;; 	    (manage-transitions (list *zot-item-constraints*) 
-				 ;; 		  (1+ the-time)))
-				 
-				 (trio-to-ltl (the-big-formula 
-					       (if (eq with-time t)
-						   (with-time formula) 
-						 formula) 
-					       loop-free 
-					       no-loop 		
-					       periodic-terms
-					       gen-symbolic-val
-					       ipc-constraints))
-				 (if (and trans negate-transitions)
-				     (deneg (list (list 'not (cons 'and trans))))
-				   (deneg trans))
-				 )))
+		    (setf (kripke-formula *PROPS*)
+			  (to-smt-dialect 
+				(nconc (list 'and)						 
+				      ;; (when *zot-item-constraints*
+				      ;; 	    (manage-transitions (list *zot-item-constraints*) 
+				      ;; 		  (1+ the-time)))
+				      
+				      (trio-to-ltl (the-big-formula 
+							 (if (eq with-time t)
+							       (with-time formula) 
+							       formula) 
+							 loop-free 
+							 no-loop 		
+							 periodic-terms
+							 gen-symbolic-val
+							 ipc-constraints))
+				      (if (and trans negate-transitions)
+					    (deneg (list (list 'not (cons 'and trans))))
+					    (deneg trans)))
+				smt-lib)))
+				      
 		  
-		  (format t "~%done processing formula~%")
+		  (format t "~%done processing formula~%")		  
 		  
 		  (with-open-file (k "./output.smt.txt" :direction :output :if-exists :supersede)    ;write the smt file
 
