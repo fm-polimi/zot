@@ -777,16 +777,25 @@
   `(list 'tempus ,@body))
 
 
-(defun define-tvar (varname &rest domain) 
-  (setf (gethash (intern (symbol-name varname)) *arith-items*) 
-	(list 'timed domain)))
+;; (defun define-tvar (varname &rest domain) 
+;;   (setf (gethash (intern (symbol-name varname)) *arith-items*) 
+;; 	(list 'timed domain)))
   
  
 	
-(defun define-var (varname &rest domain) 
-  (setf (gethash (intern (symbol-name varname)) *arith-items*) 
-	(list 'uf domain)))
+;; (defun define-var (varname &rest domain) 
+;;   (setf (gethash (intern (symbol-name varname)) *arith-items*) 
+;; 	(list 'uf domain)))
 
+
+(defmacro define-tvar (varname &rest domain)
+  `(setf (gethash (intern (symbol-name ',varname)) *arith-items*)
+(list 'timed (mapcar #'eval ',domain))))
+
+
+(defmacro define-var (varname &rest domain)
+  `(setf (gethash (intern (symbol-name ',varname)) *arith-items*)
+(list 'uf (mapcar #'eval ',domain))))
 
 ; --- variables & items ---
 
