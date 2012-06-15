@@ -249,9 +249,10 @@
 				    ((:smt)
 					  `(iff ,(to-smt-dialect (second f) smt) ,(to-smt-dialect (third f) smt)))
 				    ((:smt2)
-					   `(and
-						  (=> ,(to-smt-dialect (second f) smt) ,(to-smt-dialect (third f) smt))
-						  (=> ,(to-smt-dialect (third f) smt) ,(to-smt-dialect (second f) smt))))
+					  `(= ,(to-smt-dialect (second f) smt) ,(to-smt-dialect (third f) smt)))
+					   ;; `(and
+					   ;; 	  (=> ,(to-smt-dialect (second f) smt) ,(to-smt-dialect (third f) smt))
+					   ;; 	  (=> ,(to-smt-dialect (third f) smt) ,(to-smt-dialect (second f) smt))))
 				     (t
 					  `(and 
 						 (or ,(to-smt-dialect `(not ,(second f)) smt) ,(to-smt-dialect (third f) smt))
@@ -406,7 +407,7 @@
 						     (intern (format nil "~s" fm)))
 
 					; else if fm is a LTL-formula
-					       (if (LTL-formulap fm)
+					       (if (LTL-formulap fm)	     
 						     (setf (gethash fm (kripke-list a-kripke)) 
 							   (intern (format nil "ZOT-P~s" (incf (kripke-numvar a-kripke)))))
 
@@ -930,14 +931,14 @@
 				  `(impl ,(call *PROPS* fm (kripke-k *PROPS*))
 					 (and 				     
 					  (<= ,(the-iloop) ,(the-i-eve-fm (call-fmla-id *PROPS* fm)))
-					  (<= ,(the-i-eve-fm (call-fmla-id *PROPS* fm)) ,(kripke-k *PROPS*))
+					  (<= ,(the-i-eve-fm (call-fmla-id *PROPS* fm)) ,(if *real-constants* (float (kripke-k *PROPS*)) (kripke-k *PROPS*)))
 					  ,(call *PROPS* (third fm) (the-i-eve-fm (call-fmla-id *PROPS* fm))))))
 				 
 				 ((release)			       
 				  `(impl (not ,(call *PROPS* fm (kripke-k *PROPS*)))
 					 (and 
 					  (<= ,(the-iloop) ,(the-i-eve-fm (call-fmla-id *PROPS* fm)))
-					  (<= ,(the-i-eve-fm (call-fmla-id *PROPS* fm)) ,(kripke-k *PROPS*))
+					  (<= ,(the-i-eve-fm (call-fmla-id *PROPS* fm)) ,(if *real-constants* (float (kripke-k *PROPS*)) (kripke-k *PROPS*)))
 					  (not ,(call *PROPS* fm (the-i-eve-fm (call-fmla-id *PROPS* fm)))))))))))))))
        
 	    
@@ -1079,17 +1080,17 @@
 	    (the-tilde-bigB_xy (t1 t2)
 			       `,(intern (format nil "ZOT-TILDE-bigB_~s_~s" t1 t2)))
 
-	    (the-LF_x (t1)
-		      `,(intern (format nil "ZOT-LF_~s" t1)))
+	    ;; (the-LF_x (t1)
+	    ;; 	      `,(intern (format nil "ZOT-LF_~s" t1)))
 
-	    (the-tilde-LF_x (t1)
-			    `,(intern (format nil "ZOT-TILDE-LF_~s" t1)))
+	    ;; (the-tilde-LF_x (t1)
+	    ;; 		    `,(intern (format nil "ZOT-TILDE-LF_~s" t1)))
 
-	    (the-LB_x (t1)
-		      `,(intern (format nil "ZOT-LB_~s" t1)))
+	    ;; (the-LB_x (t1)
+	    ;; 	      `,(intern (format nil "ZOT-LB_~s" t1)))
 
-	    (the-tilde-LB_x (t1)
-			    `,(intern (format nil "ZOT-TILDE-LB_~s" t1)))
+	    ;; (the-tilde-LB_x (t1)
+	    ;; 		    `,(intern (format nil "ZOT-TILDE-LB_~s" t1)))
 
 
 	    (the-i_xy (t1 t2)
@@ -1376,20 +1377,20 @@
 
 
        
-					; LOOP
-       (loop for partition in (kripke-related-IPC-vars *PROPS*) append
-	     (loop for term1 in partition append  
-		   (loop for h from (- (kripke-max-Y *PROPS*)) to (kripke-max-X *PROPS*) append	  
-			 `(
-			   (iff (,(the-LF_x term1) ,h)
-				(,(the-bigF_xy term1 term1) (- ,(the-iloop) 1) ,h ,(kripke-k *PROPS*) ,h))
-			   (iff (,(the-tilde-LF_x term1) ,h)
-				(,(the-tilde-bigF_xy term1 term1) (- ,(the-iloop) 1) ,h ,(kripke-k *PROPS*) ,h))
-			   (iff (,(the-LB_x term1) ,h)
-				(,(the-bigB_xy term1 term1) ,(kripke-k *PROPS*) ,h (- ,(the-iloop) 1) ,h))
-			   (iff (,(the-tilde-LB_x term1) ,h)
-				(,(the-tilde-bigB_xy term1 term1) ,(kripke-k *PROPS*) ,h (- ,(the-iloop) 1) ,h))))))
-					; end LOOP
+       ;; 					; LOOP
+       ;; (loop for partition in (kripke-related-IPC-vars *PROPS*) append
+       ;; 	     (loop for term1 in partition append  
+       ;; 		   (loop for h from (- (kripke-max-Y *PROPS*)) to (kripke-max-X *PROPS*) append	  
+       ;; 			 `(
+       ;; 			   (iff (,(the-LF_x term1) ,h)
+       ;; 				(,(the-bigF_xy term1 term1) (- ,(the-iloop) 1) ,h ,(kripke-k *PROPS*) ,h))
+       ;; 			   (iff (,(the-tilde-LF_x term1) ,h)
+       ;; 				(,(the-tilde-bigF_xy term1 term1) (- ,(the-iloop) 1) ,h ,(kripke-k *PROPS*) ,h))
+       ;; 			   (iff (,(the-LB_x term1) ,h)
+       ;; 				(,(the-bigB_xy term1 term1) ,(kripke-k *PROPS*) ,h (- ,(the-iloop) 1) ,h))
+       ;; 			   (iff (,(the-tilde-LB_x term1) ,h)
+       ;; 				(,(the-tilde-bigB_xy term1 term1) ,(kripke-k *PROPS*) ,h (- ,(the-iloop) 1) ,h))))))
+       ;; 					; end LOOP
 
 	    (loop for partition in (kripke-related-IPC-vars *PROPS*) append
 	    	  (loop for term1 in partition append
@@ -1417,10 +1418,10 @@
 											 (loop for np from (- (kripke-max-Y *PROPS*)) to (kripke-max-X *PROPS*) collect
 											       `(or
 												 (and
-												  (,(the-tilde-LF_x term1) ,h)
+												  ;(,(the-tilde-LF_x term1) ,h)
 												  (,(the-tilde-bigF_xy term1 term2) (- ,(the-iloop) 1) ,h ,(the-i_xy term1 term3) ,n)
 												  (,(the-tilde-bigF_xy term2 term1) ,(the-i_xy term1 term3) ,n ,(kripke-k *PROPS*) ,h)
-												  (,(the-LB_x term3) ,hp)
+												  ;(,(the-LB_x term3) ,hp)
 												  ,(cons 'or	  														    
 													 `(
 													   (and 
@@ -1433,10 +1434,10 @@
 												   (,(the-f_xy term2 term4) ,(the-i_xy term1 term3) ,n ,np)
 												   (,(the-b_xy term2 term4) ,(the-i_xy term1 term3) ,n ,np)))
 												 (and 
-												  (,(the-tilde-LB_x term1) ,h)
+												  ;(,(the-tilde-LB_x term1) ,h)
 												  (,(the-tilde-bigB_xy term1 term2) ,(kripke-k *PROPS*) ,h ,(the-i_xy term1 term3) ,n)
 												  (,(the-tilde-bigB_xy term2 term1) ,(the-i_xy term1 term3) ,n (- ,(the-iloop) 1) ,h)
-												  (,(the-LF_x term3) ,hp)
+												  ;(,(the-LF_x term3) ,hp)
 												  ,(cons 'or	  														   
 													 `(
 													   (and 
