@@ -942,7 +942,25 @@
 					  (not ,(call *PROPS* fm (the-i-eve-fm (call-fmla-id *PROPS* fm)))))))))))))))
        
 	    
-	
+(defun stabilize-constants ()
+  ;(format t "define eventuality for LTL future modalities U,R~%")(force-output)
+
+  (labels(
+	  (the-i-eve-fm (fm)
+			`,(intern (format nil "ZOT-I-EVE_~s" fm))))
+    
+    (if (and (kripke-futr *PROPS*) *real-constants*)
+	(list (list 'and 
+	       (cons 'or (loop for i from 0 to (kripke-k *PROPS*) collect
+				`(= ,(the-iloop) ,(if *real-constants* (float i) i))))
+	       (cons 'and 
+		     (loop for fm in (kripke-futr *PROPS*) 
+			   when (member (car fm) '(until release)) collect
+			   (list 'or
+				 `(> ,(the-i-eve-fm (call-fmla-id *PROPS* fm)) ,(if *real-constants* (float (kripke-k *PROPS*)) (kripke-k *PROPS*)))
+				 (cons 'or (loop for i from 0 to (kripke-k *PROPS*) collect
+				       `(= ,(the-i-eve-fm (call-fmla-id *PROPS* fm)) ,(if *real-constants* (float i) i))))))))))))
+				 
 
 
 
@@ -1506,7 +1524,8 @@
 	  (gen-arith-futr)
 	  (gen-arith-past)
 	  (gen-i-atomic-formulae)
-	  (gen-arith-constraints))
+	  (gen-arith-constraints)
+	  (stabilize-constants))
        
        (nconc	   
 	(LoopConstraints gen-symbolic-val)
@@ -1522,6 +1541,7 @@
 	(gen-arith-constraints)
 	(gen-existence-condition ipc-constraints)
 	(gen-periodic-arith-terms periodic-arith-terms)
+	(stabilize-constants)
 	)))))
 
 
@@ -1607,9 +1627,9 @@
 		    (setf (kripke-formula *PROPS*)
 			  (to-smt-dialect 
 				(nconc (list 'and)						 
-				      ;; (when *zot-item-constraints*
-				      ;; 	    (manage-transitions (list *zot-item-constraints*) 
-				      ;; 		  (1+ the-time)))
+				      (when *zot-item-constraints*
+				      	    (manage-transitions (list *zot-item-constraints*) 
+				      		  (1+ the-time)))
 				      
 				      (trio-to-ltl (the-big-formula 
 							 (if (eq with-time t)
@@ -1716,14 +1736,23 @@
 						    (format k ":extrapreds (( zot-tilde-lf_~s Int ))~%" term1)
 						    (format k ":extrapreds (( zot-tilde-lb_~s Int ))~%" term1))))
 				    
-
+					
 				    (if (not (null smt-assumptions))
 					(format k (concatenate 'string ":assumption " smt-assumptions "~%"))))
 				  
-				  (format k ":formula ")    
-				  (write (kripke-formula *PROPS*) :stream k :escape nil :case :downcase)
-				  (format k ")")
+			;MB: hack for Real - deMoura suggested it!
+			(if (or (eq logic :QF_UFRDL) (eq logic :QF_UFLRA))
+			      (progn
+				    (format k ":extrafuns (( zot-barbatrucco Real ))~%")
+				    (format k ":formula (and (< 0.0001 zot-barbatrucco) (< zot-barbatrucco 0.0002)")				    
+				    (write (kripke-formula *PROPS*) :stream k :escape nil :case :downcase)
+				    (format k "))")
 				  )
+			      (progn
+				    (format k ":formula ")    
+				    (write (kripke-formula *PROPS*) :stream k :escape nil :case :downcase)
+				    (format k ")")
+				    )))
 		  ;; (if (not (null ipc-constraints))
 		  ;;     (cond
 		  ;;      ((string-equal (software-type) "Linux")
