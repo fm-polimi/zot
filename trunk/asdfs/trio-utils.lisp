@@ -505,7 +505,7 @@
 	((alw)
 	 (trio-to-ltl (list 'and 
 			    (list 'alwf_i (second f))
-			    (list 'alwp_e (second f)))))
+			    (list 'alwp_i (second f)))))
 
 	((som)
 	 (trio-to-ltl (list 'or 
