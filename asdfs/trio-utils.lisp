@@ -370,12 +370,12 @@
 	 `(or ,(trio-to-ltl `(not ,(second f))) ,(trio-to-ltl (third f))))
 
 	((iff)
-	 (let ((x (trio-to-ltl (second f)))
-	       (y (trio-to-ltl (third f))))
-	   `(and (or ,x (not ,y)) (or ,y (not ,x)))))
-	   ;;    (let ((x (trio-to-ltl (second f)))
-	   ;; 		 (y (trio-to-ltl (third f))))
-	   ;; 	    `(iff ,x ,y)))
+	 ;; (let ((x (trio-to-ltl (second f)))
+	 ;;       (y (trio-to-ltl (third f))))
+	 ;;   `(and (or ,x (not ,y)) (or ,y (not ,x)))))
+	      (let ((x (trio-to-ltl (second f)))
+	      		 (y (trio-to-ltl (third f))))
+	      	    `(iff ,x ,y)))
 
 	((niff)
 	 (let ((x (trio-to-ltl (second f)))

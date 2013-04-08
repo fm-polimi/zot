@@ -120,37 +120,40 @@
     (maphash (lambda (key val) (declare (ignore val)) ;; hash table for translating items
 		     (setf (gethash key iht) 0)) *items*)
     
-    (with-open-file (ff "output.1.txt" :direction :input)
+    (with-open-file (ff "output.1.txt" :direction :input)	
       (loop 
+	 with foo-sat = (read ff)
 	 with x   = (read ff)
 	 with sep = (read ff)
 	 with y   = (read ff)
-	 when (and (not (eq y '{))  (if (>= (length (string x)) 4) (not (string= (string x) "ZOT-" :start1 0 :end1 4)) t))
+	 	 
+		  
+	 when (and (not (eq y '{)) (not (realp x)) (if (>= (length (string x)) 4) (not (string= (string x) "ZOT-" :start1 0 :end1 4)) t))
 	 do 
 	   (setf (gethash x dict) y)
-	 when (eq y '{)
-	 do	    	    
+	 when (and (eq y '{) (not (realp x)))
+	    do	    	    
 	   (loop      
 	      with tme = nil
 	      with lst = '()
 	      with ls  = nil
 	      with test = (and ;(not (member  (string-trim '(#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9) (string x)) '("P" "A") :test #'equal))
-				        (if (>= (length (string x)) 4) (not (string= (string x) "ZOT-" :start1 0 :end1 4)) t))
+	 			        (if (and (not (realp x)) (>= (length (string x)) 4)) (not (string= (string x) "ZOT-" :start1 0 :end1 4)) t))
 	      when (and test
-			(numberp tme) 
-			(<= 0 tme k)
-			 (or (numberp ls) (eq ls 'true))
-			 )
+	 		(numberp tme) 
+	 		(<= 0 tme k)
+	 		 (or (numberp ls) (eq ls 'true))
+	 		 )
 		 
 	      do (cond
-		  ((null lst)
-		   (if (numberp ls)
-		       (setf (aref time tme) (cons (list x ls) (aref time tme)))
-		     (setf (aref time tme) (cons x (aref time tme)))))
-		  (t
-		   (if (numberp ls)
-		       (setf (aref time tme) (cons (list x lst ls) (aref time tme)))
-		     (setf (aref time tme) (cons (list x lst) (aref time tme))))))
+	 	  ((null lst)
+	 	   (if (numberp ls)
+	 	       (setf (aref time tme) (cons (list x ls) (aref time tme)))
+	 	     (setf (aref time tme) (cons x (aref time tme)))))
+	 	  (t
+	 	   (if (numberp ls)
+	 	       (setf (aref time tme) (cons (list x lst ls) (aref time tme)))
+	 	     (setf (aref time tme) (cons (list x lst) (aref time tme))))))
 	      do 	
 	      (loop 
 	       initially (setf lst '())
@@ -161,13 +164,14 @@
 	      (setf lst (remove '-> lst))
 	      (setf tme (car (last lst)))
 	      (setf lst (loop for el in lst 
-			      with i = 0
-			      until (eq i (1- (length lst)))
-			      collect el
-			      do (incf i)))
+	 		      with i = 0
+	 		      until (eq i (1- (length lst)))
+	 		      collect el
+	 		      do (incf i)))
 	      (setf ls  (read ff)))
-	   do
+	    do
 	   (setf x (read ff))
+	   (when (listp x) (return dict))
 	   (when (eq 'sat x) (return dict))
 	   (when (eq 'unknown x) (setf unk t) (return dict))
 	   (setf sep (read ff))
@@ -187,68 +191,68 @@
 	(setf (aref time gh) (cons '**POOL** tt))))
 
     (with-open-file (ff "output.hist.txt" 
-			:direction :output 
-			:if-exists :supersede 
-			:if-does-not-exist :create)
+    			:direction :output 
+    			:if-exists :supersede 
+    			:if-does-not-exist :create)
 
       ;; translate encoded items/arrays and dump the history
       (loop
        initially (maphash #'(lambda (key val) 
-			      (when (not (member (string-trim '(#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9) 
-						       (string key)) '("P" "A" "I_EVE_P") :test #'equal))
-				(format t "~s = ~s~%" key val))) dict)
-	 for i from 0 to k
-	 do 
-	   (format t  "------ time ~s ------~%" i)
-	   (format ff "------ time ~s ------~%" i)
-	   (loop 
-	     with name = nil
-	     for val in (aref time i)
-	     ;manage non-symbol items
-	     unless (symbolp val) do	     
-	     (cond 
-	      ((cddr val)
-	       (progn
-		 (format t "~s~s = ~s~%" (car val) (cadr val) (caddr val))
-		 ;; MR: next line added to write the value also in the output-hist.txt file
-		 (format ff "~s~s = ~s~%" (car val) (cadr val) (caddr val))))
-	      ((and (null (cddr val)) (numberp (cadr val)))
-	       (progn
-		 (format t "~s = ~s~%" (car val) (cadr val))
-		 ;; MR: next line added to write the value also in the output-hist.txt file
-		 (format ff "~s = ~s~%" (car val) (cadr val))))
-	      (t
-	       (progn
-		 (format t "~s~s~%" (car val) (cadr val))
-		 ;; MR: next line added to write the value also in the output-hist.txt file
-		 (format ff "~s~s~%" (car val) (cadr val)))))
+    			      (when (not (member (string-trim '(#\0 #\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9) 
+    						       (string key)) '("P" "A" "I_EVE_P") :test #'equal))
+    				(format t "~s = ~s~%" key val))) dict)
+    	 for i from 0 to k
+    	 do 
+    	   (format t  "------ time ~s ------~%" i)
+    	   (format ff "------ time ~s ------~%" i)
+    	   (loop 
+    	     with name = nil
+    	     for val in (aref time i)
+    	     ;manage non-symbol items
+    	     unless (symbolp val) do	     
+    	     (cond 
+    	      ((cddr val)
+    	       (progn
+    		 (format t "~s~s = ~s~%" (car val) (cadr val) (if (realp (caddr val)) (float (caddr val)) (caddr val)))
+    		 ;; MR: next line added to write the value also in the output-hist.txt file
+    		 (format ff "~s~s = ~s~%" (car val) (cadr val) (caddr val))))
+    	      ((and (null (cddr val)) (numberp (cadr val)))
+    	       (progn
+    		 (format t "~s = ~f~%" (car val) (if (realp (cadr val)) (float (cadr val)) (cadr val)))
+    		 ;; MR: next line added to write the value also in the output-hist.txt file
+    		 (format ff "~s = ~f~%" (car val) (cadr val))))
+    	      (t
+    	       (progn
+    		 (format t "~s~s~%" (car val) (cadr val))
+    		 ;; MR: next line added to write the value also in the output-hist.txt file
+    		 (format ff "~s~s~%" (car val) (cadr val)))))
 
-	     ;manage symbol items
-	     when (and (symbolp val) (<= 0 i k))
-	     do
-	     (setf name (string-trim '(#\_) 
-				     (string-trim '(#\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9 #\0) 
-						  (string val))))
-	     (let ((ogh (gethash name iht)))
-	       (if ogh
-		 (setf (gethash name iht) 
-		       (+ ogh (expt 2 (parse-integer (subseq (string val)(1+ (length name)))))))
-		 (progn
-		   (format t  "  ~s~%" val) 
-		   (format ff "  ~s~%" val)) 
-		 )
-	       ))
-	   (maphash (lambda (x y) 
-		      (format t   "  ~S = ~S~%" (intern x) (elt (gethash x *items*) y))
-		      (format ff  "  ~S = ~S~%" (intern x) (elt (gethash x *items*) y))
-		      (setf (gethash x iht) 0)) 
-		    iht)
-	 finally
-	   (format t  "------ end ------~%")
-	   (format ff "------ end ------~%")
-	   (when unk 
-	     (format t  ">>> UNKNOWN <<<") 
-	     (format ff ">>> UNKNOWN <<<")) 
-	   ))
+    	     ;manage symbol items
+    	     when (and (symbolp val) (<= 0 i k))
+    	     do
+    	     (setf name (string-trim '(#\_) 
+    				     (string-trim '(#\1 #\2 #\3 #\4 #\5 #\6 #\7 #\8 #\9 #\0) 
+    						  (string val))))
+    	     (let ((ogh (gethash name iht)))
+    	       (if ogh
+    		 (setf (gethash name iht) 
+    		       (+ ogh (expt 2 (parse-integer (subseq (string val)(1+ (length name)))))))
+    		 (progn
+    		   (format t  "  ~s~%" val) 
+    		   (format ff "  ~s~%" val)) 
+    		 )
+    	       ))
+    	   (maphash (lambda (x y) 
+    		      (format t   "  ~S = ~S~%" (intern x) (elt (gethash x *items*) y))
+    		      (format ff  "  ~S = ~S~%" (intern x) (elt (gethash x *items*) y))
+    		      (setf (gethash x iht) 0)) 
+    		    iht)
+    	 finally
+    	   (format t  "------ end ------~%")
+    	   (format ff "------ end ------~%")
+    	   (when unk 
+    	     (format t  ">>> UNKNOWN <<<") 
+    	     (format ff ">>> UNKNOWN <<<")) 
+    	   ))
     ))
 
