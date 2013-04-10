@@ -939,7 +939,7 @@
 					 (and 
 					  (<= ,(the-iloop) ,(the-i-eve-fm (call-fmla-id *PROPS* fm)))
 					  (<= ,(the-i-eve-fm (call-fmla-id *PROPS* fm)) ,(if *real-constants* (float (kripke-k *PROPS*)) (kripke-k *PROPS*)))
-					  (not ,(call *PROPS* fm (the-i-eve-fm (call-fmla-id *PROPS* fm)))))))))))))))
+					  (not ,(call *PROPS* (third fm) (the-i-eve-fm (call-fmla-id *PROPS* fm)))))))))))))))
        
 	    
 (defun stabilize-constants ()
@@ -1701,7 +1701,7 @@
 		  (format t "~%done processing formula~%")		  
 		  
 		  (with-open-file (k "./output.smt.txt" :direction :output :if-exists :supersede)    ;write the smt file
-
+			(with-open-file (dict "./output.dict.txt" :direction :output :if-exists :supersede)
 				  (format k "(benchmark b~%")
 
 				  (case logic
@@ -1727,7 +1727,9 @@
 						   (case (car key)
 						     ((until release)
 						      (format k ":extrapreds (( ~s ~a ))~%" v time-domain)
-						      (format k ":extrafuns (( zot-i-eve_~s ~a ))~%" v time-domain))			       
+						      (format k ":extrafuns (( zot-i-eve_~s ~a ))~%" v time-domain)
+								(let ((*print-pretty* nil))
+									(format dict "~s -> ~s~%" v key)))
 						     (t
 						      (if (not (arith-itemp key))
 							  (format k ":extrapreds (( ~s ~a ))~%" v time-domain)))) ;legacy for (-P- a)
@@ -1807,7 +1809,7 @@
 				    (format k ":formula ")    
 				    (write (kripke-formula *PROPS*) :stream k :escape nil :case :downcase)
 				    (format k ")")
-				    )))
+				    ))))
 		  ;; (if (not (null ipc-constraints))
 		  ;;     (cond
 		  ;;      ((string-equal (software-type) "Linux")
