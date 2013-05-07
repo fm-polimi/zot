@@ -1524,11 +1524,11 @@
 			  (loop for i from 1 to (kripke-k *PROPS*) collect
 				`(or
 				       (= ,(call *PROPS* key (float (1+ i))) ,(float 0))
-				       (= ,(call *PROPS* key (float (1+ i))) (+ ,(call *PROPS* key (float i)) (zot-delta ,(float i))))))))
+				       (= ,(call *PROPS* key (float (1+ i))) (+ ,(call *PROPS* key (float i)) (delta ,(float i))))))))
 	      
 	      ; zot-delta is always positive
 	      (loop for i from 1 to (1+ (kripke-k *PROPS*)) collect
-		    `(> (zot-delta ,(float i)) ,(float 0))))
+		    `(> (delta ,(float i)) ,(float 0))))
 	'(true)))
 
 
@@ -1718,18 +1718,18 @@
 
 
 				  (let (  (*print-case* :downcase)
+					     (*print-pretty* nil)
 					  (time-domain (if (or (eq logic :QF_UFRDL) (eq logic :QF_UFLRA))
 							   *real*
 							 *int*)))
 					;write all the propositional items
-				    (maphash (lambda (key v) 
+				    (maphash (lambda (key v)
+						   (format dict "~s -> ~s~%" v key)
 					       (if (consp key) 
 						   (case (car key)
 						     ((until release)
 						      (format k ":extrapreds (( ~s ~a ))~%" v time-domain)
-						      (format k ":extrafuns (( zot-i-eve_~s ~a ))~%" v time-domain)
-								(let ((*print-pretty* nil))
-									(format dict "~s -> ~s~%" v key)))
+						      (format k ":extrafuns (( zot-i-eve_~s ~a ))~%" v time-domain))
 						     (t
 						      (if (not (arith-itemp key))
 							  (format k ":extrapreds (( ~s ~a ))~%" v time-domain)))) ;legacy for (-P- a)
@@ -1792,7 +1792,7 @@
 				    
 					
 				    (if (> over-clocks 0)
-					  (format k ":extrafuns (( zot-delta Real Real ))~%"))
+					  (format k ":extrafuns (( delta Real Real ))~%"))
 
 				    (if (not (null smt-assumptions))
 					(format k (concatenate 'string ":assumption " smt-assumptions "~%"))))
@@ -1806,8 +1806,9 @@
 				    (format k "))")
 				  )
 			      (progn
-				    (format k ":formula ")    
-				    (write (kripke-formula *PROPS*) :stream k :escape nil :case :downcase)
+				    (format k ":formula ")
+				    (let ((*print-pretty* nil))
+					  (write (kripke-formula *PROPS*) :stream k :escape nil :case :downcase))
 				    (format k ")")
 				    ))))
 		  ;; (if (not (null ipc-constraints))
