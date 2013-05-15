@@ -888,7 +888,7 @@
                 (call *PROPS* (second fma) (1+ i)))
 
 
-;semantic changes for finite word metric operators
+		;semantic changes for finite word metric operators
 		((futr)		;works only for finite words
                 (call *PROPS* (second fma) (+ i (third fma))))	
 				
@@ -1065,12 +1065,12 @@
 	    ,(call *PROPS* (second fm) (- i (third fm)))))
    
      ((lasted Zlasted) ;works only for finite words
-      (if (< i t)
+      (if (< i (third fm))
 	   `(and ,@(loop for j from 0 to i collect (call *PROPS* (second fm)  j)))
 	   `(and ,@(loop for j from 0 to (third fm) collect (call *PROPS* (second fm)  (- i j))))))
     
      ((withinp Zwithinp) ;works only for finite words
-      (if (< i t)
+      (if (< i (third fm))
 	   `(or ,@(loop for j from 0 to i collect (call *PROPS* (second fm)  j)))
 	   `(or ,@(loop for j from 0 to (third fm) collect (call *PROPS* (second fm)  (- i j))))))
      
@@ -1094,11 +1094,11 @@
 	    ((past Zpast)
 		(call *PROPS* (second fma) (- i (third fma))))
 	    ((lasted Zlasted) 
-		(if (< i t)
+		(if (< i (third fma))
 	   		`(and ,@(loop for j from 0 to i collect (call *PROPS* (second fma)  j)))
 	   		`(and ,@(loop for j from 0 to (third fma) collect (call *PROPS* (second fma)  (- i j))))))
 	    ((withinp Zwithinp)
-		(if (< i t)
+		(if (< i (third fma))
 	  	 	`(or ,@(loop for j from 0 to i collect (call *PROPS* (second fma)  j)))
 	  	 	`(or ,@(loop for j from 0 to (third fma) collect (call *PROPS* (second fma)  (- i j))))))
 
@@ -1581,39 +1581,7 @@
 
 
 
-			  (list `(iff (= ,(call *PROPS* key `(- ,(the-iloop) ,(float 1))) ,bound) (= ,(call *PROPS* key (kripke-k *PROPS*)) ,(float bound))))
-			  (list `(iff (> ,(call *PROPS* key `(- ,(the-iloop) ,(float 1))) ,bound) (> ,(call *PROPS* key (kripke-k *PROPS*)) ,(float bound))))	    
-
-			  ; Build tyhe periodicity of regions between (i_loop) and K+1
-			  (loop for i from 0 to (1- bound) append
-			   	`(
-			  	       (iff (= ,(call *PROPS* key (the-iloop)) ,(float i)) (= ,(call *PROPS* key (1+(kripke-k *PROPS*))) ,(float i)))
-			   	       (iff (and
-			   			  (< ,(float i) ,(call *PROPS* key (the-iloop))) 
-			   			  (< ,(call *PROPS* key (the-iloop)) ,(float (+ i 1))))
-			   		     (and
-			   			   (< ,(float i) ,(call *PROPS* key (1+(kripke-k *PROPS*)))) 
-			   			   (< ,(call *PROPS* key (1+(kripke-k *PROPS*))) ,(float (+ i 1)))))))
-
-			  (list `(iff (= ,(call *PROPS* key (the-iloop)) ,bound) (= ,(call *PROPS* key (1+(kripke-k *PROPS*))) ,(float bound))))
-			  (list `(iff (> ,(call *PROPS* key (the-iloop)) ,bound) (> ,(call *PROPS* key (1+(kripke-k *PROPS*))) ,(float bound))))
-
-
-			  ; define clocks behaviour
-			  (loop for i from 1 to (kripke-k *PROPS*) collect
-				`(or
-				       (= ,(call *PROPS* key (float (1+ i))) ,(float 0))
-				       (= ,(call *PROPS* key (float (1+ i))) (+ ,(call *PROPS* key (float i)) (delta ,(float i))))))))
-	      
-	      ; zot-delta is always positive
-	      (loop for i from 1 to (1+ (kripke-k *PROPS*)) collect
-		    `(> (delta ,(float i)) ,(float 0))))
-	'(true)))
-
-
-
-
-(defun the-big-formula (fma loop-free no-loop periodic-arith-terms gen-symbolic-val ipc-constraints bound)      
+(defun the-big-formula (fma loop-free no-loop periodic-arith-terms gen-symbolic-val ipc-constraints)      
   (cons
    (if (temp-fmlap fma)
        (call *PROPS* (cadr fma) 1)
@@ -1714,11 +1682,13 @@
            (gen-symbolic-val t)
            (ipc-constraints nil)
            (smt-lib :smt)
+	   (smt-metric-futr nil)	;only for finite words i.e no-loot is true
+	   (smt-metric-past nil)	;only for finite words i.e no-loot is true
            )
 
                ;(setf *periodic-arith-vars* periodic-vars)
-  (setf *smt-metric-futr-operators* t)	;only for finite words
-  (setf *smt-metric-past-operators* t)  	;only for finite words
+  (setf *smt-metric-futr-operators* smt-metric-futr)	
+  (setf *smt-metric-past-operators* smt-metric-past)  	
   (if (or (eq logic :QF_UFRDL)(eq logic :QF_UFLRA))
       (setf *real-constants* t))
   (setf *metric-operators* nil)
@@ -1792,29 +1762,6 @@
                 (:QF_AUFLIA
                  (format k ":logic QF_AUFLIA~%")))
 
-				  (let (  (*print-case* :downcase)
-					     (*print-pretty* nil)
-					  (time-domain (if (or (eq logic :QF_UFRDL) (eq logic :QF_UFLRA))
-							   *real*
-							 *int*)))
-					;write all the propositional items
-				    (maphash (lambda (key v)
-						   (format dict "~s -> ~s~%" v key)
-					       (if (consp key) 
-						   (case (car key)
-						     ((until release)
-						      (format k ":extrapreds (( ~s ~a ))~%" v time-domain)
-						      (format k ":extrafuns (( zot-i-eve_~s ~a ))~%" v time-domain))
-						     (t
-						      (if (not (arith-itemp key))
-							  (format k ":extrapreds (( ~s ~a ))~%" v time-domain)))) ;legacy for (-P- a)
-						 (if (member key (kripke-atomic-formulae *PROPS*))
-						     (format k ":extrapreds (( ~s ~a ))~%" v time-domain)				 
-						   (case key
-						     ((**LOOPEX**) (format k ":extrapreds (( ~s ))~%" v))
-						     ((**I_LOOP**) (format k ":extrafuns (( ~s ~a ))~%" v time-domain))				 
-						     (t (format k ":extrapreds (( ~s ~a ))~%" v time-domain))))))
-					     (kripke-list *PROPS*))
 
               (let (  (*print-case* :downcase)
                  (time-domain (if (or (eq logic :QF_UFRDL) (eq logic :QF_UFLRA))
@@ -1864,66 +1811,63 @@
                ;(format k (concatenate 'string ":extrafuns (( ~s " (prn-str (get-item-sig (arith-itemp key))) " ))~%") v)))))
                     (kripke-timed-arith *PROPS*))
 
-				    ;; MR added if to avoid producing the next predicates if ipc constraints are not used
-				    (if (not (null ipc-constraints))
-					(loop for partition in (kripke-related-IPC-vars *PROPS*) do
-					      (loop for term1 in partition do
-						    (loop for term2 in partition do
-							  (format k ":extrafuns (( zot-index-i_~s_~s Int ))~%" term1 term2)
-							  (format k ":extrapreds (( zot-f_~s_~s Int Int Int))~%" term1 term2)
-							  (format k ":extrapreds (( zot-tilde-f_~s_~s Int Int Int))~%" term1 term2)
-							  (format k ":extrapreds (( zot-b_~s_~s Int Int Int ))~%" term1 term2)
-							  (format k ":extrapreds (( zot-tilde-b_~s_~s Int Int Int ))~%" term1 term2)
-							  (format k ":extrapreds (( zot-bigf_~s_~s Int Int Int Int ))~%" term1 term2)
-							  (format k ":extrapreds (( zot-tilde-bigf_~s_~s Int Int Int Int ))~%" term1 term2)
-							  (format k ":extrapreds (( zot-bigb_~s_~s Int Int Int Int ))~%" term1 term2)
-							  (format k ":extrapreds (( zot-tilde-bigb_~s_~s Int Int Int Int ))~%" term1 term2)
-							  (format k ":extrapreds (( zot-tf_~s_~s Int Int ))~%" term1 term2)
-							  (format k ":extrapreds (( zot-tb_~s_~s Int Int ))~%" term1 term2)
-							  (format k ":extrapreds (( zot-exc_~s_~s ))~%" term1 term2))
-						    (format k ":extrapreds (( zot-lf_~s Int ))~%" term1)
-						    (format k ":extrapreds (( zot-lb_~s Int ))~%" term1)
-						    (format k ":extrapreds (( zot-tilde-lf_~s Int ))~%" term1)
-						    (format k ":extrapreds (( zot-tilde-lb_~s Int ))~%" term1))))
-				    
-					
-				    (if (> over-clocks 0)
-					  (format k ":extrafuns (( delta Real Real ))~%"))
 
-				    (if (not (null smt-assumptions))
-					(format k (concatenate 'string ":assumption " smt-assumptions "~%"))))
-				  
-			;MB: hack for Real - deMoura suggested it!
-			(if (or (eq logic :QF_UFRDL) (eq logic :QF_UFLRA))
-			      (progn
-				    (format k ":extrafuns (( zot-barbatrucco Real ))~%")
-				    (format k ":formula (and (< 0.0001 zot-barbatrucco) (< zot-barbatrucco 0.0002)")				    
-				    (write (kripke-formula *PROPS*) :stream k :escape nil :case :downcase)
-				    (format k "))")
-				  )
-			      (progn
-				    (format k ":formula ")
-				    (let ((*print-pretty* nil))
-					  (write (kripke-formula *PROPS*) :stream k :escape nil :case :downcase))
-				    (format k ")")
-				    ))))
-		  ;; (if (not (null ipc-constraints))
-		  ;;     (cond
-		  ;;      ((string-equal (software-type) "Linux")
-		  ;; 	(sb-ext:run-program "sed"
-		  ;; 			    '("-i" "s/int/Int/g" "output.smt.txt")  :input t :output nil :error t :search t :if-output-exists :supersede))
-		  ;;      ((string-equal (software-type) "Darwin")
-		  ;; 	(sb-ext:run-program "sed"
-		  ;; 			    '("-i.bak" "s/int/Int/g"  "output.smt.txt")  :input t :output nil :error t :search t :if-output-exists :supersede))
-		  ;;      ((string-equal (software-type) "Win" :end1 3)
-		  ;; 	(sb-ext:run-program "sed"
-		  ;; 			    '("-i" "s/int/Int/g" "output.smt.txt")  :input t :output nil :error t :search t :if-output-exists :supersede))
-		  ;;      (t
-		  ;; 	(progn
-		  ;; 	  (format t "~%Type of system unknown, using Unix sed syntax~%")
-		  ;; 	  (sb-ext:run-program "sed"
-		  ;; 			      '("-i" "s/int/Int/g" "output.smt.txt")  :input t :output nil :error t :search t :if-output-exists :supersede)))))
-			  
+                ;; MR added if to avoid producing the next predicates if ipc constraints are not used
+                (if (not (null ipc-constraints))
+               (loop for partition in (kripke-related-IPC-vars *PROPS*) do
+                     (loop for term1 in partition do
+                      (loop for term2 in partition do
+                       (format k ":extrafuns (( zot-index-i_~s_~s Int ))~%" term1 term2)
+                       (format k ":extrapreds (( zot-f_~s_~s Int Int Int))~%" term1 term2)
+                       (format k ":extrapreds (( zot-tilde-f_~s_~s Int Int Int))~%" term1 term2)
+                       (format k ":extrapreds (( zot-b_~s_~s Int Int Int ))~%" term1 term2)
+                       (format k ":extrapreds (( zot-tilde-b_~s_~s Int Int Int ))~%" term1 term2)
+                       (format k ":extrapreds (( zot-bigf_~s_~s Int Int Int Int ))~%" term1 term2)
+                       (format k ":extrapreds (( zot-tilde-bigf_~s_~s Int Int Int Int ))~%" term1 term2)
+                       (format k ":extrapreds (( zot-bigb_~s_~s Int Int Int Int ))~%" term1 term2)
+                       (format k ":extrapreds (( zot-tilde-bigb_~s_~s Int Int Int Int ))~%" term1 term2)
+                       (format k ":extrapreds (( zot-tf_~s_~s Int Int ))~%" term1 term2)
+                       (format k ":extrapreds (( zot-tb_~s_~s Int Int ))~%" term1 term2)
+                       (format k ":extrapreds (( zot-exc_~s_~s ))~%" term1 term2))
+                      (format k ":extrapreds (( zot-lf_~s Int ))~%" term1)
+                      (format k ":extrapreds (( zot-lb_~s Int ))~%" term1)
+                      (format k ":extrapreds (( zot-tilde-lf_~s Int ))~%" term1)
+                      (format k ":extrapreds (( zot-tilde-lb_~s Int ))~%" term1))))
+                
+               
+                (if (not (null smt-assumptions))
+               (format k (concatenate 'string ":assumption " smt-assumptions "~%"))))
+              
+         ;MB: hack for Real - deMoura suggested it!
+         (if (or (eq logic :QF_UFRDL) (eq logic :QF_UFLRA))
+               (progn
+                (format k ":extrafuns (( zot-barbatrucco Real ))~%")
+                (format k ":formula (and (< 0.0001 zot-barbatrucco) (< zot-barbatrucco 0.0002)")                
+                (write (kripke-formula *PROPS*) :stream k :escape nil :case :downcase)
+                (format k "))")
+              )
+               (progn
+                (format k ":formula ")    
+                (write (kripke-formula *PROPS*) :stream k :escape nil :case :downcase)
+                (format k ")")
+                )))
+        ;; (if (not (null ipc-constraints))
+        ;;     (cond
+        ;;      ((string-equal (software-type) "Linux")
+        ;; 	(sb-ext:run-program "sed"
+        ;; 			    '("-i" "s/int/Int/g" "output.smt.txt")  :input t :output nil :error t :search t :if-output-exists :supersede))
+        ;;      ((string-equal (software-type) "Darwin")
+        ;; 	(sb-ext:run-program "sed"
+        ;; 			    '("-i.bak" "s/int/Int/g"  "output.smt.txt")  :input t :output nil :error t :search t :if-output-exists :supersede))
+        ;;      ((string-equal (software-type) "Win" :end1 3)
+        ;; 	(sb-ext:run-program "sed"
+        ;; 			    '("-i" "s/int/Int/g" "output.smt.txt")  :input t :output nil :error t :search t :if-output-exists :supersede))
+        ;;      (t
+        ;; 	(progn
+        ;; 	  (format t "~%Type of system unknown, using Unix sed syntax~%")
+        ;; 	  (sb-ext:run-program "sed"
+        ;; 			      '("-i" "s/int/Int/g" "output.smt.txt")  :input t :output nil :error t :search t :if-output-exists :supersede)))))
+           
 
         (to-smt-and-back *PROPS* smt-solver)
         
