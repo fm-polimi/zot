@@ -94,23 +94,28 @@
 
 (declaim (inline predicatep))
 
+(defun CLTL-formulap (f)		
+	  (and (consp f)		
+	   (in (car f) '(next zeta yesterday futr past Zpast))))		
+			
+	(declaim (inline CLTL-formulap))
 
 (defun LTL-formulap (f) 
   (and (consp f)        
-	(in (car f) '(not and or iff next until release since trigger zeta yesterday))))
+	(in (car f) '(not and or iff next until release since trigger zeta yesterday futr lasts withinf past Zpast lasted Zlasted withinp Zwithinp))))
 
 (declaim (inline LTL-formulap))
 
 
 (defun arith-cop (f) 
   (and (consp f) 
-       (in (car f) '(< > = <= >= mod))))
+       (in (car f) '(< > = <= >= ))))
 
 (declaim (inline arith-cop))
 
 (defun arith-opp (f) 
   (and (consp f) 
-       (in (car f) '(+ - * /))))
+       (in (car f) '(+ - * / mod))))
 
 (declaim (inline arith-opp))
 
@@ -183,12 +188,23 @@
 				     (cdr a)))))
 	    ((iff) (list 'iff (deneg `(not ,(second a))) (third a)))
 	    ((next) `(next ,(deneg `(not ,(second a)))))
+
+	    ((futr) `(futr ,(deneg `(not ,(second a))) ,(third a))) 
+	    ((withinf) `(lasts ,(deneg `(not ,(second a))) ,(third a)))		
+	    ((lasts) `(withinf ,(deneg `(not ,(second a))) ,(third a)))
+
 	    ((until) 
 	     `(release ,(deneg `(not ,(second a))) ,(deneg `(not ,(third a)))))
 	    ((release) 
 	     `(until ,(deneg `(not ,(second a))) ,(deneg `(not ,(third a)))))
 	    ((yesterday) `(zeta ,(deneg `(not ,(second a)))))
 	    ((zeta) `(yesterday ,(deneg `(not ,(second a)))))
+
+	    ((past) `(Zpast ,(deneg `(not ,(second a))) ,(third a)))
+	    ((Zpast) `(past ,(deneg `(not ,(second a))) ,(third a)))		
+	    ((withinp) `(lasted ,(deneg `(not ,(second a))) ,(third a)))		
+	    ((lasted) `(withinp ,(deneg `(not ,(second a))) ,(third a)))
+
 	    ((since) 
 	     `(trigger ,(deneg `(not ,(second a))) ,(deneg `(not ,(third a)))))	     
 	    ((trigger) 
@@ -366,7 +382,7 @@
 								((string= tp "Real") (setf (gethash fm (kripke-timed-arith a-kripke)) fm))
 								(t (error "1. I'm parsing a terms but I found a type inconsistency of non arithmetical ~S: ~s inside an atomic LTL formula! ~%" fm tp)))
 					; if fm is a term Xt or Yt
-							  (if (and (consp fm) (null sig))					
+							  (if (and (consp fm) (null sig) (CLTL-formulap fm))			       
 								(setf (gethash fm (kripke-timed-arith a-kripke)) 
 								      (intern (format nil "ZOT-A~s" (incf (kripke-numvar a-kripke)))))
 					; otherwise fm is a predicate defined by (-P-)
@@ -464,9 +480,9 @@
 					  (progn
 						(push fm (kripke-atomic-formulae a-kripke))
 						(push fm (kripke-IPC-constraints a-kripke))))
-				    ((next until release) 
+				    ((next until release futr lasts withinf) 
 					  (push fm (kripke-futr a-kripke)))
-				    ((yesterday zeta since trigger)
+				    ((yesterday zeta since trigger past Zpast lasted Zlasted withinp Zwithinp)
 					  (push fm (kripke-past a-kripke)))
 				    (t
 					  (error "subformulae: unknown op ~S~%" fm))))) 
@@ -486,9 +502,9 @@
 
 					; otherwise fm is a term Xy/Xy or ({+,-,*,/,mod} A B)
 			      (case (car fm)
-				    ((next) 
+				    ((next futr lasts withinf) 
 					  (push fm (kripke-arith-futr a-kripke)))
-				    ((yesterday)
+				    ((yesterday past Zpast lasted Zlasted withinp Zwithinp)
 					  (push fm (kripke-arith-past a-kripke)))
 				    ((+ - * / mod)
 					  (push fm (kripke-timed-arith-terms a-kripke)))
@@ -508,9 +524,9 @@
 
 					; otherwise fm is a term Xy/Xy or ({+,-,*,/,mod} A B)
 			      (case (car fm)
-				    ;; ((next) 
+				    ;; ((next futr lasts withinf) 
 				    ;; 	  (push fm (kripke-arith-futr a-kripke)))
-				    ;; ((yesterday)
+				    ;; ((yesterday past Zpast lasted Zlasted withinp Zwithinp)
 				    ;; 	  (push fm (kripke-arith-past a-kripke)))
 				    ((+ - * / mod)
 					  (push fm (kripke-untimed-arith-terms a-kripke)))
@@ -864,6 +880,15 @@
 			      ((next)
 				    (call *PROPS* (second fma) (1+ i)))
 			      
+			      ((futr)
+			            (call *PROPS* (second fma) (+ i (third fma))))		
+	
+			      ((lasts)
+			           `(and ,@(loop for j from 1 to (third fma) collect (call *PROPS* (second fma) (+ i j)))))		
+
+			      ((withinf)	
+			           `(or ,@(loop for j from 1 to (third fma) collect (call *PROPS* (second fma) (+ i j)))))
+
 			      ((until)
 				    `(or ,(call *PROPS* (third fma) i)
 					   (and ,(call *PROPS* (second fma) i)
@@ -882,6 +907,14 @@
 		  (list '=  
 			(call *PROPS* fma i)  
 			(case (car fma)
+
+			  ((futr)		
+			   (call *PROPS* (second fma) (+ i (third fma)) i))		
+			  ((lasts)		
+			   `(and ,@(loop for j from 1 to (third fma) collect (call *PROPS* (second fma) (+ i j)))))		
+			  ((withinf)		
+			   `(or ,@(loop for j from 1 to (third fma) collect (call *PROPS* (second fma) (+ i j)))))
+
 			      ((next)
 				    (call *PROPS* (second fma) (1+ i) i)))))))
   
@@ -971,6 +1004,25 @@
 	  ((since trigger)
 	   `(iff ,(call *PROPS* fm 0)
 		 ,(call *PROPS* (third fm) 0)))
+
+	  ((past)
+	   `(not ,(call *PROPS* fm 0)))		
+
+	  ((Zpast)
+	   (call *PROPS* fm 0))		
+
+	  ((lasted)		
+	   `(not ,(call *PROPS* fm 0)))		
+
+	  ((Zlasted)		
+	   (call *PROPS* fm 0))		
+			
+	  ((withinp)
+	   `(not ,(call *PROPS* fm 0)))		
+
+	  ((Zwithinp)
+	   (call *PROPS* fm 0))
+
 	  ((yesterday)
 	   `(not ,(call *PROPS* fm 0)))
 	  ((zeta)
@@ -993,6 +1045,21 @@
 		       (and ,(call *PROPS* (third fm) i)
 			    (or ,(call *PROPS* (second fm) i)
 				,(call *PROPS* fm (1- i))))))
+
+		((past Zpast)
+		 `(iff ,(call *PROPS* fm i)		
+		       ,(call *PROPS* (second fm) (- i (third fm)))))		
+			
+		((lasted Zlasted)
+		 (if (< i (third fm))		
+		     `(and ,@(loop for j from 0 to i collect (call *PROPS* (second fm)  j)))		
+		     `(and ,@(loop for j from 0 to (third fm) collect (call *PROPS* (second fm)  (- i j))))))		
+			
+		((withinp Zwithinp)
+		 (if (< i (third fm))		
+		     `(or ,@(loop for j from 0 to i collect (call *PROPS* (second fm)  j)))		
+		     `(or ,@(loop for j from 0 to (third fm) collect (call *PROPS* (second fm)  (- i j))))))
+
 		((zeta yesterday)
 		 `(iff ,(call *PROPS* fm i)
 		       ,(call *PROPS* (second fm) (1- i))))))))
@@ -1006,6 +1073,20 @@
 	      (list '=  
 		    (call *PROPS* fma i)  
 		    (case (car fma)
+
+		      ((past Zpast)		
+		       (call *PROPS* (second fma) (- i (third fma))))		
+
+		      ((lasted Zlasted)		
+		       (if (< i (third fma))		
+			   `(and ,@(loop for j from 0 to i collect (call *PROPS* (second fma)  j)))		
+			   `(and ,@(loop for j from 0 to (third fma) collect (call *PROPS* (second fma)  (- i j))))))
+	
+		      ((withinp Zwithinp)		
+		       (if (< i (third fma))		
+			   `(or ,@(loop for j from 0 to i collect (call *PROPS* (second fma)  j)))		
+			   `(or ,@(loop for j from 0 to (third fma) collect (call *PROPS* (second fma)  (- i j))))))
+
 		      ((zeta yesterday)
 		       (call *PROPS* (second fma) (1- i))))))))
 
@@ -1637,11 +1718,13 @@
 		     (ipc-constraints nil)
 		     (smt-lib :smt)
 		     (over-clocks 0)
+		     (smt-metric-futr nil)	;only for finite words i.e no-loop is true
+		     (smt-metric-past nil)	;only for finite words i.e no-loop is true
 		     )
 
 					;(setf *periodic-arith-vars* periodic-vars)
-  (setf *smt-metric-futr-operators* nil)
-  (setf *smt-metric-past-operators* nil)
+  (setf *smt-metric-futr-operators* smt-metric-futr)
+  (setf *smt-metric-past-operators* smt-metric-past)
   (if (or (eq logic :QF_UFRDL)(eq logic :QF_UFLRA))
       (setf *real-constants* t))
   (setf *metric-operators* nil)
@@ -1759,7 +1842,7 @@
 				    (maphash (lambda (key v) 
 					       (if (consp key)
 						   (case (car key)
-						     ((next yesterday)
+						     ((next yesterday zeta futr past Zpast)
 						      (format k ":extrafuns (( ~s ~a ~a ))~%" v time-domain time-domain))
 						     ((+ - * / mod)
 						      (format k ":extrafuns (( ~s ~a ~a ))~%" v time-domain time-domain))) ))
