@@ -5,10 +5,13 @@
 	:trio-utils)
   (:export :-C-
 	   :-D-
+	   :-AVG-
+	   :-M-
 	   :counting
 	   :pairwise
 	   :*counter-constraints*
 	   :bound
+	   :infinite-count
 	   :finite
 	   :infinite))
 
@@ -17,10 +20,14 @@
 
 
 ;counter countraints
-(defvar *counter-constraints* t)
+;(defvar *counter-constraints* t)
+(defvar *counter-constraints* '(and))
 
 ;finite or infinite flag
 (defvar *finite* nil)
+
+;finite or infinite counter flag
+(defvar *finite-count* t)
 
 ;time bound for the formulas (only for finite words)
 (defvar *time* 0)
@@ -33,15 +40,25 @@
 	(setq *finite* nil)
 )
 
+(defun infinite-count ()
+	(setq *finite-count* nil)
+)
+
 (defun bound (time)
 	(setq *time* time)
 )
 
 
+;(defun add-counter-constraint (constraint)
+;	(if *counter-constraints*
+;		(setf *counter-constraints* `(and ,*counter-constraints* ,constraint))
+;		(setf *counter-constraints* constraint)))
+
 (defun add-counter-constraint (constraint)
-	(if *counter-constraints*
-		(setf *counter-constraints* `(and ,*counter-constraints* ,constraint))
-		(setf *counter-constraints* constraint)))
+	(setf *counter-constraints* (append *counter-constraints* `(,constraint))))
+
+
+
 
 (defun check-counter (c)
 	(gethash c *arith-items*))
@@ -100,25 +117,40 @@
 
 (defun build-c-constraint (name formula K)
 	(define-dynamic-tvar name *int*)
-	`(and
-		(= ,name 0)
-		(alwf 	(impl
-				(and ,(pred "e") ,formula)
-				(= (next ,name) (mod (+  ,name 1) ,(+ K 1)))
+	(if *finite-count*
+	    `(and
+	      (= ,name 0)
+	      (alwf 	(impl
+			 (and ,(pred "e") ,formula)
+			 (= (next ,name) (mod (+  ,name 1) ,(+ K 1)))
+			 )
 			)
-		)
-		(alwf 	(impl
-				(or (not ,(pred "e")) (not ,formula))
-				(= (next ,name)  ,name)
+	      (alwf 	(impl
+			 (or (not ,(pred "e")) (not ,formula))
+			 (= (next ,name)  ,name)
+			 )
 			)
-		)
+	      )
+	     `(and
+	      (= ,name 0)
+	      (alwf 	(impl
+			 (and ,(pred "e") ,formula)
+			 (= (next ,name) (+  ,name 1))
+			 )
+			)
+	      (alwf 	(impl
+			 (or (not ,(pred "e")) (not ,formula))
+			 (= (next ,name)  ,name)
+			 )
+			)
+	      )
 	)
+
 )
-
-
 
 (defun build-c-constraint-finite (name formula K)
 	(define-dynamic-tvar name *int*)
+	(if *finite-count*
 	`(and
 		(= ,name 0)
 		(lasts_ie 	(impl
@@ -134,6 +166,22 @@
 				,*time*
 		)
 	)
+	`(and
+		(= ,name 0)
+		(lasts_ie 	(impl
+					(and ,(pred "e") ,formula)
+					(= (next ,name) (+  ,name 1))
+				)
+				,*time*
+		)
+		(lasts_ie 	(impl
+					(or (not ,(pred "e")) (not ,formula))
+					(= (next ,name)  ,name)
+				)
+				,*time*
+		)
+	)
+       )
 )
 
 
@@ -141,18 +189,24 @@
 (defun counting (Kp comp n P K)
 	(let ((name (nameconcat "C" "_" P)))
 			(if (check-counter name)
+			    (if *finite-count*
 				(W1Count K Kp name n comp)
-				(progn 	
-					(add-counter-constraint (if *finite*
-									(build-c-constraint-finite name P K)
-									(build-c-constraint name P K)
-								)
-					)
-					(W1Count K Kp name n comp)
-				)
+				`(,comp (-  (next ,name) (past  ,name ,(- Kp 1))) ,n)
+			    )
+			    (progn 	
+			      (add-counter-constraint
+			       (if *finite*
+				   (build-c-constraint-finite name P K)
+				   (build-c-constraint name P K)
+			       )
+			      )
+			      (if *finite-count*
+				(W1Count K Kp name n comp)
+				`(,comp (-  (next ,name) (past  ,name ,(- Kp 1))) ,n)
+			      )
+			    )
 			)
 	)
-
 )
 
 ;=============================
@@ -271,14 +325,20 @@
 (defun build-d-formula (K Kp C H A S B comp treshold)
 	
 		(if-then-else `(= (past ,C ,(- Kp 1))  1)
-				(if-then-else `(= (next ,C)  1)
-					(build-case A B H H K (floor K 2) Kp 1 comp treshold)	
-					(build-case S B H H K (floor K 2) Kp 1 comp treshold)
-				)
-					(build-case A A H H K (floor K 2) Kp 0 comp treshold)
+			      (if *finite-count*
+				  (build-case A B H H K (floor K 2) Kp 1 comp treshold)
+				  `(,comp (- (next ,A) (past ,B ,(- Kp 1))) (* ,treshold (- (- (next ,H) (past ,H ,(- Kp 1))) 1)))
+			      )
+			      (if *finite-count*
+				  (build-case A A H H K (floor K 2) Kp 0 comp treshold)
+				  `(,comp (- (next ,A) (past ,A ,(- Kp 1))) (* ,treshold (- (next ,H) (past ,H ,(- Kp 1))) ))
+			      )
 		)
 	
 )
+
+
+
 
 (defun build-d-constraint (C H A S B formula1 formula2 K)
 	(define-dynamic-tvar C *int*)
@@ -296,12 +356,10 @@
 					(and ,(pred "e") ,formula1)
 					(and
 						(= (next ,C)  1)
-
-						;(impl (= ,S ,K) (= (next ,S) 0))			; for reals
-						;(impl (not (= ,S ,K)) (= (next ,S) (+  ,S 1)))		; for reals
-
-						(= (next ,S) (mod (+  ,S 1) ,(+ K 1)))
- 	
+						,(if *finite-count*
+						     `(= (next ,S) (mod (+  ,S 1) ,(+ K 1)))
+						     `(= (next ,S) (+  ,S 1))
+						 )
 						(= (next ,H)  ,H)
 						(= (next ,A)  ,A)
 					)
@@ -312,12 +370,10 @@
 					(and ,(pred "e") ,formula2)
 					(and
 						(= (next ,C)  0)
-
-						;(impl (= ,H ,(floor K 2)) (= (next ,H) 0))			; for reals
-						;(impl (not (= ,H ,(floor K 2))) (= (next ,H) (+  ,H 1)))	; for reals
-						
-						(= (next ,H) (mod (+  ,H 1) ,(+ (floor K 2) 1)))
-
+						,(if *finite-count*
+						     `(= (next ,H) (mod (+  ,H 1) ,(+ (floor K 2) 1)))
+						     `(= (next ,H) (+  ,H 1))
+						)
 						(= (next ,A)  ,S)
 						(= (next ,S)  ,S)
 						(= ,B ,S)
@@ -333,24 +389,12 @@
 						(= (next ,C)  ,C)
 						(= (next ,H)  ,H)
 						(= (next ,A)  ,A)
-
-						;(impl			; for reals
-						;	(and
-						;		(= ,C  1)
-						;		(= ,S ,K)
-						;	)
-						;	(= (next ,S) 0)
-						;)
-						;(impl
-						;	(and
-						;		(= ,C  1)
-						;		(not (= ,S ,K))
-						;	)
-						;	(= (next ,S) (+  ,S 1))
-						;)
 						(impl
 							(= ,C  1)
-							(= (next ,S) (mod (+  ,S 1) ,(+ K 1)))
+							,(if *finite-count*
+							     `(= (next ,S) (mod (+  ,S 1) ,(+ K 1)))
+							     `(= (next ,S) (+  ,S 1))
+							 )
 						)
 
 						(impl
@@ -384,12 +428,10 @@
 					(and ,(pred "e") ,formula1)
 					(and
 						(= (next ,C)  1)
-
-						;(impl (= ,S ,K) (= (next ,S) 0))			; for reals
-						;(impl (not (= ,S ,K)) (= (next ,S) (+  ,S 1)))		; for reals
-
-						(= (next ,S) (mod (+  ,S 1) ,(+ K 1)))
- 	
+						,(if *finite-count*
+						     `(= (next ,S) (mod (+  ,S 1) ,(+ K 1)))
+						     `(= (next ,S) (+  ,S 1))
+						 )					    	
 						(= (next ,H)  ,H)
 						(= (next ,A)  ,A)
 					)
@@ -399,13 +441,11 @@
 		(lasts_ie 	(impl 
 					(and ,(pred "e") ,formula2)
 					(and
-						(= (next ,C)  0)
-
-						;(impl (= ,H ,(floor K 2)) (= (next ,H) 0))			; for reals
-						;(impl (not (= ,H ,(floor K 2))) (= (next ,H) (+  ,H 1)))	; for reals
-						
-						(= (next ,H) (mod (+  ,H 1) ,(+ (floor K 2) 1)))
-
+						(= (next ,C)  0)						
+						,(if *finite-count*
+						     `(= (next ,H) (mod (+  ,H 1) ,(+ (floor K 2) 1)))
+						     `(= (next ,H) (+  ,H 1))
+						)
 						(= (next ,A)  ,S)
 						(= (next ,S)  ,S)
 						(= ,B ,S)
@@ -421,24 +461,12 @@
 						(= (next ,C)  ,C)
 						(= (next ,H)  ,H)
 						(= (next ,A)  ,A)
-
-						;(impl			; for reals
-						;	(and
-						;		(= ,C  1)
-						;		(= ,S ,K)
-						;	)
-						;	(= (next ,S) 0)
-						;)
-						;(impl
-						;	(and
-						;		(= ,C  1)
-						;		(not (= ,S ,K))
-						;	)
-						;	(= (next ,S) (+  ,S 1))
-						;)
 						(impl
 							(= ,C  1)
-							(= (next ,S) (mod (+  ,S 1) ,(+ K 1)))
+							,(if *finite-count*
+							     `(= (next ,S) (mod (+  ,S 1) ,(+ K 1)))
+							     `(= (next ,S) (+  ,S 1))
+							 )
 						)
 
 						(impl
