@@ -1,4 +1,4 @@
-;; ae2ZOT: a bounded satisfiability checker with past operators
+;; solzot: a bounded satisfiability checker with past operators
 ;; --Matteo Pradella, 20061208
 ;; --Marcello M. Bersani
 ;; v. 20070122
@@ -43,12 +43,31 @@
 
 (in-package :cl-user)
 
-(defpackage :ae2zot
+(defpackage :solzot
   (:use :common-lisp 
 	:trio-utils
 	:smt-interface
 	:kripke)
   (:export :zot
+	   :finite
+	   :infinite
+	   :infinite-count
+	   :bound
+	   :add-counter-constraint
+	   :check-counter
+	   :define-dynamic-tvar
+	   :nameconcat
+	   :create-c-counter
+	   :create-c
+	   :create-h
+	   :create-s
+	   :create-a
+	   :create-b
+	   :get-delta
+	   :*time*
+	   :*finite*
+	   :*finite-count*
+	   :*counter-constraints*
 	   :loopex
 	   :yices
 	   :cvc3
@@ -61,14 +80,102 @@
 	   :QF_UFLRA
 	   :smt
 	   :smt2
+	   :smt-assumptions
 	   :no-loop
 	   :with-time)) 
 
 
-(in-package :ae2zot) 
+(in-package :solzot) 
 
 ;(declaim (optimize (speed 3)(space 1)(safety 0)(debug 0)))
  
+
+
+;counter countraints
+;(defvar *counter-constraints* t)
+(defvar *counter-constraints* '(and))
+
+;finite or infinite flag
+(defvar *finite* nil)
+
+;finite or infinite counter flag
+(defvar *finite-count* t)
+
+;time bound for the formulas (only for finite words)
+(defvar *time* 0)
+
+(defun finite ()
+	(setq *finite* t)
+)
+
+(defun infinite ()
+	(setq *finite* nil)
+)
+
+(defun infinite-count ()
+	(setq *finite-count* nil)
+)
+
+(defun bound (time)
+	(setq *time* time)
+)
+
+
+(defun add-counter-constraint (constraint)
+	(setf *counter-constraints* (append *counter-constraints* `(,constraint))))
+
+(defun check-counter (c)
+	(gethash c *arith-items*))
+
+
+(defun define-dynamic-tvar (varname &rest domain) 
+  (setf (gethash (intern (symbol-name varname)) *arith-items*) 
+	(list 'timed domain)))
+
+(defun if-then-else (A B C)
+	"Converts the if-then-else exp to logical formula"
+	`(or (and ,A ,B) (and (not ,A) ,C)))
+
+
+(defun nameconcat (&rest args)
+  (with-input-from-string (z (reduce (lambda (x y)
+				       (concatenate 'string x y)) 
+				     (mapcar (lambda (x)
+					       (cond 
+						 ((or (numberp x)(symbolp x))
+						  (format nil "~S" x))
+						 (t x)))
+					     args)))
+    (read z)))
+
+(defun create-c-counter (P)
+(nameconcat "C" "_" P)
+)
+
+(defun create-c (P Q)
+(nameconcat "C" "_" P "_" Q)
+)
+
+(defun create-h (P Q)
+(nameconcat "H" "_" P "_" Q)
+)
+
+(defun create-s (P Q)
+(nameconcat "S" "_" P "_" Q)
+)
+
+(defun create-a (P Q)
+(nameconcat "A" "_" P "_" Q)
+)
+
+(defun create-b (P Q)
+(nameconcat "B" "_" P "_" Q)
+)
+
+
+(defun get-delta ()
+  `delta
+)
 
 
 (defvar *real-constants* nil)
@@ -87,9 +194,8 @@
 (defun predicatep (f) 
   (and (consp f) 
        (not 
-	     (in (car f) '(tempus not and or iff next until release since trigger zeta yesterday < > = <= >=)))))
+	     (in (car f) '(tempus not and or iff next until until-sol release release-sol since trigger since-sol trigger-sol zeta yesterday < > = <= >=)))))
 		
-	   
 
 (declaim (inline predicatep))
 
@@ -101,7 +207,7 @@
 
 (defun LTL-formulap (f) 
   (and (consp f)        
-	(in (car f) '(not and or iff next until release since trigger zeta yesterday futr lasts withinf past Zpast lasted Zlasted withinp Zwithinp))))
+	(in (car f) '(not and or iff next until release since trigger zeta yesterday futr lasts withinf past Zpast lasted Zlasted withinp Zwithinp until-sol release-sol since-sol trigger-sol))))
 
 (declaim (inline LTL-formulap))
 
@@ -165,17 +271,37 @@
 (defun deneg (f)
   "deneg pushes negations to propositions"
   (declare (optimize (debug 0)(safety 0)(speed 3)))
+
   (cond     
     ((null f) 'false)
     ((eq f t) 'true)   
-    ((or (symbolp f) (stringp f) (integerp f) (predicatep f) (arith-cop f) (arith-opp f)) f)
+    ((or (symbolp f) (stringp f) (integerp f) (predicatep f) (delta-incp f) (arith-cop f) (arith-opp f)) f)
     ((eq (car f) 'not)
      (let ((a (second f)))
        (cond 
 	 ((eq a t) 'false)
 	 ((null a) 'true)	 
 	 ;((or (symbolp a) (stringp a) (integerp a) (predicatep a) (arith-cop a) (arith-opp a)) f)
-	 ((or (symbolp a) (stringp a) (integerp a) (predicatep a)  (arith-opp a)) f)
+	  ((countp a) 
+	     (case (third a)
+	       ((=) `(counting ,(second a) != ,(fourth a) ,(fifth a) ,(sixth a)))
+	       ((!=) `(counting ,(second a) = ,(fourth a) ,(fifth a) ,(sixth a)))
+	       ((>) `(counting ,(second a) <= ,(fourth a) ,(fifth a) ,(sixth a)))
+	       ((>=) `(counting ,(second a) < ,(fourth a) ,(fifth a) ,(sixth a)))
+	       ((<) `(counting ,(second a) >= ,(fourth a) ,(fifth a) ,(sixth a)))
+	       ((<=) `(counting ,(second a) > ,(fourth a) ,(fifth a) ,(sixth a)))
+	       )
+	  )
+	   ((pairwisep a)
+	     (case (third a)
+	       ((=) `(pairwise ,(second a) != ,(fourth a) ,(fifth a) ,(sixth a)))
+	       ((!=) `(pairwise ,(second a) = ,(fourth a) ,(fifth a) ,(sixth a)))
+	       ((>) `(pairwise ,(second a) <= ,(fourth a) ,(fifth a) ,(sixth a)))
+	       ((>=) `(pairwise ,(second a) < ,(fourth a) ,(fifth a) ,(sixth a)))
+	       ((<) `(pairwise ,(second a) >= ,(fourth a) ,(fifth a) ,(sixth a)))
+	       ((<=) `(pairwise ,(second a) > ,(fourth a) ,(fifth a) ,(sixth a)))
+	       ))
+	 ((or (symbolp a) (stringp a) (integerp a) (predicatep a) (delta-incp a) (arith-opp a)) f)
 	 (t 
 	  (case (car a)
 	    ((not) (deneg (second a)))
@@ -196,6 +322,17 @@
 	     `(release ,(deneg `(not ,(second a))) ,(deneg `(not ,(third a)))))
 	    ((release) 
 	     `(until ,(deneg `(not ,(second a))) ,(deneg `(not ,(third a)))))
+
+	    ((until-sol) 
+	     `(release-sol ,(deneg `(not ,(second a))) ,(deneg `(not ,(third a))) (fourth a) (fifth a) ))
+	    ((release-sol) 
+	     `(until-sol ,(deneg `(not ,(second a))) ,(deneg `(not ,(third a))) (fourth a) (fifth a) ))
+
+	    ((since-sol) 
+	     `(trigger-sol ,(deneg `(not ,(second a))) ,(deneg `(not ,(third a))) (fourth a) (fifth a) ))
+	    ((trigger-sol) 
+	     `(since-sol ,(deneg `(not ,(second a))) ,(deneg `(not ,(third a))) (fourth a) (fifth a) ))
+	    
 	    ((yesterday) `(zeta ,(deneg `(not ,(second a)))))
 	    ((zeta) `(yesterday ,(deneg `(not ,(second a)))))
 
@@ -226,9 +363,6 @@
             
 	    ((=)
 	     `(or (< ,(second a) ,(third a)) (> ,(second a) ,(third a))))
-
-
-
 	    (t (error "deneg: bad arg ~S" (cons f a)))))))) 
 
     ((and (consp f) (eq (car f) 'and) (null (cdr f))) 'true)
@@ -286,7 +420,7 @@
 (defvar *PROPS* nil) ; this will contain a Kripke
 
 
-(defclass ae2zot-kripke (kripke) 
+(defclass solzot-kripke (kripke) 
       ((the-arith :accessor kripke-arith :type list) ;all arithmetic formulae
 	    (the-timed-arith :accessor kripke-timed-arith :type hash-table) ;just arithmetic formulae inside with-time
 	    (the-timed-arith-terms :accessor kripke-timed-arith-terms :type list) ;
@@ -304,11 +438,13 @@
 	    (the-max-X :accessor kripke-max-X :type number)
 	    (the-max-Y :accessor kripke-max-Y :type number)
 	    (the-additional-timed-arith-terms :accessor kripke-additional-timed-arith-terms :type list)
+            (the-kripke-counting-mods :accessor kripke-counting-mods :type list)
+            (the-kripke-pairwise-mods :accessor kripke-pairwise-mods :type list)
 	    ))
 
 
 (defun make-kripke (k fma)
-      (let ((a-kripke (make-instance 'ae2zot-kripke)))
+      (let ((a-kripke (make-instance 'solzot-kripke)))
 	    (setf 
 		  (kripke-k a-kripke)      k
 		  (kripke-numvar a-kripke) 0
@@ -336,6 +472,8 @@
 		  (kripke-max-X a-kripke) 0
 		  (kripke-max-Y a-kripke) 0
 		  (kripke-additional-timed-arith-terms a-kripke) nil
+		  (kripke-counting-mods a-kripke) nil
+		  (kripke-pairwise-mods a-kripke) nil
 		  )   
     
       (setf (gethash '**I_LOOP** (kripke-list a-kripke))
@@ -367,7 +505,7 @@
 					(remove-duplicates (push fm (kripke-constants a-kripke)))
 
 					; 2-ary (interpreted) FUNCTION of LIA {+, -, *, /} 
-					(if (arith-opp fm) 
+					(if (or (arith-opp fm) (delta-incp fm)) 
 					      (setf (gethash fm (kripke-timed-arith a-kripke)) 
 						    (intern (format nil "ZOT-A~s" (incf (kripke-numvar a-kripke)))))
 
@@ -404,6 +542,11 @@
 
 					; fm is a (interpreted/uninterpreted) RELATION over terms
 					; 2-ary (interpreted) RELATION of LIA {<, >, <=, >=, =, mod}
+		   (if (or (countp fm) (pairwisep fm))
+		       (setf (gethash fm (kripke-list a-kripke)) 
+			     (intern (format nil "ZOT-P~s" (incf (kripke-numvar a-kripke)))))
+
+
 		       (if (arith-cop fm) 
 			     (setf (gethash fm (kripke-list a-kripke)) 
 				   (intern (format nil "ZOT-P~s" (incf (kripke-numvar a-kripke)))))
@@ -427,7 +570,7 @@
 							   (intern (format nil "ZOT-P~s" (incf (kripke-numvar a-kripke)))))
 
 					;otherwise rise an error!!						 
-						     (error "I'm parsing a LTL formula: type inconsistency of non boolean ~S: ~s inside a LTL formula! ~%" fm tp))))))
+						     (error "I'm parsing a LTL formula: type inconsistency of non boolean ~S: ~s inside a LTL formula! ~%" fm tp)))))))
 		   
 					; ** recursively process LTL formula ** 
 		     (if (not (or (arith-opp fm) (arith-cop fm) (arith-itemp fm)))
@@ -479,9 +622,13 @@
 					  (progn
 						(push fm (kripke-atomic-formulae a-kripke))
 						(push fm (kripke-IPC-constraints a-kripke))))
-				    ((next until release futr lasts withinf) 
+				    ((next until release futr lasts withinf until-sol release-sol) 
 					  (push fm (kripke-futr a-kripke)))
-				    ((yesterday zeta since trigger past Zpast lasted Zlasted withinp Zwithinp)
+				    ((counting)
+				          (push fm (kripke-counting-mods a-kripke)))
+				    ((pairwise)
+				          (push fm (kripke-pairwise-mods a-kripke)))
+				    ((yesterday zeta since trigger since-sol trigger-sol past Zpast lasted Zlasted withinp Zwithinp)
 					  (push fm (kripke-past a-kripke)))
 				    (t
 					  (error "subformulae: unknown op ~S~%" fm))))) 
@@ -494,7 +641,7 @@
 			(declare (ignore val)) ; just to avoid warnings...
 	 
 			(if (or (symbolp fm) ; if fm is a 0-ary function
-				  (arith-itemp fm)) ; if fm is a n-ary function
+				  (arith-itemp fm) (delta-incp fm)) ; if fm is a n-ary function
 			      
 			      (push fm (kripke-timed-arith-terms a-kripke))				
 					;(push (car fm) (kripke-timed-arith-terms a-kripke)))
@@ -673,7 +820,7 @@
 	    )a-kripke))
 
 
-(defmethod call ((kk ae2zot-kripke) obj the-time &rest other)
+(defmethod call ((kk solzot-kripke) obj the-time &rest other)
 					; if *real-constants* are needed then update the type of 'obj' and 'the-time' when they are numbers
       (if (and *real-constants* (numberp the-time))
 	    (setf the-time (float the-time)))
@@ -734,7 +881,7 @@
 
 (defgeneric call-fmla-id (kk obj))
 
-(defmethod call-fmla-id ((kk ae2zot-kripke) obj) 
+(defmethod call-fmla-id ((kk solzot-kripke) obj) 
   (cond 
     ((eq 'false obj) 'false)
     ((eq 'true obj) 'true)
@@ -869,6 +1016,94 @@
 							  (cdr fma))))
 			      ((iff) (list 'iff (call *PROPS* (second fma) i) (call *PROPS* (third fma) i))))))))
 
+
+
+(defun gen-count ()
+      (format t "define C mod formulae~%")(force-output)
+      (loop for i from 0 to (kripke-k *PROPS*) append       
+       (loop for fma in (kripke-counting-mods *PROPS*) collect 
+        (list 'iff  
+	      (call *PROPS* fma i)
+	      (cond ((= i 0)
+		     `(and (> (delta ,i) ,(second fma)) 
+			   (,(third fma) (- ,(call *PROPS* (create-c-counter (fifth fma)) (1+ i)) 
+					    ,(call *PROPS* (create-c-counter (fifth fma)) i)) ,(fourth fma))))
+		    ((= i 1)
+		     `(or (and (> (delta ,i) ,(second fma)) 
+			       (,(third fma) (- ,(call *PROPS* (create-c-counter (fifth fma)) (1+ i)) 
+						,(call *PROPS* (create-c-counter (fifth fma))  i)) ,(fourth fma)))
+			  (and (> (+ (delta ,(- i 1)) (delta ,i)) ,(second fma)) 
+			       (<= (delta ,i) ,(second fma)) 
+			       (,(third fma) (- ,(call *PROPS* (create-c-counter (fifth fma)) (1+ i)) 
+						,(call *PROPS* (create-c-counter (fifth fma))  (- i 1))) ,(fourth fma)))))
+		    ((> i 1)
+		     `(or (and (> (delta ,i) ,(second fma)) 
+			       (,(third fma) (- ,(call *PROPS* (create-c-counter (fifth fma)) (1+ i)) 
+						,(call *PROPS* (create-c-counter (fifth fma))  i)) ,(fourth fma)))
+			  (and (> (+ (delta ,(- i 1)) (delta ,i)) ,(second fma)) 
+			       (<= (delta ,i) ,(second fma)) 
+			       (,(third fma) (- ,(call *PROPS* (create-c-counter (fifth fma)) (1+ i)) 
+						,(call *PROPS* (create-c-counter (fifth fma))  (- i 1))) ,(fourth fma)))
+			  (or ,@(loop for z from 2 to (min (second fma) i) collect 
+				      `(and (> (+ ,@(loop for p from 0 to z collect `(delta ,(- i p)) )) ,(second fma))
+					    (<= (+ ,@(loop for p from 0 to (- z 1) collect `(delta ,(- i p)))) ,(second fma))
+					    (,(third fma) (- ,(call *PROPS* (create-c-counter (fifth fma)) (1+ i)) 
+							     ,(call *PROPS* (create-c-counter (fifth fma))  (- i z))) ,(fourth fma)))))))
+    )
+   )
+  )
+ )
+)
+
+
+
+(defun gen-pairwise-formula (i p C H A B comp treshold)
+  (if-then-else `(= ,(call *PROPS* C p)  1)
+		`(,comp (- ,(call *PROPS* A i) ,(call *PROPS* B p)) (* ,treshold (- (- ,(call *PROPS* H i) ,(call *PROPS* H p)) 1)))
+		`(,comp (- ,(call *PROPS* A i) ,(call *PROPS* A p)) (* ,treshold (- ,(call *PROPS* H i) ,(call *PROPS* H p)) )))
+)
+
+
+
+(defun gen-pairwise ()
+      (format t "define D mod formulae~%")(force-output)
+      (loop for i from 0 to (kripke-k *PROPS*) append       
+       (loop for fma in (kripke-pairwise-mods *PROPS*) collect
+	(let ((C (create-c (fifth fma) (sixth fma)))
+	      (H (create-h (fifth fma) (sixth fma)))
+	      (A (create-a (fifth fma) (sixth fma)))
+	      (B (create-b (fifth fma) (sixth fma)))
+	    )
+         (list 'iff  
+	      (call *PROPS* fma i)
+	      (cond ((= i 0)
+		     `(and (> (delta ,i) ,(second fma)) 
+			   ,(gen-pairwise-formula (+ i 1) i C H A B (third fma) (fourth fma))))
+		    ((= i 1)
+		     `(or (and (> (delta ,i) ,(second fma)) 
+			       ,(gen-pairwise-formula (+ i 1) i C H A B (third fma) (fourth fma)))
+			  (and (> (+ (delta ,(- i 1)) (delta ,i)) ,(second fma)) 
+			       (<= (delta ,i) ,(second fma)) 
+			       ,(gen-pairwise-formula (+ i 1) (- i 1) C H A B (third fma) (fourth fma)))))
+		    ((> i 1)
+		     `(or (and (> (delta ,i) ,(second fma)) 
+			       ,(gen-pairwise-formula (+ i 1) i C H A B (third fma) (fourth fma)))
+			  (and (> (+ (delta ,(- i 1)) (delta ,i)) ,(second fma)) 
+			       (<= (delta ,i) ,(second fma)) 
+			       ,(gen-pairwise-formula (+ i 1) (- i 1) C H A B (third fma) (fourth fma)))
+			  (or ,@(loop for z from 2 to (min (second fma) i) collect 
+				      `(and (> (+ ,@(loop for p from 0 to z collect `(delta ,(- i p)) )) ,(second fma))
+					    (<= (+ ,@(loop for p from 0 to (- z 1) collect `(delta ,(- i p)))) ,(second fma))
+					    ,(gen-pairwise-formula (+ i 1) (- i z) C H A B (third fma) (fourth fma)))))))
+    )
+   )
+  )
+ )
+)
+)
+
+
+
 (defun gen-futr ()
       (format t "define LTL future formulae X, U, R~%")(force-output)
       (loop for i from 0 to (kripke-k *PROPS*) append       
@@ -893,10 +1128,70 @@
 					   (and ,(call *PROPS* (second fma) i)
 						 ,(call *PROPS* fma (1+ i)))))
 			      
+			      ((until-sol)
+			         (if (= i (kripke-k *PROPS*))
+				     `(not t)
+				     (if (= i (- (kripke-k *PROPS*) 1) )
+					 `(and  ,(call *PROPS* (third fma) (kripke-k *PROPS*) )
+						(< ,(fourth fma) (delta ,(kripke-k *PROPS*)) ) 
+						(< (delta ,(kripke-k *PROPS*)) ,(fifth fma)))
+					 `(or ,@(loop for j from (+ i 1) to (kripke-k *PROPS*)  
+						   collect (if (= j (+ i 1)) 
+							       `(and  ,(call *PROPS* (third fma) j )
+								      (< ,(fourth fma) (delta ,j) ) 
+								      (< (delta ,j) ,(fifth fma))) 
+							       (if (= j (+ i 2)) 
+								   `(and  ,(call *PROPS* (third fma) j )
+									  (< ,(fourth fma) (+ (delta ,(- j 1)) (delta ,j))) 
+									  (< (+ (delta ,(- j 1)) (delta ,j)) ,(fifth fma))
+									  ,(call *PROPS* (second fma) (- j 1))
+									  ) 
+								   `(and  ,(call *PROPS* (third fma) j)
+									  (< ,(fourth fma) (+ ,@(loop for p from (+ i 1) to j collect `(delta ,p))) ) 
+									  (< (+ ,@(loop for p from (+ i 1) to j collect `(delta ,p))) ,(fifth fma)) 
+									  (and ,@(loop for p from (+ i 1) to (- j 1) collect (call *PROPS* (second fma) p)))  )
+								   )
+							       )
+						     )
+					      )
+					 )
+				     )
+			      )
+
 			      ((release)
 				    `(and ,(call *PROPS* (third fma) i)
 					   (or ,(call *PROPS* (second fma) i)
-						 ,(call *PROPS* fma (1+ i))))))))))
+						 ,(call *PROPS* fma (1+ i)))))
+
+			      ((release-sol)
+			       (if 	(= i (kripke-k *PROPS*))
+					`(not t)
+					(if 	(= i (- (kripke-k *PROPS*) 1) )
+						`(or 	(>= ,(fourth fma) (delta ,(+ i 1)))
+							(>= (delta ,(+ i 1)) ,(fifth fma))
+							,(call *PROPS* (third fma) (+ i 1))
+							)
+						`(and ,@(loop for j from (+ i 1) to (kripke-k *PROPS*)  
+							   collect  (if 	(= j (+ i 1)) 
+										`(or 	(>= ,(fourth fma) (delta ,j))
+											(>= (delta ,j) ,(fifth fma))
+											,(call *PROPS* (third fma) (+ i 1))
+											) 
+										(if 	(= j (+ i 2)) 
+											`(or 	(>= ,(fourth fma) (+ (delta ,j) (delta ,(- j 1)) ) )
+												(>=  (+ (delta ,j) (delta ,(- j 1))) ,(fifth fma))
+												,(call *PROPS* (third fma) j)
+												,(call *PROPS* (second fma) (- j 1))
+												)  
+											`(or 	(>= ,(fourth fma) (+ ,@(loop for p from (+ i 1) to j collect `(delta ,p)) ) )
+												(>=  (+ ,@(loop for p from (+ i 1) to j collect `(delta ,p))) ,(fifth fma))
+												,(call *PROPS* (third fma) j)
+												,@(loop for p from (+ i 1) to (- j 1) collect (call *PROPS* (second fma) p)))))))))))))))
+
+
+
+
+
 
 
 (defun gen-arith-futr ()
@@ -1004,6 +1299,9 @@
 	   `(iff ,(call *PROPS* fm 0)
 		 ,(call *PROPS* (third fm) 0)))
 
+	  ((since-sol trigger-sol) 
+	   `(iff ,(call *PROPS* fm 0) (not t)) )
+
 	  ((past)
 	   `(not ,(call *PROPS* fm 0)))		
 
@@ -1039,11 +1337,63 @@
 		       (or ,(call *PROPS* (third fm) i)
 			   (and ,(call *PROPS* (second fm) i)
 				,(call *PROPS* fm (1- i))))))
+
+		((since-sol) 
+		 (if (= i 1)
+		     `(and  ,(call *PROPS* (third fm) 0 )
+			    (< ,(fourth fm) (delta ,1) ) 
+			    (< (delta ,1) ,(fifth fm)))
+		     `(or ,@(loop for j from 0 to (- i 1)   
+			       collect (if (= j (- i 1)) 
+					   `(and  ,(call *PROPS* (third fm) j )
+						  (< ,(fourth fm) (delta ,(+ j 1)) ) 
+						  (< (delta ,(+ j 1)) ,(fifth fm))) 
+					   (if (= j (- i 2)) 
+					       `(and  ,(call *PROPS* (third fm) j )
+						      (< ,(fourth fm) (+ (delta ,(+ j 1)) (delta ,(+ j 2)))) 
+						      (< (+ (delta ,(+ j 1)) (delta ,(+ j 2))) ,(fifth fm))
+						      ,(call *PROPS* (second fm) (+ j 1))
+						      ) 
+					       `(and  ,(call *PROPS* (third fm) j)
+						      (< ,(fourth fm) (+ ,@(loop for p from (+ j 1) to i collect `(delta ,p))) ) 
+						      (< (+ ,@(loop for p from (+ j 1) to i collect `(delta ,p))) ,(fifth fm)) 
+						      (and ,@(loop for p from (+ j 1) to (- i 1) collect (call *PROPS* (second fm) p)))  )
+					       )
+					   )
+				 )
+			  )
+		     ))
+
 		((trigger)
 		 `(iff ,(call *PROPS* fm i)
 		       (and ,(call *PROPS* (third fm) i)
 			    (or ,(call *PROPS* (second fm) i)
 				,(call *PROPS* fm (1- i))))))
+
+
+		((trigger-sol) 
+		 (if 	(= i 1 )
+			`(or 	(>= ,(fourth fm) (delta 1))
+				(>= (delta 1) ,(fifth fm))
+				,(call *PROPS* (third fm) 0)
+				)
+			`(and ,@(loop for j from 0 to (- i 1)  
+				   collect  (if 	(= j (- i 1)) 
+							`(or 	(>= ,(fourth fm) (delta ,i))
+								(>= (delta ,i) ,(fifth fm))
+								,(call *PROPS* (third fm) j)
+								) 
+							(if 	(= j (- i 2)) 
+								`(or 	(>= ,(fourth fm) (+ (delta ,(+ j 1)) (delta ,(+ j 2)) ) )
+									(>=  (+ (delta ,(+ j 1)) (delta ,(+ j 2))) ,(fifth fm))
+									,(call *PROPS* (third fm) j)
+									,(call *PROPS* (second fm) (+ j 1))
+									)  
+								`(or 	(>= ,(fourth fm) (+ ,@(loop for p from (+ j 1) to i collect `(delta ,p)) ) )
+									(>=  (+ ,@(loop for p from (+ j 1) to i collect `(delta ,p))) ,(fifth fm))
+									,(call *PROPS* (third fm) j)
+									,@(loop for p from (+ j 1) to (- i 1) collect (call *PROPS* (second fm) p))))))))
+		 )
 
 		((past Zpast)
 		 `(iff ,(call *PROPS* fm i)		
@@ -1109,10 +1459,12 @@
   (format t "define FO terms for +,-,*,/,mod ~%")(force-output)
   (loop for i from 0 to (kripke-k *PROPS*) append    
 	(loop for fma in (kripke-timed-arith-terms *PROPS*) 
-	      when (arith-opp fma)
+	      when (or (arith-opp fma) (delta-incp fma))
 	      collect
 	      (list '=  
-		    (call *PROPS* fma i)  
+		    (call *PROPS* fma i) 
+		    (if (delta-incp fma)
+			`(+ ,(call *PROPS* (second fma) i) (delta ,(+ i 1)))
 		    (case (car fma)
 		      ((+)
 		       `(+ ,(call *PROPS* (second fma) i) ,(call *PROPS* (third fma) i)))
@@ -1125,9 +1477,12 @@
 		      
 		      ((/)
 		       `(/ ,(call *PROPS* (second fma) i) ,(call *PROPS* (third fma) i)))
-		      
+
 		      ((mod)
-		       `(mod ,(call *PROPS* (second fma) i) ,(call *PROPS* (third fma) i))))))))
+		       `(mod ,(call *PROPS* (second fma) i) ,(call *PROPS* (third fma) i)))))
+
+		  
+))))
 
 
 
@@ -1654,7 +2009,10 @@
 	  (gen-arith-past)
 	  (gen-i-atomic-formulae)
 	  (gen-arith-constraints)
-	  (stabilize-constants))
+	  (stabilize-constants)
+	  (gen-count)
+	  (gen-pairwise)
+	  (internal-clock-constraints))
        
        (nconc	   
 	(LoopConstraints gen-symbolic-val)
@@ -1672,6 +2030,8 @@
 	(gen-periodic-arith-terms periodic-arith-terms)
 	(stabilize-constants)
 	(gen-regions bound)
+	(gen-count)
+	(gen-pairwise)
 	)))))
 
 
@@ -1696,8 +2056,9 @@
 (defun prn-str (l) (format nil "~{~a~^ ~}" l))
 
 
-
-
+(defun internal-clock-constraints ()
+    `((and ,@(loop for p from 0 to (kripke-k *PROPS*) collect `(> (delta ,p) 0))))
+)
 
 					; --- MAIN ---
 
@@ -1710,7 +2071,6 @@
 		     (smt-solver :z3)
 		     (logic :QF_UFIDL)
 		     (smt-assumptions nil)
-		     (smt-declarations nil)
 		     (no-loop nil)
 		     (with-time t)
 		     (periodic-terms nil)	
@@ -1720,17 +2080,20 @@
 		     (over-clocks 0)
 		     (smt-metric-futr nil)	;only for finite words i.e no-loop is true
 		     (smt-metric-past nil)	;only for finite words i.e no-loop is true
+		     (soloist nil)
 		     )
 
 					;(setf *periodic-arith-vars* periodic-vars)
   (setf *smt-metric-futr-operators* smt-metric-futr)
   (setf *smt-metric-past-operators* smt-metric-past)
-
+ ; (define-dynamic-tvar (get-delta) *int*)
   (if (or (eq logic :QF_UFRDL)(eq logic :QF_UFLRA))
       (setf *real-constants* t))
   (setf *metric-operators* nil)
   
-  (let ((formula (deneg (trio-to-ltl spec))))
+  (let ((formula (deneg (trio-to-ltl (if soloist
+					 `(and ,spec ,*counter-constraints*)
+					 spec)))))
 
      ;; (format t "~a" (if (eq with-time t)
      ;; 		       (with-time formula)
@@ -1742,7 +2105,6 @@
 
     (format t "This is SMT-Arithmetic-eeZot~%")    
 
-    (declare-assumptions smt-declarations)
 
     (let ((undeclared (set-difference (kripke-atomic-formulae *PROPS*) declarations)))
       (if (and declarations undeclared)
@@ -1846,7 +2208,7 @@
 						   (case (car key)
 						     ((next yesterday zeta futr past Zpast)
 						      (format k ":extrafuns (( ~s ~a ~a ))~%" v time-domain time-domain))
-						     ((+ - * / mod)
+						     ((+ - * / mod delta-inc)
 						      (format k ":extrafuns (( ~s ~a ~a ))~%" v time-domain time-domain))) ))
 					     
 					;(format k (concatenate 'string ":extrafuns (( ~s " (prn-str (get-item-sig (arith-itemp key))) " ))~%") v)))))
@@ -1877,7 +2239,7 @@
 				    
 					
 				    (if (> over-clocks 0)
-					  (format k ":extrafuns (( delta Real Real ))~%"))
+					  (format k ":extrafuns (( delta Int Int ))~%"))
 
 				    (if (not (null smt-assumptions))
 					(format k (concatenate 'string ":assumption " smt-assumptions "~%"))))
@@ -1918,13 +2280,3 @@
 		  
 		  )))))))
 
-
-(defun declare-assumptions (list)
-	(loop for fm in list do (if (not (gethash fm (kripke-list *PROPS*)))
-					(setf (gethash fm (kripke-list *PROPS*)) 
-						(intern (format nil "~s" fm)))
-	)
-)
-
-
-)

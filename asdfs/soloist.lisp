@@ -95,7 +95,7 @@
 ;(-C- 5 = 0 ,(-P- p)  1)
 
 (defmacro -C- (Kp comp n P K)
-	`(counting ,Kp ',comp ,n ,P ,K)
+	`(countings ,Kp ',comp ,n ,P ,K)
 )
 
 
@@ -186,7 +186,7 @@
 
 
 
-(defun counting (Kp comp n P K)
+(defun countings (Kp comp n P K)
 	(let ((name (nameconcat "C" "_" P)))
 			(if (check-counter name)
 			    (if *finite-count*
@@ -269,7 +269,7 @@
 
 
 (defmacro -D- (kp c n p K) 
-	`(eval `(pairwise ,,Kp ',',c ,,n '((,,(first(first p)) ,,(second (first p)))) ,,K))
+	`(eval `(pairwised ,,Kp ',',c ,,n '((,,(first(first p)) ,,(second (first p)))) ,,K))
 	
 )
 
@@ -483,7 +483,7 @@
 )
 
 
-(defun pairwise (Kp comp n Ps K)
+(defun pairwised (Kp comp n Ps K)
 	(let*
 		(
 			(formula1 (first (nth 0  Ps)))		; traverse all n pairs here
