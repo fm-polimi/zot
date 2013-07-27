@@ -115,6 +115,12 @@
     :yesterday
     :zeta
     :Zlasted :Zwithinp :Zpast :Zlasttime
+    :counting
+    :pairwise
+    :delta-inc
+    :create-count
+    :create-pairwise
+    :create-delta-inc
     ; -- Exotic stuff: handle with care --
     :until-b :until-b-v :until-b-^
     :since-b :since-b-v :since-b-^
@@ -136,7 +142,20 @@
     :*smt-metric-past-operators*
     :*items*
     :*arith-items*
-    
+    ; -- SOLOIST operators --
+    :until-sol
+    :next-sol
+    :futr-sol
+    :alwf-sol
+    :release-sol
+    :since-sol
+    :trigger-sol
+    :yesterday-sol
+    :past-sol
+    :alwp-sol
+    :countp
+    :pairwisep
+    :delta-incp
 
     :declare-item
     :declare-array
@@ -145,6 +164,7 @@
 
 
 (in-package :trio-utils)
+
 
 
 ; *metric-operators* must be set to true if the encoding natively supports
@@ -172,7 +192,85 @@
 
 (defvar *periodic-arith-vars* nil)
 
+(defun create-count (Kp comp n P K)
+	`(counting ,Kp ,comp ,n ,P ,K)
+)
 
+(defun create-pairwise (Kp comp n P K)
+	`(pairwise ,Kp ,comp ,n ,(first (first P)) ,(second (first P)) ,K)
+)
+
+(defun create-delta-inc (a)
+	`(delta-inc ,a)
+)
+
+(defun countp (f)
+  (if (consp f)
+      (equal (car f) 'counting)
+      (not t)))
+
+(defun pairwisep (f)
+  (if (consp f)
+      (equal (car f) 'pairwise)
+      (not t)))
+
+(defun delta-incp (f)
+  (if (consp f)
+      (equal (car f) 'delta-inc)
+      (not t)))
+
+(defun until-solp (f)
+  (if (consp f)
+      (equal (car f) 'until-sol)
+      (not t)))
+
+
+(defun next-solp (f)
+  (if (consp f)
+      (equal (car f) 'next-sol)
+      (not t)))
+
+(defun futr-solp (f)
+  (if (consp f)
+      (equal (car f) 'futr-sol)
+      (not t)))
+
+(defun alwf-solp (f)
+  (if (consp f)
+      (equal (car f) 'alwf-sol)
+      (not t)))
+
+(defun release-solp (f)
+  (if (consp f)
+      (equal (car f) 'release-sol)
+      (not t)))
+
+
+(defun since-solp (f)
+  (if (consp f)
+      (equal (car f) 'since-sol)
+      (not t)))
+
+(defun yesterday-solp (f)
+  (if (consp f)
+      (equal (car f) 'yesterday-sol)
+      (not t)))
+
+(defun past-solp (f)
+  (if (consp f)
+      (equal (car f) 'past-sol)
+      (not t)))
+
+(defun alwp-solp (f)
+  (if (consp f)
+      (equal (car f) 'alwp-sol)
+      (not t)))
+
+
+(defun trigger-solp (f)
+  (if (consp f)
+      (equal (car f) 'trigger-sol)
+      (not t)))
 
 ; Call clean-up before loading other specs containing define-items or 
 ; define-array
@@ -362,7 +460,7 @@
 (defun trio-to-ltl (f)
   "defines the semantics of TRIO in terms of PLTL"
   (cond 
-    ((or (symbolp f) (stringp f) (numberp f) (typep f 'boolean))
+    ((or (symbolp f) (stringp f) (numberp f) (typep f 'boolean) (countp f) (pairwisep f) (until-solp f) (release-solp f) (since-solp f) (trigger-solp f))
      f)
     (t
       (case (car f)
@@ -535,6 +633,24 @@
 	 (list 'and (list 'not (second f))
 	       (the-nexttime (trio-to-ltl (second f)) (1- (third f)))))
 
+
+	((next-sol) 
+	 `(until-sol (not t) ,(second f) ,(third f) ,(fourth f)) )
+
+	((futr-sol) 
+	 `(until-sol t ,(second f) ,(third f) ,(fourth f)) )
+
+	((alwf-sol) 
+	 `(release-sol (not t) ,(second f) ,(third f) ,(fourth f)) )
+
+	((yesterday-sol) 
+	 `(since-sol (not t) ,(second f) ,(third f) ,(fourth f)) )
+
+	((past-sol) 
+	 `(since-sol t ,(second f) ,(third f) ,(fourth f)) )
+
+	((alwp-sol) 
+	 `(trigger-sol (not t) ,(second f) ,(third f) ,(fourth f)) )
 
 	; About the various versions of Until (Since is analogous):
 	; 
@@ -1156,6 +1272,14 @@
   zeta 1
   Zlasts 2 Zwithinf 2 Zfutr 2 Znexttime 2
   Zlasted 2 Zwithinp 2 Zpast 2 Zlasttime 2
+
+  ; -- SOLOIST operators --
+  until-sol 4 release-sol 4
+  next-sol 3 futr-sol 3 alwf-sol 3
+  since-sol 4 trigger-sol 4
+  yesterday-sol 3 past-sol 3 alwp-sol 3
+  counting 5 pairwise 5
+  delta-inc 1
   ; -- Exotic stuff handle with care --
   until-b 4 until-b-v 4  until-b-^ 4
   since-b 4 since-b-v 4  since-b-^ 4
