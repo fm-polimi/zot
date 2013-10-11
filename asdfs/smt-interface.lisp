@@ -47,7 +47,7 @@
 	    (:z3 
 	     (format t "z3...~% ")(force-output)
 	     (sb-ext:run-program "z3"
-				 '("-smt" "-st" "-m" "output.smt.txt") :input
+				 '("-smt" "-st" "output.smt.txt") :input
 				 t :output "output.1.txt" :error t :search t :if-output-exists :supersede))
 
 	    (:yices 
@@ -78,7 +78,7 @@
 		       (ecase smt-solver
 			 (:z3 
 			  (format t "z3...~% ")(force-output)
-			  (funcall call-shell "z3 -smt -st -m output.smt.txt > output.1.txt"))
+			  (funcall call-shell "z3 -smt -st output.smt.txt > output.1.txt"))
 
 			 (:yices 
 			  (format t "yices...~% ")(force-output)

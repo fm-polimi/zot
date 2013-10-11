@@ -49,6 +49,7 @@
 	:smt-interface
 	:kripke)
   (:export :zot
+	   :deneg
 	   :loopex
 	   :yices
 	   :cvc3
