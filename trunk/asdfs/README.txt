@@ -14,7 +14,7 @@ external tools. Zot uses the SAT-solver MiniSat
 Please refer to the respective homepages to obtain their manuals,
 licenses, sources or binaries compiled for your platform.
 
-Zot to work assumes that the executable "minisat" is accessible
+Zot assumes that the executable "minisat" is accessible
 through the PATH environment variable.
 
 
