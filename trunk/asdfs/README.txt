@@ -1,6 +1,6 @@
 -------------------------------------
 Zot: a Bounded Satisfiability Checker
-(c) by Matteo Pradella, 2006-2007
+(c) by Matteo Pradella, 2006-2014
 -------------------------------------
 
 Zot is written in Common Lisp (with ASDF packaging
@@ -8,7 +8,7 @@ http://www.cliki.net/asdf).  It can be used under Linux, Windows, or
 MacOS X, but has been tested only under Linux and Windows XP, using
 SBCL (http://www.sbcl.org/) and CLISP (http://clisp.cons.org/).
 
-This release (20070405) contains only the Linux x86 executables of the
+This release (201305b) contains only the Linux x86 executables of the
 external tools. Zot uses the SAT-solver MiniSat
 (http://www.cs.chalmers.se/Cs/Research/FormalMethods/MiniSat/).
 Please refer to the respective homepages to obtain their manuals,
