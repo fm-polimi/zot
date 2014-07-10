@@ -30,7 +30,7 @@
 
 (bezot:zot 
   20
-  (&& trio-spec
+  (&& ;; trio-spec
       state-trans-spec
       init
       constr
