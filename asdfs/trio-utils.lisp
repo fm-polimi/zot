@@ -159,7 +159,8 @@
 
     :declare-item
     :declare-array
-
+    ; -- BitVector --
+    :*bitvector*
     ))
 
 
@@ -173,7 +174,7 @@
 (defvar *metric-operators* nil)
 (defvar *smt-metric-futr-operators* nil)
 (defvar *smt-metric-past-operators* nil)
-
+(defvar *bitvector* nil)
 
 ; *zot-item-constraints* will contain exclusive constraints for defined items
 ; (see define-item macro below) 
@@ -581,34 +582,54 @@
 		   (the-withinp (trio-to-ltl fma) (1- k))))))
 
 	((somf somf_i)
-	 `(until t ,(trio-to-ltl (second f))))
+    (if *bitvector*
+     `(somf ,(trio-to-ltl (second f)))
+	   `(until t ,(trio-to-ltl (second f)))))
 	((somf_e)
-	 `(next (until t ,(trio-to-ltl (second f)))))
+    (if *bitvector*
+     `(next (somf ,(trio-to-ltl (second f))))
+	   `(next (until t ,(trio-to-ltl (second f))))))
 
 	((alwf alwf_i)
-	 `(release nil ,(trio-to-ltl (second f))))
+    (if *bitvector*
+     `(alwf ,(trio-to-ltl (second f)))
+	   `(release nil ,(trio-to-ltl (second f)))))
 	((alwf_e)
-	 `(next (release nil ,(trio-to-ltl (second f)))))
+    (if *bitvector*
+     `(next (alwf ,(trio-to-ltl (second f))))
+	   `(next (release nil ,(trio-to-ltl (second f))))))
 
 	((somp somp_i)
-	 `(since t ,(trio-to-ltl (second f))))
+    (if *bitvector*
+     `(somp ,(trio-to-ltl (second f)))
+	   `(since t ,(trio-to-ltl (second f)))))
 	((somp_e)
-	 `(yesterday (since t ,(trio-to-ltl (second f)))))
+    (if *bitvector*
+     `(yesterday (somp ,(trio-to-ltl (second f))))
+	   `(yesterday (since t ,(trio-to-ltl (second f))))))
 
 	((alwp alwp_i)
-	 `(trigger nil ,(trio-to-ltl (second f))))
+    (if *bitvector*
+     `(alwp ,(trio-to-ltl (second f)))
+	   `(trigger nil ,(trio-to-ltl (second f)))))
 	((alwp_e)
-	 `(yesterday (trigger nil ,(trio-to-ltl (second f)))))
+    (if *bitvector*
+     `(yesterday (alwp ,(trio-to-ltl (second f))))
+	   `(yesterday (trigger nil ,(trio-to-ltl (second f))))))
 
 	((alw)
-	 (trio-to-ltl (list 'and 
+    (if *bitvector*
+     `(alw ,(trio-to-ltl (second f)))
+	   (trio-to-ltl (list 'and 
 			    (list 'alwf_i (second f))
-			    (list 'alwp_i (second f)))))
+			    (list 'alwp_i (second f))))))
 
 	((som)
-	 (trio-to-ltl (list 'or 
+    (if *bitvector*
+     `(som ,(trio-to-ltl (second f)))
+	   (trio-to-ltl (list 'or 
 			    (list 'somf_i (second f))
-			    (list 'somp_e (second f)))))
+			    (list 'somp_e (second f))))))
 
 
 	((lasttime lasttime_ei)

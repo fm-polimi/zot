@@ -27,12 +27,23 @@
 	:kripke
 	:trio-utils
 	)
-  (:export :to-smt-and-back )) 
+  (:export 
+  	:to-smt-and-back 
+  	:smt
+  	:smt2
+  	:bitvector
+  	:arith-bitvector
+  	)) 
 
 
 (in-package :smt-interface)
 
-(defun to-smt-and-back (the-kripke smt-solver)
+(defun to-smt-and-back (the-kripke smt-solver
+	&key
+	(smt-lib :smt)
+	(bitvector nil)
+	(arith-bitvector nil)
+	)
   "calls the SMT solver and gets its output"
 
   (format t "~%no CNF~% ") 
@@ -47,7 +58,7 @@
 	    (:z3 
 	     (format t "z3...~% ")(force-output)
 	     (sb-ext:run-program "z3"
-				 '("-smt" "-st" "output.smt.txt") :input
+				 (cons (ecase smt-lib (:smt "-smt") (:smt2 "-smt2")) '("-st" "output.smt.txt")) :input
 				 t :output "output.1.txt" :error t :search t :if-output-exists :supersede))
 
 	    (:yices 
@@ -106,10 +117,13 @@
     (format t (if val "---SAT---~%" "---UNSAT---~%"))
     (force-output)
     (when (and val (eq smt-solver :z3))
-      (translate-smt-output (kripke-k the-kripke)))
+      (cond
+      	((eq bitvector :t) (translate-bvsmt2-output (kripke-k the-kripke)))
+      	((eq arith-bitvector :t) (translate-abvsmt2-output (kripke-k the-kripke)))
+		(t (translate-smt-output (kripke-k the-kripke))
+      	)))
     val)
   )
-
 
 (defun translate-smt-output (k)
   (let ((dict (make-hash-table :test #'equal))
@@ -256,3 +270,167 @@
     	   ))
     ))
 
+;;<bitvector>
+(defun trim-split (string)
+    (let ((strtrim (string-trim " " string)))
+    	(loop for i = 0 then (1+ j)
+          as j = (position #\Space strtrim :start i)
+          collect (subseq strtrim i j)
+          while j)))
+
+(defun replace-all (string part replacement &key (test #'char=))
+    (with-output-to-string (out)
+      (loop with part-length = (length part)
+            for old-pos = 0 then (+ pos part-length)
+            for pos = (search part string
+                              :start2 old-pos
+                              :test test)
+            do (write-string string out
+                             :start old-pos
+                             :end (or pos (length string)))
+            when pos do (write-string replacement out)
+            while pos)))
+
+(defun gen-bin (s)
+	(if (string= "#b" (subseq s 0 2))
+		(subseq s 3)
+		(subseq (format nil (concatenate 'string "~" (write-to-string (* (- (length (string-trim ")" s)) 2) 4)) ",'0B") (read-from-string (string-trim ")" s))) 1)))
+
+(defun translate-bvsmt2-output (k)
+(setq var-bin  (make-hash-table :test #'equal))
+ (with-open-file (stream "output.1.txt" :direction :input)
+    (do ((line (read-line stream nil) (read-line stream nil)))
+        ((null line))
+      	(if (string= (car (trim-split line)) "(define-fun")
+      		(progn 
+      			(setf (gethash (cadr (trim-split line)) var-bin) nil)
+      			(setq currentVar (cadr (trim-split line)))))
+      	(if (string= (subseq (car (trim-split line)) 0 1) "#")
+      		(setf (gethash currentVar var-bin) (gen-bin (car (trim-split line))))
+      		)))
+ (setq i_loop (read-from-string(format nil "~D" (read-from-string (concatenate 'string "#b" (gethash "i_loop" var-bin) )))))
+ (remhash "i_loop" var-bin)
+ (with-open-file (ff "output.hist.txt" 
+    			:direction :output 
+    			:if-exists :supersede 
+    			:if-does-not-exist :create)
+	 (loop for i from 0 to k
+	 	do
+	 	(format t  "------ time ~s ------~%" i)
+	   	(format ff "------ time ~s ------~%" i)
+	   	(if (= i i_loop) (progn (format t "**LOOP**~%")(format ff "**LOOP**~%")))
+	   	(maphash #'(lambda (var bin) 
+	   		(if (string= (subseq bin (- k i) (1+ (- k i))) "1")
+	   			(progn
+	   					(format t "  ~a~%" (string-upcase var))
+	   					(format ff "  ~a~%" (string-upcase var))
+	   				)
+	   			)
+
+	   		) var-bin)
+	 	)
+	(format t  "------ end of bvzot result ------~%")
+
+	(format ff "------ end ------~%")))
+;;</bitvector>
+;;<arith-bitvector>
+(defun string-to-list (s)
+   (with-input-from-string (stream1 s) (read stream1)))
+
+(defun prune-smt (f newf)
+	(setf newf '())
+	(loop for x from 0 to (- (list-length f) 1) do
+		(if (or 
+				(< (length (format nil "~A" (second (nth x f)))) 6) 
+				(not (string= (subseq (format nil "~A" (second (nth x f))) 0 4) "ZOT-")))
+			(setf newf (append newf (list (nth x f))))))
+	(values newf))
+
+(defun mvp-binary-from-decimal (n r)
+    (if (zerop n)
+    r
+    (multiple-value-bind (a b)
+        (floor n 2)
+        (mvp-binary-from-decimal a (cons b r)))))
+
+(defun dec2bin (n)
+    (if (and (numberp n) (plusp n))
+    (mvp-binary-from-decimal n '())
+    (if (eql n 0) '(0) nil)))
+
+(defun get-bv-val (bv i)
+	(let ((bvl (dec2bin bv)))
+		(if	(> i (1- (length bvl))) 0 
+			(nth (- (length bvl) (1+ i)) bvl))))
+
+(defun proc-val (f h)
+	(progn
+		(setf tmp f)
+		(loop while (and (consp (fourth tmp)) (not (eq (first (fourth tmp)) '-))) do
+			(progn (setf h (append h (list (list (third (second tmp))
+				(if (atom (third tmp))(third tmp)(* -1 (second (third tmp))))))))
+		(setf tmp (fourth tmp))))
+		(if (or (atom (fourth tmp)) (eq (first (fourth tmp)) '-))
+			(progn (setf h (append h (list (list (third (second tmp))
+				(if (atom (third tmp))(third tmp)(* -1 (second (third tmp))))))))
+			(setf h (append h (list (list 'else 
+				(if (or (atom (fourth tmp)) (eq (first (fourth tmp)) '-))
+					(fourth tmp)(* -1 (second (fourth tmp)))))))))))
+	(values h))
+
+(defun get-ar-val (ar i)
+	(let ((val-list (proc-val (gethash ar ar-val) '())))
+	(loop for x from 0 to (- (list-length val-list) 1) do
+		(if (or (eq (first (nth x val-list)) i) (eq (first (nth x val-list)) 'else)) (progn (setq i (second (nth x val-list))) (return)))))
+	(values i))
+
+(defun translate-abvsmt2-output (k) nil
+(setq ap-val  (make-hash-table :test #'equal))
+(setq ar-val  (make-hash-table :test #'equal))
+(setq smtstr "")
+(with-open-file (stream "output.1.txt" :direction :input)
+   (do ((line (read-line stream nil) (read-line stream nil)))
+        ((null line))
+         (if (string= line "sat")
+               (do ((line1 (read-line stream nil) (read-line stream nil)))
+                  ((null line1))
+                  (setq smtstr (concatenate 'string smtstr line1))))))
+
+(setq smtlist (string-to-list smtstr))
+(setq smtlist (cdr smtlist))
+(setf smtlist (prune-smt smtlist smtlist))
+
+(loop for var in smtlist do
+	(if (consp (fourth var))
+		(progn (if (eq (second (fourth var)) (read-from-string "BITVEC")) (setf (gethash (second var) ap-val) (fifth var)))
+			(if (eq (first (fourth var)) (read-from-string "ARRAY")) (setf (gethash (second var) ar-val) (third (fifth var)))))))
+(loop for key being the hash-keys of ar-val do
+	(loop for var in smtlist do 
+		 (if (eq (gethash key ar-val) (second var)) (setf (gethash key ar-val) (fifth var)))))
+
+(setq i_loop (gethash 'I_LOOP ap-val))
+(remhash 'I_LOOP ap-val)
+(with-open-file (ff "output.hist.txt" 
+    			:direction :output 
+    			:if-exists :supersede 
+    			:if-does-not-exist :create)
+	 (loop for i from 0 to k
+	 	do
+	 	(format t  "------ time ~s ------~%" i)
+	   	(format ff "------ time ~s ------~%" i)
+	   	(if (= i i_loop) (progn (format t "**LOOP**~%")(format ff "**LOOP**~%")))
+	   	(maphash #'(lambda (ap bin) 
+	   		(if (eq (get-bv-val bin i) '1)
+	   			(progn
+	   					(format t "  ~a~%" (string-upcase ap))
+	   					(format ff "  ~a~%" (string-upcase ap))))
+	   		) ap-val)
+	   	(maphash #'(lambda (ar val) 
+   			(progn
+   					(format t "  ~a = ~a~%" ar (get-ar-val ar i))
+   					(format ff "  ~a = ~a~%" ar (get-ar-val ar i)))
+	   		) ar-val)
+	 	)
+	(format t  "------ end of ae2bvzot result ------~%")
+	(format ff "------ end ------~%")))
+;;</arith-bitvector>
