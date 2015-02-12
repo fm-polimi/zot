@@ -1,0 +1,7 @@
+zot ashift-de.lisp    &> out-de.txt 
+zot ashift-op.lisp    &> out-op.txt 
+# zot ashift-de-20.lisp &> out-de-20.txt 
+# zot ashift-op-20.lisp &> out-op-20.txt 
+
+# zot ashift-ref-10.lisp   &> out-ref-10.txt 
+# zot ashift-ref-20.lisp   &> out-ref-20.txt 

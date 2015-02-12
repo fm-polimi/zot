@@ -1,0 +1,37 @@
+
+(defvar state-trans-spec
+  (list
+    (<-> (-P- in-s) (next (-P- to9)))
+    (<-> (!!(-P- in-s))  (next (!!(-P- to9))))
+    (<-> (-P- to9) (next (-P- to8)))
+    (<-> (!!(-P- to9))  (next (!!(-P- to8))))
+    (<-> (-P- to8) (next (-P- to7)))
+    (<-> (!!(-P- to8))  (next (!!(-P- to7))))
+    (<-> (-P- to7) (next (-P- to6)))
+    (<-> (!!(-P- to7))  (next (!!(-P- to6))))
+    (<-> (-P- to6) (next (-P- to5)))
+    (<-> (!!(-P- to6))  (next (!!(-P- to5))))
+    (<-> (-P- to5) (next (-P- to4)))
+    (<-> (!!(-P- to5))  (next (!!(-P- to4))))
+    (<-> (-P- to4) (next (-P- to3)))
+    (<-> (!!(-P- to4))  (next (!!(-P- to3))))
+    (<-> (-P- to3) (next (-P- to2)))
+    (<-> (!!(-P- to3))  (next (!!(-P- to2))))
+    (<-> (-P- to2) (next (-P- to1)))
+    (<-> (!!(-P- to2))  (next (!!(-P- to1))))
+    (<-> (-P- to1) (next (-P- out-s)))
+    (<-> (!!(-P- to1))  (next (!!(-P- out-s)))) ) ) 
+
+
+(defvar init
+  (&& (!!(-P- in-s))
+      (!!(-P- out-s))
+      (!!(-P- to9))
+      (!!(-P- to8))
+      (!!(-P- to7))
+      (!!(-P- to6))
+      (!!(-P- to5))
+      (!!(-P- to4))
+      (!!(-P- to3))
+      (!!(-P- to2))
+      (!!(-P- to1)) ) )

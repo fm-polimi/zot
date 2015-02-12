@@ -1,0 +1,4 @@
+zot io-de.lisp &> out-de.txt 
+zot io-op.lisp &> out-op.txt 
+zot io-ref.lisp &> out-ref.txt
+# zot io-de-metric-comparison.lisp &> out-metric-comparison.txt
