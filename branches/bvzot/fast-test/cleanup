@@ -1,3 +1,0 @@
-rm -f shift-async/*out* shift-sync/*out* alloc/*out* fischer/*out* krc/*out* lamp/*out* krca/*out*
-rm -f *.csv *.txt
- 

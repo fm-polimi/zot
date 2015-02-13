@@ -1,3 +1,0 @@
-rm -f shift-async/*output* shift-sync/*output* 
-rm -f alloc/*output* fischer/*output* krc/*output* lamp/*output* 
-rm -f krca/*output*

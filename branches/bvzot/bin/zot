@@ -1,3 +1,0 @@
-#!/bin/bash
-sbcl --disable-debugger --load /usr/local/zot/bin/start.lisp --load $1 --eval '(quit)'
-

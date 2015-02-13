@@ -1,4 +1,0 @@
-zot alloc-de.lisp &> out-de.txt 
-zot alloc-op.lisp &> out-op.txt 
-
-
