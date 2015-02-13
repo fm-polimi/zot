@@ -1,0 +1,41 @@
+[runlim] version:		1.7
+[runlim] time limit:		311040000 seconds
+[runlim] real time limit:	3600 seconds
+[runlim] space limit:		4096 MB
+[runlim] argv[0]:		zot2013
+[runlim] argv[1]:		meezotsdserverl3sat.lisp
+[runlim] start:			Fri Jan 23 17:10:54 2015
+[runlim] main pid:		18343
+[runlim] sample:		10.0 seconds, 101.6 MB
+[runlim] sample:		19.9 seconds, 101.6 MB
+[runlim] sample:		29.9 seconds, 505.9 MB
+[runlim] sample:		39.6 seconds, 416.3 MB
+[runlim] sample:		49.4 seconds, 571.4 MB
+[runlim] sample:		59.0 seconds, 663.9 MB
+[runlim] sample:		68.5 seconds, 649.2 MB
+[runlim] sample:		77.8 seconds, 663.3 MB
+[runlim] sample:		87.7 seconds, 779.3 MB
+[runlim] sample:		96.7 seconds, 548.7 MB
+[runlim] sample:		106.7 seconds, 601.9 MB
+[runlim] sample:		115.3 seconds, 563.9 MB
+[runlim] sample:		125.3 seconds, 670.0 MB
+[runlim] sample:		135.3 seconds, 670.0 MB
+[runlim] sample:		144.2 seconds, 695.7 MB
+[runlim] sample:		154.1 seconds, 695.7 MB
+[runlim] sample:		164.1 seconds, 695.7 MB
+[runlim] sample:		172.9 seconds, 932.0 MB
+[runlim] sample:		182.9 seconds, 932.0 MB
+[runlim] sample:		192.8 seconds, 932.0 MB
+[runlim] sample:		201.2 seconds, 615.7 MB
+[runlim] sample:		211.1 seconds, 870.3 MB
+[runlim] sample:		221.1 seconds, 870.3 MB
+[runlim] sample:		231.1 seconds, 870.3 MB
+[runlim] sample:		241.0 seconds, 1093.5 MB
+[runlim] end:			Fri Jan 23 17:15:08 2015
+[runlim] status:		ok
+[runlim] result:		1
+[runlim] children:		2652
+[runlim] real:			254.62 seconds
+[runlim] time:			242.22 seconds
+[runlim] space:			1177.5 MB
+[runlim] samples:		2542

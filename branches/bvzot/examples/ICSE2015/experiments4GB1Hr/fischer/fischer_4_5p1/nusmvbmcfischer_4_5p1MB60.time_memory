@@ -1,0 +1,52 @@
+[runlim] version:		1.7
+[runlim] time limit:		311040000 seconds
+[runlim] real time limit:	3600 seconds
+[runlim] space limit:		4096 MB
+[runlim] argv[0]:		nusmv
+[runlim] argv[1]:		-source
+[runlim] argv[2]:		runbmcMB60
+[runlim] start:			Sun Jan 11 12:35:09 2015
+[runlim] main pid:		16196
+[runlim] sample:		10.0 seconds, 648.7 MB
+[runlim] sample:		19.9 seconds, 875.8 MB
+[runlim] sample:		29.9 seconds, 1053.0 MB
+[runlim] sample:		39.9 seconds, 1331.9 MB
+[runlim] sample:		49.8 seconds, 1505.9 MB
+[runlim] sample:		59.8 seconds, 1580.2 MB
+[runlim] sample:		69.8 seconds, 1689.8 MB
+[runlim] sample:		79.8 seconds, 1835.8 MB
+[runlim] sample:		89.7 seconds, 1910.3 MB
+[runlim] sample:		99.7 seconds, 2035.6 MB
+[runlim] sample:		109.7 seconds, 2112.4 MB
+[runlim] sample:		119.6 seconds, 2238.4 MB
+[runlim] sample:		129.6 seconds, 2274.7 MB
+[runlim] sample:		139.6 seconds, 2442.5 MB
+[runlim] sample:		149.5 seconds, 2462.4 MB
+[runlim] sample:		159.5 seconds, 2524.5 MB
+[runlim] sample:		169.5 seconds, 2906.5 MB
+[runlim] sample:		179.4 seconds, 2922.7 MB
+[runlim] sample:		189.4 seconds, 2962.2 MB
+[runlim] sample:		199.4 seconds, 3095.7 MB
+[runlim] sample:		209.3 seconds, 3184.4 MB
+[runlim] sample:		219.3 seconds, 3204.3 MB
+[runlim] sample:		229.3 seconds, 3243.2 MB
+[runlim] sample:		239.2 seconds, 3353.0 MB
+[runlim] sample:		249.2 seconds, 3471.6 MB
+[runlim] sample:		259.2 seconds, 3488.1 MB
+[runlim] sample:		269.2 seconds, 3506.4 MB
+[runlim] sample:		279.1 seconds, 3553.3 MB
+[runlim] sample:		289.1 seconds, 3764.7 MB
+[runlim] sample:		299.1 seconds, 3772.0 MB
+[runlim] sample:		309.0 seconds, 3789.7 MB
+[runlim] sample:		319.0 seconds, 3803.5 MB
+[runlim] sample:		329.0 seconds, 3853.6 MB
+[runlim] sample:		338.9 seconds, 3955.1 MB
+[runlim] sample:		348.9 seconds, 4094.9 MB
+[runlim] end:			Sun Jan 11 12:41:09 2015
+[runlim] status:		out of memory
+[runlim] result:		1
+[runlim] children:		0
+[runlim] real:			360.37 seconds
+[runlim] time:			358.29 seconds
+[runlim] space:			4098.7 MB
+[runlim] samples:		3594

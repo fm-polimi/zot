@@ -1,0 +1,69 @@
+[runlim] version:		1.7
+[runlim] time limit:		311040000 seconds
+[runlim] real time limit:	3600 seconds
+[runlim] space limit:		4096 MB
+[runlim] argv[0]:		nusmv
+[runlim] argv[1]:		-source
+[runlim] argv[2]:		runsbmcMB90
+[runlim] start:			Sun Jan 11 04:55:33 2015
+[runlim] main pid:		13848
+[runlim] sample:		10.0 seconds, 389.0 MB
+[runlim] sample:		19.9 seconds, 656.2 MB
+[runlim] sample:		29.9 seconds, 822.9 MB
+[runlim] sample:		39.9 seconds, 962.3 MB
+[runlim] sample:		49.8 seconds, 976.3 MB
+[runlim] sample:		59.8 seconds, 1110.0 MB
+[runlim] sample:		69.8 seconds, 1191.5 MB
+[runlim] sample:		79.7 seconds, 1354.2 MB
+[runlim] sample:		89.7 seconds, 1424.6 MB
+[runlim] sample:		99.7 seconds, 1483.2 MB
+[runlim] sample:		109.6 seconds, 1553.5 MB
+[runlim] sample:		119.6 seconds, 1603.8 MB
+[runlim] sample:		129.6 seconds, 1589.6 MB
+[runlim] sample:		139.5 seconds, 1778.7 MB
+[runlim] sample:		149.5 seconds, 1835.2 MB
+[runlim] sample:		159.5 seconds, 1860.8 MB
+[runlim] sample:		169.4 seconds, 1837.6 MB
+[runlim] sample:		179.4 seconds, 2011.7 MB
+[runlim] sample:		189.4 seconds, 2032.6 MB
+[runlim] sample:		199.3 seconds, 2131.3 MB
+[runlim] sample:		209.3 seconds, 2139.8 MB
+[runlim] sample:		219.3 seconds, 2100.4 MB
+[runlim] sample:		229.3 seconds, 2280.4 MB
+[runlim] sample:		239.2 seconds, 2293.8 MB
+[runlim] sample:		249.2 seconds, 2393.1 MB
+[runlim] sample:		259.2 seconds, 2591.4 MB
+[runlim] sample:		269.1 seconds, 2679.4 MB
+[runlim] sample:		279.1 seconds, 2692.9 MB
+[runlim] sample:		289.1 seconds, 2781.5 MB
+[runlim] sample:		299.0 seconds, 2792.4 MB
+[runlim] sample:		309.0 seconds, 2880.8 MB
+[runlim] sample:		319.0 seconds, 2888.9 MB
+[runlim] sample:		328.9 seconds, 2979.1 MB
+[runlim] sample:		338.9 seconds, 2981.6 MB
+[runlim] sample:		348.9 seconds, 3072.8 MB
+[runlim] sample:		358.8 seconds, 3052.0 MB
+[runlim] sample:		368.8 seconds, 3163.0 MB
+[runlim] sample:		378.8 seconds, 3037.8 MB
+[runlim] sample:		388.8 seconds, 3228.6 MB
+[runlim] sample:		398.7 seconds, 3299.2 MB
+[runlim] sample:		408.7 seconds, 3241.8 MB
+[runlim] sample:		418.6 seconds, 3374.7 MB
+[runlim] sample:		428.6 seconds, 3312.0 MB
+[runlim] sample:		438.6 seconds, 3448.9 MB
+[runlim] sample:		448.6 seconds, 3517.5 MB
+[runlim] sample:		458.5 seconds, 3399.2 MB
+[runlim] sample:		468.5 seconds, 3582.2 MB
+[runlim] sample:		478.5 seconds, 3651.0 MB
+[runlim] sample:		488.4 seconds, 3513.2 MB
+[runlim] sample:		498.4 seconds, 3700.4 MB
+[runlim] sample:		508.4 seconds, 3769.8 MB
+[runlim] sample:		518.3 seconds, 0.0 MB
+[runlim] end:			Sun Jan 11 05:04:13 2015
+[runlim] status:		segmentation fault
+[runlim] result:		139
+[runlim] children:		0
+[runlim] real:			520.19 seconds
+[runlim] time:			518.34 seconds
+[runlim] space:			3770.6 MB
+[runlim] samples:		5200

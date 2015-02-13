@@ -1,0 +1,19 @@
+[runlim] version:		1.7
+[runlim] time limit:		311040000 seconds
+[runlim] real time limit:	3600 seconds
+[runlim] space limit:		4096 MB
+[runlim] argv[0]:		nusmv
+[runlim] argv[1]:		-source
+[runlim] argv[2]:		runbmc
+[runlim] start:			Fri Jan 23 11:51:03 2015
+[runlim] main pid:		17198
+[runlim] sample:		10.0 seconds, 448.4 MB
+[runlim] sample:		19.9 seconds, 573.1 MB
+[runlim] end:			Fri Jan 23 11:51:24 2015
+[runlim] status:		segmentation fault
+[runlim] result:		139
+[runlim] children:		0
+[runlim] real:			21.54 seconds
+[runlim] time:			20.52 seconds
+[runlim] space:			649.9 MB
+[runlim] samples:		206

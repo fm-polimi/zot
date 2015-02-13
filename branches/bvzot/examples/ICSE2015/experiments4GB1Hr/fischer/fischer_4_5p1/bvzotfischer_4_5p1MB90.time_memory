@@ -1,0 +1,31 @@
+[runlim] version:		1.7
+[runlim] time limit:		311040000 seconds
+[runlim] real time limit:	3600 seconds
+[runlim] space limit:		4096 MB
+[runlim] argv[0]:		zot
+[runlim] argv[1]:		bvzotfischer_4_5p1MB90.lisp
+[runlim] start:			Sun Jan 11 12:13:34 2015
+[runlim] main pid:		15538
+[runlim] sample:		3.8 seconds, 229.6 MB
+[runlim] sample:		5.4 seconds, 237.4 MB
+[runlim] sample:		7.0 seconds, 251.8 MB
+[runlim] sample:		9.3 seconds, 262.6 MB
+[runlim] sample:		10.9 seconds, 269.9 MB
+[runlim] sample:		11.6 seconds, 277.3 MB
+[runlim] sample:		13.4 seconds, 285.5 MB
+[runlim] sample:		15.0 seconds, 261.2 MB
+[runlim] sample:		15.6 seconds, 223.4 MB
+[runlim] sample:		17.5 seconds, 271.9 MB
+[runlim] sample:		18.8 seconds, 272.3 MB
+[runlim] sample:		19.6 seconds, 236.6 MB
+[runlim] sample:		22.4 seconds, 299.1 MB
+[runlim] sample:		22.2 seconds, 234.0 MB
+[runlim] sample:		24.1 seconds, 295.8 MB
+[runlim] end:			Sun Jan 11 12:16:12 2015
+[runlim] status:		ok
+[runlim] result:		0
+[runlim] children:		2925
+[runlim] real:			158.93 seconds
+[runlim] time:			26.83 seconds
+[runlim] space:			311.1 MB
+[runlim] samples:		1584

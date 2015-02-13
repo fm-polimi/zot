@@ -1,0 +1,25 @@
+[runlim] version:		1.7
+[runlim] time limit:		311040000 seconds
+[runlim] real time limit:	3600 seconds
+[runlim] space limit:		4096 MB
+[runlim] argv[0]:		zot
+[runlim] argv[1]:		bvzotsdserverl3sat.lisp
+[runlim] start:			Fri Jan 23 17:09:21 2015
+[runlim] main pid:		18327
+[runlim] sample:		10.0 seconds, 163.6 MB
+[runlim] sample:		19.9 seconds, 165.7 MB
+[runlim] sample:		29.9 seconds, 689.3 MB
+[runlim] sample:		36.7 seconds, 553.0 MB
+[runlim] sample:		42.0 seconds, 697.6 MB
+[runlim] sample:		45.4 seconds, 790.5 MB
+[runlim] sample:		47.9 seconds, 802.6 MB
+[runlim] sample:		52.3 seconds, 869.5 MB
+[runlim] sample:		55.1 seconds, 871.6 MB
+[runlim] end:			Fri Jan 23 17:10:54 2015
+[runlim] status:		ok
+[runlim] result:		0
+[runlim] children:		1354
+[runlim] real:			93.34 seconds
+[runlim] time:			58.05 seconds
+[runlim] space:			929.1 MB
+[runlim] samples:		931

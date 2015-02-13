@@ -1,0 +1,69 @@
+[runlim] version:		1.7
+[runlim] time limit:		311040000 seconds
+[runlim] real time limit:	3600 seconds
+[runlim] space limit:		4096 MB
+[runlim] argv[0]:		zot
+[runlim] argv[1]:		bvzotsdserverl2p1.lisp
+[runlim] start:			Fri Jan 23 11:28:02 2015
+[runlim] main pid:		17105
+[runlim] sample:		9.9 seconds, 156.0 MB
+[runlim] sample:		19.9 seconds, 157.8 MB
+[runlim] sample:		28.2 seconds, 530.7 MB
+[runlim] sample:		33.7 seconds, 650.9 MB
+[runlim] sample:		36.8 seconds, 582.9 MB
+[runlim] sample:		37.2 seconds, 562.9 MB
+[runlim] sample:		41.9 seconds, 670.8 MB
+[runlim] sample:		40.2 seconds, 605.9 MB
+[runlim] sample:		43.9 seconds, 576.1 MB
+[runlim] sample:		47.4 seconds, 753.9 MB
+[runlim] sample:		50.7 seconds, 822.7 MB
+[runlim] sample:		53.2 seconds, 845.3 MB
+[runlim] sample:		55.8 seconds, 851.2 MB
+[runlim] sample:		57.9 seconds, 868.3 MB
+[runlim] sample:		59.7 seconds, 812.1 MB
+[runlim] sample:		61.0 seconds, 719.4 MB
+[runlim] sample:		62.2 seconds, 980.7 MB
+[runlim] sample:		62.9 seconds, 825.2 MB
+[runlim] sample:		63.2 seconds, 864.5 MB
+[runlim] sample:		63.0 seconds, 870.7 MB
+[runlim] sample:		62.7 seconds, 674.3 MB
+[runlim] sample:		72.6 seconds, 932.3 MB
+[runlim] sample:		68.8 seconds, 958.9 MB
+[runlim] sample:		67.7 seconds, 834.3 MB
+[runlim] sample:		66.0 seconds, 646.0 MB
+[runlim] sample:		76.0 seconds, 980.8 MB
+[runlim] sample:		73.6 seconds, 851.0 MB
+[runlim] sample:		70.6 seconds, 697.0 MB
+[runlim] sample:		80.6 seconds, 945.7 MB
+[runlim] sample:		77.9 seconds, 932.1 MB
+[runlim] sample:		72.1 seconds, 561.3 MB
+[runlim] sample:		82.1 seconds, 984.0 MB
+[runlim] sample:		78.7 seconds, 758.1 MB
+[runlim] sample:		75.0 seconds, 534.1 MB
+[runlim] sample:		85.0 seconds, 1031.0 MB
+[runlim] sample:		94.9 seconds, 980.8 MB
+[runlim] sample:		83.3 seconds, 875.0 MB
+[runlim] sample:		93.2 seconds, 1066.1 MB
+[runlim] sample:		88.4 seconds, 1112.7 MB
+[runlim] sample:		84.0 seconds, 882.4 MB
+[runlim] sample:		94.0 seconds, 1133.1 MB
+[runlim] sample:		88.4 seconds, 882.6 MB
+[runlim] sample:		98.4 seconds, 1102.1 MB
+[runlim] sample:		91.4 seconds, 773.6 MB
+[runlim] sample:		101.3 seconds, 961.1 MB
+[runlim] sample:		111.3 seconds, 961.1 MB
+[runlim] sample:		94.9 seconds, 1167.3 MB
+[runlim] sample:		88.3 seconds, 617.8 MB
+[runlim] sample:		98.3 seconds, 1194.5 MB
+[runlim] sample:		91.1 seconds, 722.0 MB
+[runlim] sample:		101.1 seconds, 1135.3 MB
+[runlim] sample:		92.5 seconds, 708.6 MB
+[runlim] sample:		102.5 seconds, 1116.3 MB
+[runlim] end:			Fri Jan 23 11:37:02 2015
+[runlim] status:		ok
+[runlim] result:		0
+[runlim] children:		9840
+[runlim] real:			540.24 seconds
+[runlim] time:			112.31 seconds
+[runlim] space:			1239.6 MB
+[runlim] samples:		5393

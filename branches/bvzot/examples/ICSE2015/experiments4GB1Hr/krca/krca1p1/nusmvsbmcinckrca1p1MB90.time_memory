@@ -1,0 +1,36 @@
+[runlim] version:		1.7
+[runlim] time limit:		311040000 seconds
+[runlim] real time limit:	3600 seconds
+[runlim] space limit:		4096 MB
+[runlim] argv[0]:		nusmv
+[runlim] argv[1]:		-source
+[runlim] argv[2]:		runsbmcincMB90
+[runlim] start:			Sat Jan 10 13:41:19 2015
+[runlim] main pid:		11424
+[runlim] sample:		9.9 seconds, 123.0 MB
+[runlim] sample:		19.9 seconds, 155.1 MB
+[runlim] sample:		29.9 seconds, 183.9 MB
+[runlim] sample:		39.9 seconds, 212.4 MB
+[runlim] sample:		49.8 seconds, 229.9 MB
+[runlim] sample:		59.8 seconds, 243.4 MB
+[runlim] sample:		69.8 seconds, 257.0 MB
+[runlim] sample:		79.7 seconds, 266.6 MB
+[runlim] sample:		89.7 seconds, 281.1 MB
+[runlim] sample:		99.7 seconds, 291.9 MB
+[runlim] sample:		109.6 seconds, 306.4 MB
+[runlim] sample:		119.6 seconds, 312.2 MB
+[runlim] sample:		129.6 seconds, 322.4 MB
+[runlim] sample:		139.5 seconds, 328.3 MB
+[runlim] sample:		149.5 seconds, 338.8 MB
+[runlim] sample:		159.5 seconds, 345.8 MB
+[runlim] sample:		169.4 seconds, 355.7 MB
+[runlim] sample:		179.4 seconds, 361.3 MB
+[runlim] sample:		189.4 seconds, 367.6 MB
+[runlim] end:			Sat Jan 10 13:44:33 2015
+[runlim] status:		ok
+[runlim] result:		0
+[runlim] children:		0
+[runlim] real:			194.06 seconds
+[runlim] time:			192.46 seconds
+[runlim] space:			368.5 MB
+[runlim] samples:		1931

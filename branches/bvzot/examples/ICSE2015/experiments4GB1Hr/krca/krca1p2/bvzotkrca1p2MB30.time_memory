@@ -1,0 +1,17 @@
+[runlim] version:		1.7
+[runlim] time limit:		311040000 seconds
+[runlim] real time limit:	3600 seconds
+[runlim] space limit:		4096 MB
+[runlim] argv[0]:		zot
+[runlim] argv[1]:		bvzotkrca1p2MB30.lisp
+[runlim] start:			Sat Jan 10 15:05:26 2015
+[runlim] main pid:		11508
+[runlim] sample:		3.0 seconds, 212.7 MB
+[runlim] end:			Sat Jan 10 15:05:37 2015
+[runlim] status:		ok
+[runlim] result:		0
+[runlim] children:		196
+[runlim] real:			11.69 seconds
+[runlim] time:			3.18 seconds
+[runlim] space:			212.7 MB
+[runlim] samples:		112

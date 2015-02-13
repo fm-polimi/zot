@@ -1,0 +1,42 @@
+[runlim] version:		1.7
+[runlim] time limit:		311040000 seconds
+[runlim] real time limit:	3600 seconds
+[runlim] space limit:		4096 MB
+[runlim] argv[0]:		zot
+[runlim] argv[1]:		bvzotsdserverl2p1.lisp
+[runlim] start:			Fri Jan 23 11:12:32 2015
+[runlim] main pid:		17008
+[runlim] sample:		10.0 seconds, 156.0 MB
+[runlim] sample:		19.9 seconds, 157.8 MB
+[runlim] sample:		28.3 seconds, 511.5 MB
+[runlim] sample:		33.7 seconds, 651.0 MB
+[runlim] sample:		36.9 seconds, 576.6 MB
+[runlim] sample:		37.3 seconds, 480.3 MB
+[runlim] sample:		42.0 seconds, 670.3 MB
+[runlim] sample:		40.6 seconds, 592.7 MB
+[runlim] sample:		44.2 seconds, 586.7 MB
+[runlim] sample:		47.7 seconds, 734.8 MB
+[runlim] sample:		50.8 seconds, 819.7 MB
+[runlim] sample:		53.5 seconds, 845.2 MB
+[runlim] sample:		56.0 seconds, 850.6 MB
+[runlim] sample:		58.1 seconds, 867.0 MB
+[runlim] sample:		59.9 seconds, 812.1 MB
+[runlim] sample:		61.2 seconds, 719.3 MB
+[runlim] sample:		62.5 seconds, 980.7 MB
+[runlim] sample:		63.4 seconds, 833.7 MB
+[runlim] sample:		63.7 seconds, 860.3 MB
+[runlim] sample:		63.3 seconds, 754.6 MB
+[runlim] sample:		62.8 seconds, 682.1 MB
+[runlim] sample:		72.8 seconds, 932.3 MB
+[runlim] sample:		69.1 seconds, 958.2 MB
+[runlim] sample:		68.0 seconds, 821.4 MB
+[runlim] sample:		66.4 seconds, 607.1 MB
+[runlim] sample:		76.3 seconds, 980.8 MB
+[runlim] end:			Fri Jan 23 11:16:54 2015
+[runlim] status:		ok
+[runlim] result:		0
+[runlim] children:		4585
+[runlim] real:			262.56 seconds
+[runlim] time:			78.73 seconds
+[runlim] space:			1056.5 MB
+[runlim] samples:		2624
