@@ -183,7 +183,8 @@
 	 		      collect el
 	 		      do (incf i)))
 	      (setf temp_ls (read ff))
-	      (setf ls (if (and (listp temp_ls) (eq (first temp_ls) '/)) (float (/ (second temp_ls) (third temp_ls))) temp_ls)))
+		  (setf ls (if (listp temp_ls) (eval temp_ls) temp_ls)))
+		  
 	    do
 	   (setf x (read ff))
 	   (when (listp x) (return dict))
@@ -369,13 +370,13 @@
 		(loop while (and (consp (fourth tmp)) (not (eq (first (fourth tmp)) '/)) (not (eq (first (fourth tmp)) '-))) do
 			(progn 
 				(setf h (append h (list (list (third (second tmp))
-					(if (atom (third tmp)) (third tmp) (if (eq (first (third tmp)) '/) (float (/ (second (third tmp)) (third (third tmp)))) (* -1 (second (third tmp)))))))))
+					(if (atom (third tmp)) (third tmp) (eval (third tmp)))))))
 				(setf tmp (fourth tmp))))
 		(if (or (atom (fourth tmp)) (eq (first (fourth tmp)) '/) (eq (first (fourth tmp)) '-))
 			(progn (setf h (append h (list (list (third (second tmp))
-				(if (atom (third tmp)) (third tmp) (if (eq (first (third tmp)) '/) (float (/ (second (third tmp)) (third (third tmp)))) (* -1 (second (third tmp)))))))))
+				(if (atom (third tmp)) (third tmp) (eval (third tmp)))))))
 			(setf h (append h (list (list 'else 
-				(if (atom (fourth tmp)) (fourth tmp) (if (eq (first (fourth tmp)) '/) (float (/ (second (fourth tmp)) (third (fourth tmp)))) (* -1 (second (fourth tmp))))))))))))
+				(if (atom (fourth tmp)) (fourth tmp) (eval (fourth tmp))))))))))
 	(values h))
 
 (defun get-ar-val (ar i)
