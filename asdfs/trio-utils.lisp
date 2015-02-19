@@ -142,6 +142,7 @@
     :*smt-metric-past-operators*
     :*items*
     :*arith-items*
+    :*format-smt*
     ; -- SOLOIST operators --
     :until-sol
     :next-sol
@@ -174,7 +175,9 @@
 (defvar *metric-operators* nil)
 (defvar *smt-metric-futr-operators* nil)
 (defvar *smt-metric-past-operators* nil)
+(defvar *format-smt* nil)
 (defvar *bitvector* nil)
+
 
 ; *zot-item-constraints* will contain exclusive constraints for defined items
 ; (see define-item macro below) 
@@ -469,12 +472,11 @@
 	 `(or ,(trio-to-ltl `(not ,(second f))) ,(trio-to-ltl (third f))))
 
 	((iff)
-	 ;; (let ((x (trio-to-ltl (second f)))
-	 ;;       (y (trio-to-ltl (third f))))
-	 ;;   `(and (or ,x (not ,y)) (or ,y (not ,x)))))
-	      (let ((x (trio-to-ltl (second f)))
-	      		 (y (trio-to-ltl (third f))))
-	      	    `(iff ,x ,y)))
+    (if *format-smt*
+      (let ((x (trio-to-ltl (second f))) (y (trio-to-ltl (third f))))
+      `(iff ,x ,y))
+	    (let ((x (trio-to-ltl (second f))) (y (trio-to-ltl (third f))))
+	    `(and (or ,x (not ,y)) (or ,y (not ,x))))))
 
 	((niff)
 	 (let ((x (trio-to-ltl (second f)))
