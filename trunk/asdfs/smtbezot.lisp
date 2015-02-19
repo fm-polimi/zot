@@ -530,6 +530,7 @@
 	    (declarations nil)
 	    (smt-solver :z3))
 
+  (setf *format-smt* t)
   (setf *metric-operators* 'nil)
 
   (let ((formula (deneg 

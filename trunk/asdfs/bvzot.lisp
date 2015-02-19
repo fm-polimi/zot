@@ -1,9 +1,7 @@
 ;; BVZOT: a bounded satisfiability checker
 ;; Mohammad Mehdi Pourhashem Kallehbasti
 ; ------------------------------------------
-
 (in-package :cl-user)
-
 (defpackage :bvzot
   (:use :common-lisp 
 	:trio-utils
@@ -17,14 +15,10 @@
 	   :mathsat
 	   :z3)) 
 
-
 (in-package :bvzot)
 
 (defvar *PROPS* nil) ; this will contain a Kripke
-
-
 (defclass eezot-kripke (kripke) ())
-
 (defun make-kripke (k fma) ;;alw, alwf, alwp, som, somf, and somp bypass the trio-to-ltl encoding. alw and som are pushed to kripke-futr list.
   (let ((a-kripke (make-instance 'eezot-kripke)))
     (setf 
@@ -39,27 +33,20 @@
       (kripke-futr a-kripke)   nil
       (kripke-maximum a-kripke) 0
       (kripke-past a-kripke)   nil)
-
-    
       (setf (gethash '**I_LOOP** (kripke-list a-kripke))
  		    (intern (format nil "I_LOOP" )))
-
       (setf (gethash '**LOOPEX** (kripke-list a-kripke))
  		    (intern (format nil "LOOPEX" )))
-
-
       ; This puts subformulae into the hash table
       (labels ((jump (fm)
 		     (when (and (not (member fm '(nil true false)))
 				(not (gethash fm (kripke-list a-kripke)))
 				)
-		       
 		       (if (symbolp fm)
 			   (setf (gethash fm (kripke-list a-kripke)) 
 				 (intern (format nil "~s" fm)))
 			   (setf (gethash fm (kripke-list a-kripke)) 
 				 (intern (format nil "P~s" (incf (kripke-numvar a-kripke))))))
-
 		       (when (consp fm)
 			 (dolist (i (cdr fm))
 			   (jump i))))))
@@ -85,9 +72,7 @@
 	      (t
 		(error "subformulae: unknown op ~S~%" fm))))) 
 	(kripke-list a-kripke))
-
       a-kripke))
-
 
 (defmethod call ((kk eezot-kripke) obj the-time &rest other) 
   (assert (null other))
@@ -95,8 +80,6 @@
     ((eq 'false obj) 'false)
     ((eq 'true obj) 'true)    
     (t (list (gethash obj (kripke-list kk)) the-time))))
-
-
 (defgeneric call-fmla-id (kk obj))
 
 (defmethod call-fmla-id ((kk eezot-kripke) obj) 
@@ -111,7 +94,6 @@
 (defun the-iloop ()
   (call-fmla-id *PROPS* '**I_LOOP**))
 
-;;;;;;;;;;;;;;;;;;
 (defun repeat-string (n string)
   (with-output-to-string (stream)
     (loop repeat n do (write-string string stream))))
@@ -143,14 +125,13 @@
 (defun zot (the-time spec 
 	    &key 
 	    (smt-solver :z3))
-
 	(setf *smt-metric-futr-operators* nil)
 	(setf *smt-metric-past-operators* nil)
 	(setf *metric-operators* nil)
 	(setf *bitvector* t)
+	(setf *format-smt* t)
 	(let ((formula (trio-to-ltl spec)))
 	(setf *PROPS* (make-kripke the-time formula))
-;;******************************
 (format t "This is BVZOT.~%")(force-output)
 	(with-open-file (k "./output.smt.txt" :direction :output :if-exists :supersede)
 		(setq bvSize (+ the-time 2))
@@ -158,15 +139,12 @@
 		(format k "~%(declare-fun i_loop () (_ BitVec ~A))" bvSize)
 		(format k "~%(assert (and (bvuge i_loop (_ bv1 ~A)) (bvule i_loop (_ bv~A ~A))))" bvSize the-time bvSize)
 		(format k "~%(define-fun getbit ((x (_ BitVec ~A)) (index (_ BitVec ~A))) (_ BitVec 1)~%~4T((_ extract 0 0) (bvlshr x index)))~%~4T" bvSize bvSize)
-		; (format k (gen_Rev bvSize)) ;;Rev2
-		;;<Rev3>
 		(format k "~%(define-fun reverse ((x (_ BitVec ~A))) (_ BitVec ~A)~%" bvSize bvSize)
 		(loop for i from 0 to (- bvSize 3) do
 			(format k "(concat((_ extract ~A ~A)x)" i i)
 			)
 		(format k "(concat ((_ extract ~A ~A)x)((_ extract ~A ~A)x)" (- bvSize 2)(- bvSize 2)(1- bvSize)(1- bvSize))
 		(format k (repeat-string bvSize ")"))
-		;;</Rev3>
 		(format k "~%(define-fun loopConV ((x (_ BitVec ~A))) Bool~%~4T(and~%" bvSize)
 		(format k "~8T(= (getbit x i_loop) ((_ extract ~A ~A) x) ) ;; k+1 = i_loop~%" (+ the-time 1) (+ the-time 1))
 		(format k "~8T(= (getbit x (bvsub i_loop (_ bv1 ~A))) ((_ extract ~A ~A) x)))) ;; k = i_loop-1~%" bvSize the-time the-time)
@@ -186,10 +164,8 @@
 		(format k "~20T(bvadd~%")
 		(format k "~24T(reverse (bvor B A))~%")
 		(format k "~24T(reverse B)))))))~%")
-		;;<until2>
 		(format k "~%(define-fun until ((A (_ BitVec ~A)) (B (_ BitVec ~A))) (_ BitVec ~A)" bvSize bvSize bvSize)
 		(format k "~%~4T(untilNL A (concat (getbit (untilNL A B) i_loop) ((_ extract ~A 0) B))))" the-time)
-		;;</until2>
 		(format k "~%(define-fun release ((A (_ BitVec ~A)) (B (_ BitVec ~A))) (_ BitVec ~A)~%" bvSize bvSize bvSize)
 		(format k "~4T(bvnot (until (bvnot A) (bvnot B))))~%")
 		(format k "~%(define-fun since ((A (_ BitVec ~A)) (B (_ BitVec ~A))) (_ BitVec ~A)~%" bvSize bvSize bvSize)
@@ -207,7 +183,6 @@
 		(format k "~%(define-fun somf ((x (_ BitVec ~A))) (_ BitVec ~A)~%~4T(somfNL (concat (getbit (somfNL x) i_loop) ((_ extract ~A 0) x))))~%" bvSize bvSize the-time)
 		(format k "~%(define-fun somp ((x (_ BitVec ~A))) (_ BitVec ~A)~%~4T(bvor~%~8Tx~%~8T(bvnot~%~12T(bvsub~%~16Tx~%~16T(_ bv1 ~A)))))~%"bvSize bvSize bvSize)
 		(format k "(define-fun bviff ((A (_ BitVec ~A)) (B (_ BitVec ~A))) (_ BitVec ~A)~%~4T(bvxnor A B))~%" bvSize bvSize bvSize)
-
 		(format k ";;;;;;Used propositions and their loop constraints:~%")
 		(loop for p in (kripke-prop *PROPS*)
 		do (unless (eq p t) (format k "(declare-fun ~A () (_ BitVec ~A))~%" (string-downcase p) bvSize)
@@ -221,6 +196,5 @@
 		(format k "(check-sat-using (then simplify solve-eqs (repeat bit-blast) sat))~%")
 		(format k "(get-model)~%")
 	))
-
 	(to-smt-and-back *PROPS* smt-solver :smt-lib :smt2 :bitvector :t)
 )

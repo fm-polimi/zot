@@ -656,7 +656,8 @@
 
   (setf *smt-metric-futr-operators* 't)
   (setf *smt-metric-past-operators* 'nil)
-
+  (setf *format-smt* t)
+  
   (let ((formula (deneg 
 		   (trio-to-ltl spec))))
 

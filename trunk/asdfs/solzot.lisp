@@ -2303,6 +2303,7 @@
 					;(setf *periodic-arith-vars* periodic-vars)
   (setf *smt-metric-futr-operators* smt-metric-futr)
   (setf *smt-metric-past-operators* smt-metric-past)
+  (setf *format-smt* t)
  ; (define-dynamic-tvar (get-delta) *int*)
   (if (or (eq logic :QF_UFRDL)(eq logic :QF_UFLRA))
       (setf *real-constants* t))

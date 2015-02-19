@@ -481,7 +481,8 @@
 
   (setf *smt-metric-futr-operators* nil)
   (setf *smt-metric-past-operators* nil)
-
+  (setf *format-smt* t)
+  
   (setf *metric-operators* nil)
 
   (let ((formula (deneg 
