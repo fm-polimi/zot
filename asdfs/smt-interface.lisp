@@ -58,7 +58,7 @@
 	    (:z3 
 	     (format t "z3...~% ")(force-output)
 	     (sb-ext:run-program "z3"
-				 (cons (ecase smt-lib (:smt "-smt") (:smt2 "-smt2")) '("-st" "output.smt.txt")) :input
+				 (cons (ecase smt-lib (:smt "-smt") (:smt2 "-smt2 pp.decimal=true")) '("-st"  "output.smt.txt")) :input
 				 t :output "output.1.txt" :error t :search t :if-output-exists :supersede))
 
 	    (:yices 
@@ -89,7 +89,7 @@
 		       (ecase smt-solver
 			 (:z3 
 			  (format t "z3...~% ")(force-output)
-			  (funcall call-shell "z3 -smt -st output.smt.txt > output.1.txt"))
+			 (funcall call-shell "z3 -smt -st output-hist.smt.txt > output.1.txt"))
 
 			 (:yices 
 			  (format t "yices...~% ")(force-output)
@@ -364,20 +364,22 @@
 		(if	(> i (1- (length bvl))) 0 
 			(nth (- (length bvl) (1+ i)) bvl))))
 
+;;<pp.decimal=true>
 (defun proc-val (f h)
 	(progn
 		(setf tmp f)
 		(loop while (and (consp (fourth tmp)) (not (eq (first (fourth tmp)) '/)) (not (eq (first (fourth tmp)) '-))) do
 			(progn 
 				(setf h (append h (list (list (third (second tmp))
-					(if (atom (third tmp)) (third tmp) (eval (third tmp)))))))
+					(if (atom (third tmp)) (write-to-string (third tmp)) (write-to-string (third tmp)))))))
 				(setf tmp (fourth tmp))))
 		(if (or (atom (fourth tmp)) (eq (first (fourth tmp)) '/) (eq (first (fourth tmp)) '-))
 			(progn (setf h (append h (list (list (third (second tmp))
-				(if (atom (third tmp)) (third tmp) (eval (third tmp)))))))
+				(if (atom (third tmp)) (write-to-string (third tmp)) (write-to-string (third tmp)))))))
 			(setf h (append h (list (list 'else 
-				(if (atom (fourth tmp)) (fourth tmp) (eval (fourth tmp))))))))))
+				(if (atom (fourth tmp)) (write-to-string (fourth tmp)) (write-to-string (fourth tmp))))))))))
 	(values h))
+;;</pp.decimal=true>
 
 (defun get-ar-val (ar i)
 	(let ((val-list (proc-val (gethash ar ar-val) '())))
@@ -385,9 +387,17 @@
 		(if (or (eq (first (nth x val-list)) i) (eq (first (nth x val-list)) 'else)) (progn (setq i (second (nth x val-list))) (return)))))
 	(values i))
 
+(defun get-aruf-val (ar i)
+	(let ((val-list (proc-val (gethash ar aruf-val) '())))
+	(loop for x from 0 to (- (list-length val-list) 1) do
+		(if (or (eq (first (nth x val-list)) i) (eq (first (nth x val-list)) 'else)) (progn (setq i (second (nth x val-list))) (return)))))
+	(values i))
+
 (defun translate-abvsmt2-output (k) nil
+(setf *read-default-float-format* 'double-float)
 (setq ap-val  (make-hash-table :test #'equal))
 (setq ar-val  (make-hash-table :test #'equal))
+(setq aruf-val  (make-hash-table :test #'equal))
 (setq smtstr "")
 (with-open-file (stream "output.1.txt" :direction :input)
    (do ((line (read-line stream nil) (read-line stream nil)))
@@ -396,7 +406,6 @@
                (do ((line1 (read-line stream nil) (read-line stream nil)))
                   ((null line1))
                   (setq smtstr (concatenate 'string smtstr line1))))))
-
 (setq smtlist (string-to-list smtstr))
 (setq smtlist (cdr smtlist))
 (setf smtlist (prune-smt smtlist smtlist))
@@ -404,7 +413,8 @@
 (loop for var in smtlist do
 	(if (consp (fourth var))
 		(progn (if (eq (second (fourth var)) (read-from-string "BITVEC")) (setf (gethash (second var) ap-val) (fifth var)))
-			(if (eq (first (fourth var)) (read-from-string "ARRAY")) (setf (gethash (second var) ar-val) (third (fifth var)))))))
+			(if (eq (first (fourth var)) (read-from-string "ARRAY")) (setf (gethash (second var) ar-val) (third (fifth var))))))
+	(if (consp (third var)) (setf (gethash (second var) aruf-val) (fifth var))))
 (loop for key being the hash-keys of ar-val do
 	(loop for var in smtlist do 
 		 (if (eq (gethash key ar-val) (second var)) (setf (gethash key ar-val) (fifth var)))))
@@ -431,6 +441,12 @@
    					(format t "  ~a = ~a~%" ar (get-ar-val ar i))
    					(format ff "  ~a = ~a~%" ar (get-ar-val ar i)))
 	   		) ar-val)
+	   	(maphash #'(lambda (ar val) 
+   			(progn
+   					(format t "  ~a = ~a~%" ar (get-aruf-val ar i))
+   					(format ff "  ~a = ~a~%" ar (get-aruf-val ar i)))
+	   		) aruf-val)
+
 	 	)
 	(format t  "------ end of ae2bvzot result ------~%")
 	(format ff "------ end ------~%")))
