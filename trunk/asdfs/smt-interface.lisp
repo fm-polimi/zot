@@ -58,7 +58,7 @@
 	    (:z3 
 	     (format t "z3...~% ")(force-output)
 	     (sb-ext:run-program "z3"
-				 (cons (ecase smt-lib (:smt "-smt") (:smt2 "-smt2 pp.decimal=true")) '("-st"  "output.smt.txt")) :input
+				 (ecase smt-lib (:smt (cons "-smt" '("-st" "output.smt.txt"))) (:smt2 (cons "-smt2" '("-st" "pp.decimal=true" "output.smt.txt")))) :input
 				 t :output "output.1.txt" :error t :search t :if-output-exists :supersede))
 
 	    (:yices 
