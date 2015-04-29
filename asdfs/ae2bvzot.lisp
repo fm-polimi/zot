@@ -1,6 +1,7 @@
 ;; AE2BVZOT: a bounded satisfiability checker (extended bvzot to cover arithmetic constraints).
 ;; Mohammad Mehdi Pourhashem Kallehbasti
-; ------------------------------------------ MAIN(UFRSS) => FAP=nil
+; ------------------------------------------
+;; Special Config1: ae2bvzot switches to this configuration when there is no Boolean AP and real tvar in the main model.
 (in-package :cl-user)
 (defpackage :ae2bvzot
   (:use :common-lisp 
@@ -94,11 +95,13 @@
 (defun arity (i f)
   (eq (1- (length f)) i))
 
-(defun to-smt-dialect (f smt)
+(defun to-smt-dialect (f smt bvSize)
   (declare (optimize (debug 0)(safety 0)(speed 3)))
       (cond     
-	    ((null f) 'false)
-	    ((eq f t) 'true)   	    
+	    ; ((null f) 'false)
+	    ; ((eq f t) 'true)
+	    ((null f) (bvFalse bvSize))
+	    ((eq f t) (bvTrue bvSize))
 	    ((or (symbolp f) (numberp f)) f)
 	    ((or (arith-cop (car f)) (arith-opp (car f))) f)
 	    (t
@@ -106,28 +109,30 @@
 			((impl)
 			      (case smt
 				    ((:smt)
-					  `(implies ,(to-smt-dialect (second f) smt) ,(to-smt-dialect (third f) smt)))
+					  `(implies ,(to-smt-dialect (second f) smt bvSize) ,(to-smt-dialect (third f) smt bvSize)))
 				    ((:smt2)
-					   `(=> ,(to-smt-dialect (second f) smt) ,(to-smt-dialect (third f) smt)))
+					   `(=> ,(to-smt-dialect (second f) smt bvSize) ,(to-smt-dialect (third f) smt bvSize)))
 				    (t
-					  `(or ,(to-smt-dialect `(not ,(second f)) smt) ,(to-smt-dialect (third f) smt)))))
+					  `(or ,(to-smt-dialect `(not ,(second f)) smt bvSize) ,(to-smt-dialect (third f) smt bvSize)))))
 
 			((iff)
 			      (case smt
 				    ((:smt)
-					  `(iff ,(to-smt-dialect (second f) smt) ,(to-smt-dialect (third f) smt)))
+					  `(iff ,(to-smt-dialect (second f) smt bvSize) ,(to-smt-dialect (third f) smt bvSize)))
 				    ((:smt2)
-					  `(= ,(to-smt-dialect (second f) smt) ,(to-smt-dialect (third f) smt)))
+					  `(iff ,(to-smt-dialect (second f) smt bvSize) ,(to-smt-dialect (third f) smt bvSize))
+					  ; (if (eq freshAP t) `(= ,(to-smt-dialect (second f) smt bvSize) ,(to-smt-dialect (third f) smt bvSize)) `(iff ,(to-smt-dialect (second f) smt bvSize) ,(to-smt-dialect (third f) smt bvSize)))
+					  )
 					   ;; `(and
-					   ;; 	  (=> ,(to-smt-dialect (second f) smt) ,(to-smt-dialect (third f) smt))
-					   ;; 	  (=> ,(to-smt-dialect (third f) smt) ,(to-smt-dialect (second f) smt))))
+					   ;; 	  (=> ,(to-smt-dialect (second f) smt bvSize) ,(to-smt-dialect (third f) smt bvSize))
+					   ;; 	  (=> ,(to-smt-dialect (third f) smt bvSize) ,(to-smt-dialect (second f) smt bvSize))))
 				     (t
 					  `(and 
-						 (or ,(to-smt-dialect `(not ,(second f)) smt) ,(to-smt-dialect (third f) smt))
-						 (or ,(to-smt-dialect (second f) smt) ,(to-smt-dialect `(not ,(third f)) smt))))))
+						 (or ,(to-smt-dialect `(not ,(second f)) smt bvSize) ,(to-smt-dialect (third f) smt bvSize))
+						 (or ,(to-smt-dialect (second f) smt bvSize) ,(to-smt-dialect `(not ,(third f)) smt bvSize))))))
 			(t
 			      (cons (car f) (mapcar #'(lambda(x)
-							    (to-smt-dialect x smt)) (cdr f))))))))
+							    (to-smt-dialect x smt bvSize)) (cdr f))))))))
 
 (defvar *PROPS* nil) ; this will contain a Kripke
 
@@ -135,6 +140,9 @@
       ((the-arith :accessor kripke-arith :type list) ;all arithmetic formulae
 	    (the-timed-arith :accessor kripke-timed-arith :type hash-table) ;just arithmetic formulae inside with-time
 	    (the-atomic-formulaeHT :accessor kripke-atomic-formulaeHT :type hash-table)
+	    ; (the-AP-arithComp :accessor kripke-AP-arithComp :type hash-table) ;used for GSMT
+	    (the-AP-arithComp :accessor AP-arithComp :type list) ;used for GSMT
+	    (the-GSMT-reduction :accessor GSMT-reduction :type list) ;list of APs for arithmetic comparison that are already defined by GSMT
 	    (the-timed-arith-terms :accessor kripke-timed-arith-terms :type list) ;
 	    (the-untimed-arith :accessor kripke-untimed-arith :type hash-table)
 	    (the-untimed-arith-terms :accessor kripke-untimed-arith-terms :type list) ;
@@ -173,6 +181,8 @@
 		  (kripke-timed-arith a-kripke)  (make-hash-table :test #'equal)
 		  (kripke-untimed-arith a-kripke)  (make-hash-table :test #'equal)
 		  (kripke-atomic-formulaeHT a-kripke)  (make-hash-table :test #'equal)
+		  ; (AP-arithComp a-kripke)  (make-hash-table :test #'equal)
+		  (AP-arithComp a-kripke)   nil
 		  (kripke-untimed-arith-terms a-kripke) nil 
 		  (kripke-arith-futr a-kripke)   nil
 		  (kripke-arith-past a-kripke)   nil
@@ -196,7 +206,7 @@
 					; *** processing LTL atomic formulae *** 
 		      (manage-atomic-LTL-subfmla (fm) 
 
-					; put in kripkr-IPC-vars (timed and untimed) all the arithmetical variables involved
+					; put in kripke-IPC-vars (timed and untimed) all the arithmetical variables involved
 			    (when (eq (get-item-sort (arith-itemp fm)) 'uf)
 			     	   (setf (gethash fm (kripke-untimed-arith a-kripke)) fm))
 
@@ -398,7 +408,7 @@
 	      (let* ( (IPC-terms 
 			    (remove-duplicates (loop for el in (kripke-IPC-constraints a-kripke) append (cdr el))				      
 			    :test #'equal))		      				
-				 ; IPC-terms does not cointain the starting variable
+				 ; IPC-terms does not contain the starting variable
 			 (IPC-constraints (kripke-IPC-constraints a-kripke))
 			 (cur-partition nil)
 			 (cur-term nil))
@@ -438,8 +448,6 @@
 					; from the set of related terms visit all partition and get for each term the variable
 					; remove also singleton - i.e., terms not directly connected to any other term
 		    (setf (kripke-related-IPC-vars a-kripke)
-			  ;; (remove-if #'(lambda(x)              ----- BOH...PERCHE' ?!?!?
-			  ;; 		     (eq (length x) 1))
 				(mapcar #'(lambda(x)
 						(remove-duplicates (mapcar #'var-of-term x)))
 				      (kripke-related-IPC-terms a-kripke)))
@@ -505,7 +513,7 @@
 (defmethod call ((kk ae2bvzot-kripke) obj the-time &rest other)
       (cond 
 	    ((eq 'false obj) 'false)
-	    ((eq 'true obj) 'true)   
+	    ((eq 'true obj) 'true)
 	    ((numberp obj) obj)
 	    ((and (consp obj) 
 		   (or (arith-cop (car obj)) (arith-opp (car obj)))) 
@@ -565,30 +573,6 @@
 ;; ---------
 ;; Semantics
 ;; ---------
-(defun LoopFree ()
-  (format t "loopfree...")(force-output)
-  (cons  
-   `(not ,(the-loopEx))
-   ;'true
-
-;modified index: from 0 to K
-
-   (loop for i from 0 to (kripke-k *PROPS*) append
-	(loop for j from 0 to (kripke-k *PROPS*) when (< i j)
-	   collect
-	     (list 'not 
-		   (cons 
-		    'and
-		    (loop for fm in (append 
-				      (kripke-atomic-formulae *PROPS*) 
-					;(remove-if-not (lambda (f) (eq (car f) 'next))
-				      (kripke-futr *PROPS*);)
-					;(remove-if-not (lambda (f) (eq (car f) 'yesterday))
-				      (kripke-past *PROPS*));)
-		       collect
-			 `(iff ,(call *PROPS* fm i) 
-			       ,(call *PROPS* fm j)))))))))
-
 (defun LoopConstraints (gen-symbolic-val)
       (format t "define loop constraints~%")(force-output)
       ; (list
@@ -620,7 +604,7 @@
 					    (make-IPC-constraint (sim p1 p2) 
 						  (list sim p1 p2)) 
 					    )
-					; enforce IPC-periodicity over intepreted RELATIONs in {<,>,<=,>=,=} w.r.t. the set of VARIABLES	     
+					; enforce IPC-periodicity over interpreted RELATIONs in {<,>,<=,>=,=} w.r.t. the set of VARIABLES	     
 		   (loop for partition in (kripke-related-IPC-vars *PROPS*) 
 			 when gen-symbolic-val ; when generate-symbolic-valuation is true then build periodicity over symbolic valuation at position k and (i-loop)-1
 			 append
@@ -676,14 +660,13 @@
 		      ((zeta yesterday)
 		       (call *PROPS* (second fma) (1- i))))))))
 
-(defun gen-i-atomic-formulae ()
+(defun gen-i-atomic-formulae (GSMT)
   (format t "define for interpreted relations: <,>,=,<=,>= ~%")(force-output)
   (loop for i from 0 to (kripke-k *PROPS*) append
 	(loop for fma in (kripke-atomic-formulae *PROPS*) 
-	      when (arith-cop fma)
+	      when (and (arith-cop fma) (not (and GSMT (member fma GSMT-reduction))))
 	      collect
-	      (list '=  
-		     ; (call *PROPS* fma i);MAIN
+	      (list 'iff
 	    	(list '= (cons (list '_ 'extract i i) (call *PROPS* fma i)) (list '_ 'bv1 '1))
 		    (cons (car fma) (mapcar #'(lambda (x)
 						(call *PROPS* x i))
@@ -703,8 +686,6 @@
 ; 	    	(list '= (cons (list '_ 'extract i i) (call *PROPS* fma i)) (list '_ 'bv0 '1))
 ; 		    ))))
 ;;</with ite>
-
-
 
 (defun gen-arith-constraints ()
   (format t "define FO terms for +,-,*,/,mod ~%")(force-output)
@@ -821,7 +802,7 @@
 (defun gen-bool ()
       (format t "define LTL boolean connectives~%")(force-output)
 	    (loop for fma in (kripke-bool *PROPS*) collect
-		  (list 'iff  
+		  (list '=
 			(first (call *PROPS* fma 0))
 			(case (car fma)
 			      ((not)
@@ -887,22 +868,22 @@
 		((trigger)
 			(list 'trigger (first (call *PROPS* (second fma) 0)) (first (call *PROPS* (third fma) 0))))))))
 
-(defun the-big-formula (fma loop-free no-loop periodic-arith-terms gen-symbolic-val ipc-constraints bound freshAP)
+(defun the-big-formula (fma periodic-arith-terms gen-symbolic-val ipc-constraints bound freshAP GSMT)
   (append
    (nconc	   
 	(gen-arith-futr) ;e.g. [X(i1)]0 <-> [i1]1 
 	(gen-arith-past)
-	(gen-i-atomic-formulae) ;defines behaviour of AP assigned to arithmetic operators.
+	(gen-i-atomic-formulae GSMT) ;defines behaviour of AP assigned to arithmetic operators.
 	(gen-arith-constraints)
 	;;;;; (gen-evt-futr)
 	;;;;; (gen-past1) ; [Y(F1)]0 = false
 	;;;;; (gen-existence-condition ipc-constraints)
-	 (when freshAP
-	 	(nconc
-	 (gen-futr) ;defines behavior of future temporal operators. 
-	 (gen-bool)
-	 (gen-past2)
-	 ))
+	(when freshAP
+		(nconc
+		(gen-futr) ;defines behavior of future temporal operators. 
+		(gen-bool)
+		(gen-past2)
+	))
 	;[implemented] (LastStateFormula) ;l ~ k+1 for all p (AP + arithmetics represented as AP)
 	(LoopConstraints gen-symbolic-val)
 	(gen-regions bound)
@@ -953,17 +934,36 @@
 			))
 	(values newf))
 
-(defun collapse-atomic-formulae (f) ;main
+(defun collapse-atomic-formulae (f)
 	(cond 
 		((atom f) f)
 		((gethash f (kripke-atomic-formulaeHT *PROPS*)) (gethash f (kripke-list *PROPS*)))
 		(t (cons (collapse-atomic-formulae (car f)) (collapse-atomic-formulae (cdr f))))))
 
+(defun list-eq (list1 list2)
+ (if (and (not (null list1)) (not (null list2)))
+	 (let ((a (car list1)) (b (car list2)))
+		 (cond
+		 	((and (listp a) (listp b))
+			(and (list-eq a b)
+			(list-eq (cdr list1) (cdr list2))))
+			 (t
+			 (and (eq a b)
+			 (list-eq (cdr list1) (cdr list2))))))
+	 (= (length list1) (length list2))))
+
+(defun get-rel (c1 c2)
+	(case c1
+		('> (case c2 ('= 'nand) ('< 'nand) ('>= 'impliesR) ('<= 'neg)))
+		('= (case c2 ('> 'nand) ('< 'nand) ('>= 'impliesR) ('<= 'impliesR)))
+		('< (case c2 ('> 'nand) ('= 'nand) ('>= 'neg) ('<= 'impliesR)))
+		('>= (case c2 ('> 'impliesL) ('= 'impliesL) ('< 'neg)))
+		('<= (case c2 ('> 'neg) ('= 'impliesL) ('< 'impliesL)))))
 					; --- MAIN ---
 (defun zot (the-time spec 
 		     &key
 		     (freshAP nil) ; Introduces fresh APS for all "unique" subformulae. If it is set to nil, fresh APs are introduced only for arithmetic constraints.
-		     (loop-free nil) 
+		     (GSMT nil) ;Guide SMT-solver: Adds assertions regarding (obvious) relations between arithmetic constraints over their representative AP. E.g. ap1:(> a b), and ap2:(<= a b) then asserts (= ap1 (bvnot ap2)) and deletes definition of either ap1 or ap2 over every time instant. That means, since we have (<-> ap1[i] (> a[i] b[i])) and (= ap1 (bvnot ap2)) we can delete this: (<-> ap2[i] (<= a[i] b[i])).
 		     (transitions nil)
 		     (negate-transitions nil)
 		     (declarations nil)
@@ -971,22 +971,21 @@
 		     (logic :QF_UFIDL)
 		     (smt-assumptions nil)
 		     (smt-declarations nil)
-		     (no-loop nil)
 		     (with-time t)
 		     (periodic-terms nil)	
-		     (gen-symbolic-val nil)
+		     (gen-symbolic-val t)
 		     (ipc-constraints nil)
 		     (smt-lib :smt2)
 		     (over-clocks 0)
-		     (smt-metric-futr nil)	;only for finite words i.e no-loop is true
-		     (smt-metric-past nil)	;only for finite words i.e no-loop is true
+		     (smt-metric-futr nil)
+		     (smt-metric-past nil)
 		     )
 
   (setf *smt-metric-futr-operators* smt-metric-futr)
   (setf *smt-metric-past-operators* smt-metric-past)
   (setf *format-smt* t)
   (setf *bitvector* t)
-
+  (setf real-var nil)
   (if (or (eq logic :QF_UFRDL)(eq logic :QF_UFLRA))
       (setf *real-constants* t))
   (setf *metric-operators* nil)
@@ -997,8 +996,7 @@
 				   (with-time formula)
 				 formula)))
 
-    (format t "This is ae2bvzot.~%")    
-
+    (format t "This is AE2BVZOT.~%")
     (declare-assumptions smt-declarations)
 
     (let ((undeclared (set-difference (kripke-atomic-formulae *PROPS*) declarations)))
@@ -1014,6 +1012,17 @@
 		  (format t "~%Graph dependency over terms ~%~s~%" (kripke-related-IPC-terms *PROPS*))
 		  (format t "~%Related variables ~%~s~%" (kripke-related-IPC-vars *PROPS*))
 		  (format t "~%Time bound: ~S~%" the-time)
+		  (format t "~%Number of Boolean variables: ~%~S~%"(- (length (kripke-atomic-formulae *PROPS*)) (length (kripke-IPC-constraints *PROPS*))))
+		(setf AP-arithComp nil)
+		(setf GSMT-reduction nil)
+		(when GSMT (progn
+		(loop for fma in (kripke-atomic-formulae *PROPS*) when (arith-cop fma) do
+			(setf AP-arithComp (append AP-arithComp (list (list fma (call *PROPS* fma 0))))))
+		(loop for i from 0 to (1- (length AP-arithComp)) do
+			(loop for j from (1+ i) to (1- (length AP-arithComp)) do
+				(let ((f1 (nth i AP-arithComp)) (f2 (nth j AP-arithComp)))
+					(when (and (list-eq (list (second (first f1))) (list (second (first f2)))) (list-eq (list (third (first f1))) (list (third (first f2)))) (eq (get-rel (first(first f1)) (first(first f2))) 'neg))
+						(setf GSMT-reduction (append GSMT-reduction (list (first f2))))))))))
 
 		  (let ((trans (if transitions 
 				   (manage-transitions transitions the-time) 
@@ -1029,18 +1038,17 @@
 							 (if (eq with-time t)
 							       (with-time formula) 
 							       formula) 
-							 loop-free 
-							 no-loop 		
 							 periodic-terms
 							 gen-symbolic-val
 							 ipc-constraints
 							 over-clocks
 							 freshAP
+							 GSMT
 							 ))
 				      (if (and trans negate-transitions)
 					    (list (list 'not (cons 'and trans)))
 					    trans))
-				smt-lib)))
+				smt-lib (+ the-time 2))))
 		  
 		  (format t "~%done processing formula~%")		  
 		  (with-open-file (k "./output.smt.txt" :direction :output :if-exists :supersede)    ;write the smt file
@@ -1052,11 +1060,25 @@
 							 *int*)))
 				  (setq bvSize (+ the-time 2))
 		(format k "(declare-fun i_loop () (_ BitVec ~A))" bvSize)
-		; (format k "~%(assert (and (bvuge i_loop (_ bv1 ~A)) (bvule i_loop (_ bv~A ~A))))" bvSize the-time bvSize)
-		(format k "~%(declare-fun i-loop () Int)")
-		(format k "~%(assert (and (> i-loop 0) (< i-loop ~A)))" (1+ the-time))
-		; (format k "~%(assert (= (bv2int i_loop) i-loop))")
-		(format k "~%(assert (= ((_ int2bv ~A) i-loop) i_loop))" bvSize)
+		
+		; (format k "~%(declare-fun i-loop () Int)")
+		; 		(format k "~%(assert (and (> i-loop 0) (< i-loop ~A)))" (1+ the-time))
+		; 		; (format k "~%(assert (= (bv2int i_loop) i-loop))")
+		; 		(format k "~%(assert (= ((_ int2bv ~A) i-loop) i_loop))" bvSize)
+		
+		(if (or gen-symbolic-val (> over-clocks 0))
+			(progn
+				(format k "~%(declare-fun i-loop () Int)")
+				(format k "~%(assert (and (> i-loop 0) (< i-loop ~A)))" (1+ the-time))
+				; (format k "~%(assert (= (bv2int i_loop) i-loop))")
+				(format k "~%(assert (= ((_ int2bv ~A) i-loop) i_loop))" bvSize))
+			(format k "~%(assert (and (bvuge i_loop (_ bv1 ~A)) (bvule i_loop (_ bv~A ~A))))" bvSize the-time bvSize))
+			; (progn ;(format k "~%(assert (and (bvuge i_loop (_ bv1 ~A)) (bvule i_loop (_ bv~A ~A))))" bvSize the-time bvSize))
+			; 	(format k "~%(assert (or")
+			; 	(loop for i from 1 to (- bvSize 2) do
+			; 		(format k "~%~4T(= i_loop (_ bv~A ~A))" i bvSize))
+			; 	(format k "))")))
+		
 		(format k "~%(define-fun getbit ((x (_ BitVec ~A)) (index (_ BitVec ~A))) (_ BitVec 1)~%~4T((_ extract 0 0) (bvlshr x index)))~%~4T" bvSize bvSize)
 		(format k "~%(define-fun reverse ((x (_ BitVec ~A))) (_ BitVec ~A)~%~4T" bvSize bvSize)
 		(loop for i from 0 to (- bvSize 3) do
@@ -1072,7 +1094,7 @@
 ; (define-fun fc ((x Real) (y Real)) Bool
 ;     (and (= (to_int x) (to_int y)) (= (ceiling x) (ceiling y))))
 ; 			")
-		(format k "~%(define-fun loopConV ((x (_ BitVec ~A))) Bool~%~4T(and~%" bvSize)
+		(format k "~%~%(define-fun loopConV ((x (_ BitVec ~A))) Bool~%~4T(and~%" bvSize)
 		(format k "~8T(= (getbit x i_loop) ((_ extract ~A ~A) x) ) ;; k+1 ~~ i_loop~%" (+ the-time 1) (+ the-time 1))
 		(format k "~8T(= (getbit x (bvsub i_loop (_ bv1 ~A))) ((_ extract ~A ~A) x)))) ;; k ~~ i_loop-1~%" bvSize the-time the-time)
 		(format k "~%(define-fun loopConF ((x (_ BitVec ~A))) Bool~%" bvSize)
@@ -1137,8 +1159,20 @@
 
 						 ))
 					     *arith-items*)
+				    (maphash (lambda (key v) 
+					       (declare (ignore v))
+					       (let* ((it (arith-itemp key))
+							(sig (get-item-sig it))
+							(time-d 
+							 (if (eq (get-item-sort it) 'timed)
+							     time-domain
+							   "")) )
+					       (when (or (string= (format nil "~A" (first (int-or-real key))) "Real") (string= (format nil "~A" (first (int-or-real key))) "real")) (setf real-var t))
 
-					;write all the temporal arithmetic subfmlas
+						 ))
+					     *arith-items*)
+				    
+					;write all the temporal arithmetic subformulae
 				    (maphash (lambda (key v) 
 					       (if (consp key)
 							(let* (  (it (arith-itemp key))
@@ -1172,9 +1206,24 @@
 				(setf (gethash f (kripke-atomic-formulaeHT *PROPS*)) (gethash f (kripke-list *PROPS*))))
 
 			 ;Loop Constraints for all atomic formulae (k ~ i_loop-1) and (k+1 ~ i_loop)
-			(loop for p in (kripke-atomic-formulae *PROPS*) 
+			(loop for p in (kripke-atomic-formulae *PROPS*)
 				do (format k "(assert (loopConV ~A))~%" (string-downcase (gethash p (kripke-list *PROPS*)))))
-			(format k ";;;;;;Last state constraint on past subformulae:~%")
+			(when GSMT (progn
+			(format k ";;;;;;Guides for the SMT-solver:")
+			(loop for i from 0 to (1- (length AP-arithComp)) do
+				(loop for j from (1+ i) to (1- (length AP-arithComp)) do
+					(let ((f1 (nth i AP-arithComp)) (f2 (nth j AP-arithComp)))
+						(when (and (list-eq (list (second (first f1))) (list (second (first f2)))) (list-eq (list (third (first f1))) (list (third (first f2)))))
+						(case (get-rel (first(first f1)) (first(first f2)) )
+							('nand
+								(format k "~%(assert (= (_ bv0 ~A) (bvand ~(~a~) ~(~a~))))" bvSize (first (second f1)) (first (second f2))))
+							('neg
+								(format k "~%(assert (= ~(~a~) (bvnot ~(~a~))))" (first (second f1)) (first (second f2))))
+							('impliesR
+								(format k "~%(assert (= (_ bv0 ~A) (bvand ~(~a~) (bvnot ~(~a~)))))" bvSize (first (second f1)) (first (second f2))))
+							('impliesL
+								(format k "~%(assert (= (_ bv0 ~A) (bvand ~(~a~) (bvnot ~(~a~)))))" bvSize (first (second f2)) (first (second f1)))))))))))
+			(format k "~%;;;;;;Last state constraint on the past subformulae:~%")
 			(if  freshAP
 				(loop for p in (kripke-past *PROPS*)
 				do (format k "(assert (loopConF ~A))~%" (string-downcase (format nil "~A" (first (call *PROPS* p 0))))))
@@ -1190,8 +1239,12 @@
 				(progn (format k "(assert (= (getbit ")
 				(format k (string-downcase (format nil "~A" (bvf (collapse-atomic-formulae formula) bvSize (collapse-atomic-formulae formula)))))
 				(format k " (_ bv1 ~A)) #b1))~%" bvSize)))
-			(format k "(check-sat-using (then (! simplify :blast_eq_value true :local_ctx true) solve-eqs (repeat bit-blast) (! fix-dl-var :arith_lhs true :bit2bool false) (! smt :bv.enable_int2bv true :arith.branch_cut_ratio 5 :case_split 0 :mbqi false :relevancy 0)))~%")
-			(format k "(get-model)~%")))
+			(if (and (= (- (length (kripke-atomic-formulae *PROPS*)) (length (kripke-IPC-constraints *PROPS*))) 0) (not real-var) (= over-clocks 0))
+				;;<Special Config1>
+				(format k "(check-sat-using (then (! simplify :blast_eq_value true :local_ctx true) solve-eqs (repeat bit-blast) (! simplify :blast_eq_value true :local_ctx true) (! qflia :bv.enable_int2bv true :arith.branch_cut_ratio 5 :case_split 0 :mbqi false :relevancy 0 :arith.propagate_eqs false :local_ctx true)) :print_model true)~%")
+				;;<Special Config1>
+				(format k "(check-sat-using (then (! simplify :blast_eq_value true :local_ctx true) solve-eqs (repeat bit-blast) (! simplify :blast_eq_value true :local_ctx true) (! smt :bv.enable_int2bv true :arith.branch_cut_ratio 5 :case_split 0 :mbqi false :relevancy 0)) :print_model true)~%"))
+			))
 		   (to-smt-and-back *PROPS* smt-solver :smt-lib :smt2 :arith-bitvector :t)
 		  
 		  )))))))
