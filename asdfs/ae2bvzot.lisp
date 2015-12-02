@@ -88,7 +88,8 @@
 		(if (member (first f) '(next yesterday zeta futr past Zpast))
 			(int-or-real (second f))
 			(if (member (first f) '(+ - * mod))
-				(if (and (not (eq (int-or-real (second f)) '(real))) (not (eq (int-or-real (third f)) '(real)))) '(int) '(real))
+				; (if (and (not (eq (int-or-real (second f)) '(real))) (not (eq (int-or-real (third f)) '(real)))) '(int) '(real))
+				(if (and (eq (int-or-real (second f)) '(int)) (eq (int-or-real (third f)) '(int))) '(int) '(real))
 				(when (eq (first f) '/) '(real))))
 		(get-item-sig (arith-itemp f))))
 
@@ -784,7 +785,7 @@
 			  ; (list `(iff (> ,(call *PROPS* key `i-loop) ,bound) (> ,(call *PROPS* key (1+ (kripke-k *PROPS*))) ,bound)))
 ;</new>
 
-			  ; define clocks behaviour
+			  ; define clocks behavior
 			  (loop for i from 1 to (kripke-k *PROPS*) collect
 				`(or
 				       (= ,(call *PROPS* key (1+ i)) 0)
@@ -873,7 +874,7 @@
    (nconc	   
 	(gen-arith-futr) ;e.g. [X(i1)]0 <-> [i1]1 
 	(gen-arith-past)
-	(gen-i-atomic-formulae GSMT) ;defines behaviour of AP assigned to arithmetic operators.
+	(gen-i-atomic-formulae GSMT) ;defines behavior of AP assigned to arithmetic operators.
 	(gen-arith-constraints)
 	;;;;; (gen-evt-futr)
 	;;;;; (gen-past1) ; [Y(F1)]0 = false
