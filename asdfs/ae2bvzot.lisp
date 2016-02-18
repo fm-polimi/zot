@@ -1152,13 +1152,14 @@
 					       (declare (ignore v))
 					       (let* ((it (arith-itemp key))
 							(sig (get-item-sig it))
+							(sigindex (append (butlast (get-item-sig it) 1) (list *int*)))
 							(time-d 
 							 (if (eq (get-item-sort it) 'timed)
 							     time-domain
 							   "")) )
-					       (format k "(declare-fun ~A (Int) ~{~A ~})~%" key sig)
-
-						 ))
+					       (if it
+						     (format k "(declare-fun ~A ~A ~{~A ~})~%" key sigindex (last sig))
+						     (format k "(declare-fun ~A (~A) ~{~A ~})~%" key time-d sig))))
 					     *arith-items*)
 				    (maphash (lambda (key v) 
 					       (declare (ignore v))
@@ -1245,6 +1246,7 @@
 				(format k "(check-sat-using (then (! simplify :blast_eq_value true :local_ctx true) solve-eqs (repeat bit-blast) (! simplify :blast_eq_value true :local_ctx true) (! qflia :bv.enable_int2bv true :arith.branch_cut_ratio 5 :case_split 0 :mbqi false :relevancy 0 :arith.propagate_eqs false :local_ctx true)) :print_model true)~%")
 				;;<Special Config1>
 				(format k "(check-sat-using (then (! simplify :blast_eq_value true :local_ctx true) solve-eqs (repeat bit-blast) (! simplify :blast_eq_value true :local_ctx true) (! smt :bv.enable_int2bv true :arith.branch_cut_ratio 5 :case_split 0 :mbqi false :relevancy 0)) :print_model true)~%"))
+			(format k "(exit)")
 			))
 		   (to-smt-and-back *PROPS* smt-solver :smt-lib :smt2 :arith-bitvector :t)
 		  
