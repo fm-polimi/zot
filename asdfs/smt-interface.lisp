@@ -1,7 +1,7 @@
 ; SMT-Interface, version 20100812
 ; Matteo Pradella
 ; --------------------------------------------------------------------------
-;
+; 
 ; Copyright (C) 2010 Matteo Pradella (pradella@elet.polimi.it)
 ;
 ; This program is free software; you can redistribute it and/or modify
@@ -32,6 +32,7 @@
   	:smt
   	:smt2
   	:bitvector
+  	:loops
   	:arith-bitvector
   	)) 
 
@@ -42,6 +43,7 @@
 	&key
 	(smt-lib :smt)
 	(bitvector nil)
+	(loops nil)
 	(arith-bitvector nil)
 	)
   "calls the SMT solver and gets its output"
@@ -119,7 +121,7 @@
     (when (and val (eq smt-solver :z3))
       (cond
       	((eq bitvector :t) (translate-bvsmt2-output (kripke-k the-kripke)))
-      	((eq arith-bitvector :t) (translate-abvsmt2-output (kripke-k the-kripke)))
+      	((eq arith-bitvector :t) (translate-abvsmt2-output (kripke-k the-kripke) loops))
 		(t (translate-smt-output (kripke-k the-kripke))
       	)))
     val)
@@ -379,25 +381,54 @@
 			(setf h (append h (list (list 'else 
 				(if (atom (fourth tmp)) (write-to-string (fourth tmp)) (write-to-string (fourth tmp))))))))))
 	(values h))
+
+(defun proc-mdarfval (f h)
+	(progn
+		(setf tmp f)
+		(loop while (and (consp (fourth tmp)) (not (eq (first (fourth tmp)) '/)) (not (eq (first (fourth tmp)) '-))) do
+			(progn
+				(setf index-T-V '())
+				(loop for x from 1 to (1- (list-length (second tmp))) do
+					(setf index-T-V (append index-T-V (list (third (nth x (second tmp)))))))
+				(setf h (append h (list (append index-T-V (list (third tmp))))))
+				(setf tmp (fourth tmp))))
+		(if (or (atom (fourth tmp)) (eq (first (fourth tmp)) '/) (eq (first (fourth tmp)) '-))
+			(progn 
+				(setf index-T-V '())
+				(loop for x from 1 to (1- (list-length (second tmp))) do
+					(setf index-T-V (append index-T-V (list (third (nth x (second tmp)))))))
+				(setf h (append h (list (append index-T-V (list (third tmp))))))
+			(setf h (append h (list (list 'else 
+				(if (atom (fourth tmp)) (fourth tmp) (fourth tmp)))))))))
+	(values h))
 ;;</pp.decimal=true>
 
 (defun get-ar-val (ar i)
 	(let ((val-list (proc-val (gethash ar ar-val) '())))
-	(loop for x from 0 to (- (list-length val-list) 1) do
+	(loop for x from 0 to (1- (list-length val-list)) do
 		(if (or (eq (first (nth x val-list)) i) (eq (first (nth x val-list)) 'else)) (progn (setq i (second (nth x val-list))) (return)))))
 	(values i))
 
-(defun get-aruf-val (ar i)
-	(let ((val-list (proc-val (gethash ar aruf-val) '())))
-	(loop for x from 0 to (- (list-length val-list) 1) do
+(defun get-arf-val (ar i)
+	(let ((val-list (proc-val (gethash ar arf-val) '())))
+	(loop for x from 0 to (1- (list-length val-list)) do
 		(if (or (eq (first (nth x val-list)) i) (eq (first (nth x val-list)) 'else)) (progn (setq i (second (nth x val-list))) (return)))))
 	(values i))
 
-(defun translate-abvsmt2-output (k) nil
+(defun get-mdarf-val (ar i elements) ;; input: array name, time instant; output format: ((index1 index2 ... indexn value) ...)
+	(let ((val-list (proc-mdarfval (gethash ar mdarf-val) '())))
+	(loop for x from 0 to (- (list-length val-list) 2) do 
+		(when (eq (nth (- (list-length (nth x val-list)) 2) (nth x val-list)) i)
+		 (setf elements (append elements (list (append (butlast (butlast (nth x val-list))) (last (nth x val-list)))))))))
+	(values elements))
+
+
+(defun translate-abvsmt2-output (k loops) nil
 (setf *read-default-float-format* 'double-float)
-(setq ap-val  (make-hash-table :test #'equal))
-(setq ar-val  (make-hash-table :test #'equal))
-(setq aruf-val  (make-hash-table :test #'equal))
+(setq ap-val  (make-hash-table :test #'equal))		;; Key: AP name,											Value: value
+(setq ar-val  (make-hash-table :test #'equal))		;; Key: array name,											Value: Z3 output (a chronologically ordered list)
+(setq arf-val  (make-hash-table :test #'equal))		;; Key: name of the array as a function,					Value: Z3 output (a chronologically ordered list)
+(setq mdarf-val  (make-hash-table :test #'equal))	;; Key: name of the multidimensional array as a function,	Value: Z3 output (a list of lists whose elements are indexes and the value, the last index is the time, and the last element is the value)
 (setq smtstr "")
 (with-open-file (stream "output.1.txt" :direction :input)
    (do ((line (read-line stream nil) (read-line stream nil)))
@@ -406,20 +437,22 @@
                (do ((line1 (read-line stream nil) (read-line stream nil)))
                   ((null line1))
                   (setq smtstr (concatenate 'string smtstr line1))))))
-(setq smtlist (string-to-list smtstr))
-(setq smtlist (cdr smtlist))
+(setq smtlist (cdr (string-to-list smtstr)))
 (setf smtlist (prune-smt smtlist smtlist))
-
 (loop for var in smtlist do
 	(if (consp (fourth var))
 		(progn (if (eq (second (fourth var)) (read-from-string "BITVEC")) (setf (gethash (second var) ap-val) (fifth var)))
 			(if (eq (first (fourth var)) (read-from-string "ARRAY")) (setf (gethash (second var) ar-val) (third (fifth var))))))
-	(if (consp (third var)) (setf (gethash (second var) aruf-val) (fifth var))))
+	(when (consp (third var))
+		(if (= (length (third var)) 1)
+			(setf (gethash (second var) arf-val) (fifth var))
+			(setf (gethash (second var) mdarf-val) (fifth var)))))
 (loop for key being the hash-keys of ar-val do
 	(loop for var in smtlist do 
 		 (if (eq (gethash key ar-val) (second var)) (setf (gethash key ar-val) (fifth var)))))
-
-(setq i_loop (gethash 'I_LOOP ap-val))
+(if (eq loops :t)
+	(setq iloops (gethash 'ILOOPS ap-val))
+	(setq i_loop (gethash 'I_LOOP ap-val)))
 (remhash 'I_LOOP ap-val)
 (with-open-file (ff "output.hist.txt" 
     			:direction :output 
@@ -429,9 +462,13 @@
 	 	do
 	 	(format t  "------ time ~s ------~%" i)
 	   	(format ff "------ time ~s ------~%" i)
-	   	(if (= i i_loop) (progn (format t "**LOOP**~%")(format ff "**LOOP**~%")))
+	   	
+	   	(if (eq loops :t)
+	   		(if (eq (get-bv-val (gethash 'ILOOPS ap-val) i) '1) (progn (format t "**LOOP**~%")(format ff "**LOOP**~%")))
+	   		(if (= i i_loop) (progn (format t "**LOOP**~%")(format ff "**LOOP**~%"))))
+
 	   	(maphash #'(lambda (ap bin) 
-	   		(if (eq (get-bv-val bin i) '1)
+	   		(if (and (eq (get-bv-val bin i) '1) (not (eq ap t)))
 	   			(progn
 	   					(format t "  ~a~%" (string-upcase ap))
 	   					(format ff "  ~a~%" (string-upcase ap))))
@@ -443,11 +480,28 @@
 	   		) ar-val)
 	   	(maphash #'(lambda (ar val) 
    			(progn
-   					(format t "  ~a = ~a~%" ar (get-aruf-val ar i))
-   					(format ff "  ~a = ~a~%" ar (get-aruf-val ar i)))
-	   		) aruf-val)
+   					(format t "  ~a = ~a~%" ar (get-arf-val ar i))
+   					(format ff "  ~a = ~a~%" ar (get-arf-val ar i)))
+	   		) arf-val)
+
+	   	(maphash #'(lambda (ar val) 
+   			(progn
+   				(let ((val-list (get-mdarf-val ar i '())))
+   				(loop for x from 0 to (1- (list-length val-list)) do 
+				(format t "  ~a~a = ~s~%" ar (butlast (nth x val-list)) (first (last (nth x val-list))))
+				(format ff "  ~a~a = ~s~%" ar (butlast (nth x val-list)) (first (last (nth x val-list))))
+				)))
+	   		) mdarf-val)
 
 	 	)
-	(format t  "------ end of ae2bvzot result ------~%")
-	(format ff "------ end ------~%")))
+	(format t  "------ end ------~%")
+	(format ff "------ end ------~%"))
+)
 ;;</arith-bitvector>
+(defun pht (h) (maphash 'print-hash-entry h))
+
+(defun print-hash-entry (key value)
+  (fresh-line)
+  (format t "Key: ~S " key)
+  (format t "Value: ~S" value)
+  (fresh-line))
