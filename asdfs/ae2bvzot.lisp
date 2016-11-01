@@ -88,10 +88,16 @@
 		(if (member (first f) '(next yesterday zeta futr past Zpast))
 			(int-or-real (second f))
 			(if (member (first f) '(+ - * mod))
-				; (if (and (not (eq (int-or-real (second f)) '(real))) (not (eq (int-or-real (third f)) '(real)))) '(int) '(real))
-				(if (and (eq (int-or-real (second f)) '(int)) (eq (int-or-real (third f)) '(int))) '(int) '(real))
+				(if (and 
+						(or (string= (format nil "~A" (first (int-or-real (second f)))) "Int") (string= (format nil "~A" (first (int-or-real (second f)))) "int"))
+						(or (string= (format nil "~A" (first (int-or-real (third f)))) "Int") (string= (format nil "~A" (first (int-or-real (third f)))) "int")))
+					'(int)
+					'(real))
 				(when (eq (first f) '/) '(real))))
-		(get-item-sig (arith-itemp f))))
+		(if (eq (get-item-sig (arith-itemp f)) nil) (int-or-real-constant f) (get-item-sig (arith-itemp f)))))
+
+(defun int-or-real-constant (f)
+	 (if (eq (position-if #'integerp (list f)) nil) '(real) '(int)))
 
 (defun arity (i f)
   (eq (1- (length f)) i))
@@ -981,7 +987,6 @@
 		     (smt-metric-futr nil)
 		     (smt-metric-past nil)
 		     )
-
   (setf *smt-metric-futr-operators* smt-metric-futr)
   (setf *smt-metric-past-operators* smt-metric-past)
   (setf *format-smt* t)
@@ -1256,3 +1261,11 @@
 	(loop for fm in list do (if (not (gethash fm (kripke-list *PROPS*)))
 					(setf (gethash fm (kripke-list *PROPS*)) 
 						(intern (format nil "~s" fm))))))
+
+(defun pht (h) (maphash 'print-hash-entry h))
+
+(defun print-hash-entry (key value)
+  (fresh-line)
+  (format t "Key: ~S " key)
+  (format t "Value: ~S" value)
+  (fresh-line))
