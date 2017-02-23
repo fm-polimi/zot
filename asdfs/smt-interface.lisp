@@ -122,10 +122,83 @@
       (cond
       	((eq bitvector :t) (translate-bvsmt2-output (kripke-k the-kripke)))
       	((eq arith-bitvector :t) (translate-abvsmt2-output (kripke-k the-kripke) loops))
-		(t (translate-smt-output (kripke-k the-kripke))
-      	)))
+			((eq smt-lib :smt2) (translate-smt2-output (kripke-k the-kripke)))
+			((eq smt-lib :smt) (translate-smt-output (kripke-k the-kripke)))
+			(t (translate-smt-output (kripke-k the-kripke)))
+      	))
     val)
   )
+
+(defun cut-name (l)
+	(let* ( 	(stripped-l (string-trim " " l))
+				(after (subseq stripped-l (1+  (position #\Space stripped-l)) (length stripped-l))) )
+		(format nil (subseq after 0 (position #\Space after)))))
+
+(defun get-values (l)
+	(let* ( 	(stripped-l (string-trim " " l)) 
+				(sfirst (subseq stripped-l (1+  (position #\Space stripped-l)) (length stripped-l)))
+				(ssecond (subseq sfirst (1+  (position #\Space sfirst)) (length sfirst)))
+				(sthird (subseq ssecond (1+  (position #\Space ssecond)) (length ssecond))) 
+				(value (subseq sthird (+ 2 (position #\) sthird)) (length sthird)) ) 
+				(time (subseq sthird 0 (position #\) sthird))) )
+		(list time value ) ))
+
+(defun translate-smt2-output (k)
+  (let (	(time (make-array (1+ k) :initial-element nil)) )
+	
+    
+    (with-open-file (ff "output.1.txt" :direction :input)	
+	    (loop for line = (read-line ff nil)
+          while line
+          do 
+				(if (and (search "define-fun" line) (not (search "zot-" line)))
+					(cond
+						((search "loopex" line) ) 
+						((search "i_loop" line) 
+							(let* ( (i-loop-str (string-trim " )" (read-line ff nil))) 
+									  (i-loop-num (floor (read-from-string i-loop-str))) )
+								(if (and (<= 0 i-loop-num) (<= i-loop-num k)) 
+									(setf (aref time i-loop-num) (append (aref time i-loop-num) (list (list "loopex")))))))
+											
+						(t 
+							(let ( (varname (cut-name line) ) ) 
+								(loop
+									for i from 1 to k  
+									for line = (read-line ff nil)
+									for elem = (get-values line) 
+									for index = (floor (read-from-string (car elem)))
+									do (let ( (vect-el (aref time index)) )
+											(setf (aref time index) (append vect-el (list (cons varname (cdr elem)))))))))))))
+;		(loop for i from 0 to k
+;				do (format t "~a ~%" (aref time i) :pretty t))
+
+		(with-open-file (ff "output.hist.txt" 
+    			:direction :output 
+    			:if-exists :supersede 
+    			:if-does-not-exist :create)
+
+      ;; translate encoded items/arrays and dump the history
+      (loop
+    	 	for i from 0 to k
+    	 	do 
+    	   	(format t  "------ time ~s ------~%" i)
+    	   	(format ff "------ time ~s ------~%" i)
+    	   	(loop 
+					for e in (aref time i)
+					for item = (car e)
+					for val = (cadr e)
+					do
+						(cond 
+							((string= item "loopex") (format t "**LOOP**~%"))
+							((numberp (read-from-string val)) (format t "~a = ~a~%" item val) (format ff "~a = ~a~%" item val))
+							((string= val "true") (format t "~a~%" (string-upcase item)) (format ff "~a~%" (string-upcase item) ) ) ) ) 
+
+			finally
+    	   	(format t  "------ end ------~%")
+    	   	(format ff "------ end ------~%") ) ) ) )
+
+
+
 
 (defun translate-smt-output (k)
   (let ((dict (make-hash-table :test #'equal))
@@ -272,6 +345,9 @@
     	     (format ff ">>> UNKNOWN <<<")) 
     	   ))
     ))
+
+
+
 
 ;;<bitvector>
 (defun trim-split (string)
