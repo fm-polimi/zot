@@ -112,6 +112,7 @@
     :release
     :trigger
     :next 
+	 :after
     :yesterday
     :zeta
     :Zlasted :Zwithinp :Zpast :Zlasttime
@@ -469,7 +470,10 @@
     (t
       (case (car f)
 	((impl)
-	 `(or ,(trio-to-ltl `(not ,(second f))) ,(trio-to-ltl (third f))))
+	 (if *format-smt*
+		(let ((x (trio-to-ltl (second f))) (y (trio-to-ltl (third f))))
+			`(impl ,x ,y))
+	 	`(or ,(trio-to-ltl `(not ,(second f))) ,(trio-to-ltl (third f)))))
 
 	((iff)
     (if *format-smt*
@@ -1291,6 +1295,7 @@
   release 2
   trigger 2
   next 1 
+  after 1
   yesterday 1
   zeta 1
   Zlasts 2 Zwithinf 2 Zfutr 2 Znexttime 2
