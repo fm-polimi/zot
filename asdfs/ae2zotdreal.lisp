@@ -61,6 +61,7 @@
 	   :QF_UFLIA
 	   :QF_AUFLIA
 	   :QF_UFLRA
+		:QF_LRA
 	   :smt
 	   :smt2
 	   :smt-assumptions
@@ -92,7 +93,7 @@
 (defun predicatep (f) 
   (and (consp f) 
        (not 
-	     (in (car f) '(tempus not and or iff next until release since trigger zeta yesterday < > = <= >=)))))
+	     (in (car f) '(tempus not and or iff niff impl next after until release since trigger zeta yesterday < > = <= >=)))))
 	
 (declaim (inline predicatep))
 	
@@ -107,7 +108,7 @@
 
 (defun LTL-formulap (f) 
   (and (consp f)        
-	(in (car f) '(not and or iff next until release since trigger zeta yesterday))))
+	(in (car f) '(not and or iff niff impl next after until release since trigger zeta yesterday))))
 
 (declaim (inline LTL-formulap))
 
@@ -175,61 +176,43 @@
     ((null f) 'false)
     ((eq f t) 'true)   
     ((or (symbolp f) (stringp f) (integerp f) (predicatep f) (arith-cop f) (arith-opp f)) f)
-    ((eq (car f) 'not)
-     (let ((a (second f)))
-       (cond 
-	 ((eq a t) 'false)
-	 ((null a) 'true)	 
-	 ;((or (symbolp a) (stringp a) (integerp a) (predicatep a) (arith-cop a) (arith-opp a)) f)
-	 ((or (symbolp a) (stringp a) (integerp a) (predicatep a)  (arith-opp a)) f)
-	 (t 
-	  (case (car a)
-	    ((not) (deneg (second a)))
-	    ((and) (deneg (cons 'or (mapcar 
-				     (lambda (x) (deneg `(not ,x)))
-				     (cdr a)))))
-	    ((or) (deneg (cons 'and (mapcar 
-				     (lambda (x) (deneg `(not ,x)))
-				     (cdr a)))))
-	    ((iff) (list 'iff (deneg `(not ,(second a))) (deneg (third a))))
-	    ((next) `(next ,(deneg `(not ,(second a)))))
-	    ((until) 
-	     `(release ,(deneg `(not ,(second a))) ,(deneg `(not ,(third a)))))
-	    ((release) 
-	     `(until ,(deneg `(not ,(second a))) ,(deneg `(not ,(third a)))))
-	    ((yesterday) `(zeta ,(deneg `(not ,(second a)))))
-	    ((zeta) `(yesterday ,(deneg `(not ,(second a)))))
-	    ((since) 
-	     `(trigger ,(deneg `(not ,(second a))) ,(deneg `(not ,(third a)))))	     
-	    ((trigger) 
-	     `(since ,(deneg `(not ,(second a))) ,(deneg `(not ,(third a)))))
-
-	    ((<)
-	     `(>= ,(second a) ,(third a)))
-	     
-	    ((>)
-	     `(<= ,(second a) ,(third a)))
-
-	    ((<=)
-	     `(> ,(second a) ,(third a)))
-	     
-	    ((>=)
-	     `(< ,(second a) ,(third a)))
-
-	    ((!=)
-		  `(= ,(second a) ,(third a)))	 
-            
-	    ((=)
-	     `(or (< ,(second a) ,(third a)) (> ,(second a) ,(third a))))
-
-
-
-	    (t (error "deneg: bad arg ~S" (cons f a)))))))) 
 
     ((and (consp f) (eq (car f) 'and) (null (cdr f))) 'true)
     ((and (consp f) (eq (car f) 'or)  (null (cdr f))) 'false)
+ 
+   ((eq (car f) 'not)
+			(let ((a (second f)))
+       		(cond 
+					 ((eq a t) 'false)
+					 ((null a) 'true)	 
+					 ((or (symbolp a) (stringp a) (integerp a) (predicatep a)  (arith-opp a)) f)
+					 (t 
+					  (case (car a)
+							((not) (deneg (second a)))
+							((and) (deneg (cons 'or (mapcar 
+									  (lambda (x) (deneg `(not ,x)))
+									  (cdr a)))))
+						 	((or) (deneg (cons 'and (mapcar 
+									  (lambda (x) (deneg `(not ,x)))
+									  (cdr a)))))
+						 	((impl) `(and ,(deneg (second a)) ,(deneg `(not (third a)))))
+						 	((iff)  `(niff ,(deneg (second a)) ,(deneg (third a))))
+						 	((next) `(after ,(deneg `(not ,(second a)))))
+						 	((after) `(next ,(deneg `(not ,(second a)))))
+						 	((until) `(release ,(deneg `(not ,(second a))) ,(deneg `(not ,(third a)))))
+							((release) `(until ,(deneg `(not ,(second a))) ,(deneg `(not ,(third a)))))
+						 	((yesterday) `(zeta ,(deneg `(not ,(second a)))))
+						 	((zeta) `(yesterday ,(deneg `(not ,(second a)))))
+						 	((since) `(trigger ,(deneg `(not ,(second a))) ,(deneg `(not ,(third a)))))	     
+						 	((trigger) `(since ,(deneg `(not ,(second a))) ,(deneg `(not ,(third a)))))
+						 	((<) `(>= ,(second a) ,(third a)))
+						 	((>) `(<= ,(second a) ,(third a)))
+							((<=)`(> ,(second a) ,(third a)))
+							((>=)`(< ,(second a) ,(third a)))
+						 	((!=)`(= ,(second a) ,(third a)))	 
+						 	((=) `(or (< ,(second a) ,(third a)) (> ,(second a) ,(third a))))
+		 				 	(t (error "deneg: bad arg ~S" (cons f a)))))))) 
 
-					;((member (car f) '(and or next until release since trigger zeta yesterday))   
     (t
      (cons (car f) (mapcar #'deneg (cdr f))))))
 
@@ -248,7 +231,7 @@
 			((impl)
 			      (case smt
 				    ((:smt)
-					  `(implies ,(to-smt-dialect (second f) smt) ,(to-smt-dialect (third f) smt)))
+					  `(impl ,(to-smt-dialect (second f) smt) ,(to-smt-dialect (third f) smt)))
 				    ((:smt2)
 					   `(=> ,(to-smt-dialect (second f) smt) ,(to-smt-dialect (third f) smt)))
 				    (t
@@ -260,13 +243,20 @@
 					  `(iff ,(to-smt-dialect (second f) smt) ,(to-smt-dialect (third f) smt)))
 				    ((:smt2)
 					  `(= ,(to-smt-dialect (second f) smt) ,(to-smt-dialect (third f) smt)))
-					   ;; `(and
-					   ;; 	  (=> ,(to-smt-dialect (second f) smt) ,(to-smt-dialect (third f) smt))
-					   ;; 	  (=> ,(to-smt-dialect (third f) smt) ,(to-smt-dialect (second f) smt))))
 				     (t
 					  `(and 
 						 (or ,(to-smt-dialect `(not ,(second f)) smt) ,(to-smt-dialect (third f) smt))
 						 (or ,(to-smt-dialect (second f) smt) ,(to-smt-dialect `(not ,(third f)) smt))))))
+			((niff)
+			      (case smt
+				    ((:smt) )
+				    ((:smt2)
+					  `(distinct ,(to-smt-dialect (second f) smt) ,(to-smt-dialect (third f) smt)))
+				     (t
+					  `(and 
+						 (or ,(to-smt-dialect `(not ,(second f)) smt) ,(to-smt-dialect (third f) smt))
+						 (or ,(to-smt-dialect (second f) smt) ,(to-smt-dialect `(not ,(third f)) smt))))))
+
 			(t
 			      (cons (car f) (mapcar #'(lambda(x)
 							    (to-smt-dialect x smt)) (cdr f))))))))
@@ -468,13 +458,13 @@
 			      (unless (member fm '(true false **I_LOOP** **LOOPEX**))
 				    (push fm (kripke-atomic-formulae a-kripke)))
 			      (case (car fm)
-				    ((and or not iff) 
+				    ((and or not iff impl niff) 
 					  (push fm (kripke-bool a-kripke)))
 				    ((< = > >= <=) ; if fm is a interpreted RELATION 
 					  (progn
 						(push fm (kripke-atomic-formulae a-kripke))
 						(push fm (kripke-IPC-constraints a-kripke))))
-				    ((next until release) 
+				    ((next after until release) 
 					  (push fm (kripke-futr a-kripke)))
 				    ((yesterday zeta since trigger)
 					  (push fm (kripke-past a-kripke)))
@@ -680,7 +670,7 @@
 	    ((eq 'true obj) 'true)   
 	    ((numberp obj) obj)
 	    ((and (consp obj) (or (arith-cop (car obj)) (arith-opp (car obj)))) 
-		  (list (gethash obj (kripke-timed-arith kk)) the-time)) 
+		  		(intern (format nil "~a_~a" (gethash obj (kripke-timed-arith kk)) the-time)))
 	    (t 
 		  (let ( (p (gethash obj (kripke-list kk))) 
 			      (q (gethash obj (kripke-timed-arith kk))))      
@@ -719,20 +709,21 @@
 					
 					  (if (and *discrete-counters* (member q *discrete-counters*))
 						(intern (format nil "(to_real ~s)" (list q the-time)))
-						(list q the-time))))
+						(intern (format nil "~a_~a" q (floor the-time))))))
 					;**********************************
 					;if the object is an atomic formula
 					;**********************************
 			      ((null q)
 				    (if (consp p)	
 					  (progn 
-						(format t "Atom: ~s~%" p)
+						(format t "Formula: ~a_~a" p the-time)
 						(cons (car p) (append (mapcar #'(lambda (x) (call *PROPS* x the-time))
 									    						(cdr p))
 								    (list the-time))))
 					  (progn 
-						(format t "Atom ~s~%" p)
-						(list p the-time)))))))))
+						(intern (format nil "~a_~a" p (floor the-time)))
+						;(list p the-time)
+												))))))))
 
 	   
        
@@ -763,105 +754,6 @@
 ;; ---------
 
 
-
-(defun LoopFree ()
-  (format t "loopfree...")(force-output)
-  (cons  
-   `(not ,(the-loopEx))
-   ;'true
-
-;modified index: from 0 to K
-
-   (loop for i from 0 to (kripke-k *PROPS*) append
-	(loop for j from 0 to (kripke-k *PROPS*) when (< i j)
-	   collect
-	     (list 'not 
-		   (cons 
-		    'and
-		    (loop for fm in (append 
-				      (kripke-atomic-formulae *PROPS*) 
-					;(remove-if-not (lambda (f) (eq (car f) 'next))
-				      (kripke-futr *PROPS*);)
-					;(remove-if-not (lambda (f) (eq (car f) 'yesterday))
-				      (kripke-past *PROPS*));)
-		       collect
-			 `(iff ,(call *PROPS* fm i) 
-			       ,(call *PROPS* fm j)))))))))
-  
-
-
-
-
-(defun LoopConstraints (gen-symbolic-val discrete-regions)
-      (format t "define loop constraints~%")(force-output)
-      (list
-	    `(impl ,(the-loopEx) 
-		   ,(cond 			  
-			  ((eq *real-constants* t) (cons 'or (loop for i from 1 to (kripke-k *PROPS*) collect `(= ,(the-iloop) ,(float i)))))
-			  (t `(and (< 0 ,(the-iloop)) (<= ,(the-iloop) ,(kripke-k *PROPS*))))))
-			  
-
-	    (list
-		  'iff
-		  (list 'and 
-			`(<= ,(if *real-constants* 1.0 1) ,(the-iloop)) 
-			`(<= ,(the-iloop) ,(if *real-constants* (float (kripke-k *PROPS*)) (kripke-k *PROPS*))))    
-		  (append 
-			(list 'and (the-loopEx))
-			(nconc
-				(if discrete-regions
-					'(true)
-			      	(labels (
-					    (get-X-term (term)
-						  (list 'next term))
-
-					    (get-Y-term (term)
-						  (list 'yesterday term))
-
-					    (get-symbolic-valuation-points (part) 
-						  (mapcan #'(lambda(var) 
-								  (let ((tm var))
-									(if (and 
-										  (not (numberp var))
-										  (not (member var (kripke-untimed-arith-terms *PROPS*))))
-									      (append 
-										    (list tm)
-										    (loop for i from 1 to (kripke-max-X *PROPS*) collect
-											  (setf tm (get-X-term tm)))
-										    (loop for i from 1 to (kripke-max-Y *PROPS*) 
-											  initially (setf tm var) collect
-											  (setf tm (get-Y-term tm))))
-									      (list var))))
-
-							part))
-
-					    (make-IPC-constraint (sim p1 p2) 
-						  (list sim p1 p2)) 
-					    )
-
-
-					; enforce IPC-periodicity over intepreted RELATIONs in {<,>,<=,>=,=} w.r.t. the set of VARIABLES	     
-
-		   (loop for partition in (kripke-related-IPC-vars *PROPS*) 
-			 when gen-symbolic-val ; when generate-symbolic-valuation is true then build periodicity over symbolic valuation at position k and (i-loop)-1
-			 append
-			 (let* ( (symbolic-valuation-XY-points (get-symbolic-valuation-points partition)) 
-				     (symbolic-valuation-points (remove-duplicates symbolic-valuation-XY-points)) )
-			       
-			       (loop for point1 in symbolic-valuation-points append
-				     (loop for point2 in (remove point1 symbolic-valuation-points) append
-					   `( (iff ,(make-IPC-constraint '< (call *PROPS* point1 `(- ,(the-iloop) ,(if *real-constants* 1.0 1) )) (call *PROPS* point2 `(- ,(the-iloop) ,(if *real-constants* 1.0 1) ))) 
-						    ,(make-IPC-constraint '< (call *PROPS* point1 (kripke-k *PROPS*)) (call *PROPS* point2 (kripke-k *PROPS*))))
-					       (iff ,(make-IPC-constraint '= (call *PROPS* point1 `(- ,(the-iloop) ,(if *real-constants* 1.0 1) )) (call *PROPS* point2 `(- ,(the-iloop) ,(if *real-constants* 1.0 1) ))) 
-						     ,(make-IPC-constraint '= (call *PROPS* point1 (kripke-k *PROPS*)) (call *PROPS* point2 (kripke-k *PROPS*)))))))))))
-
-
-					;enforce periodicity over APs and (uninterpreted) RELATIONs (over TERMs)
-	     (loop for p in (kripke-atomic-formulae *PROPS*) collect 	  
-		   `(iff ,(call *PROPS* p `(- ,(the-iloop) ,(if *real-constants* 1.0 1))) ,(call *PROPS* p (kripke-k *PROPS*)))))))))
-
-
-
 (defun gen-bool ()
       (format t "define LTL boolean connectives~%")(force-output)
       (loop for i from 0 to (kripke-k *PROPS*) append
@@ -875,16 +767,18 @@
 				    (cons (car fma) (mapcar #'(lambda (x)
 								    (call *PROPS* x i))
 							  (cdr fma))))
+					((impl) (list 'impl (call *PROPS* (second fma) i) (call *PROPS* (third fma) i)))
+					((niff) (list 'niff (call *PROPS* (second fma) i) (call *PROPS* (third fma) i)))
 			      ((iff) (list 'iff (call *PROPS* (second fma) i) (call *PROPS* (third fma) i))))))))
 
-(defun gen-futr ()
+(defun gen-futr1 ()
       (format t "define LTL future formulae X, U, R~%")(force-output)
-      (loop for i from 0 to (kripke-k *PROPS*) append       
+      (loop for i from 0 to (1- (kripke-k *PROPS*)) append       
 	    (loop for fma in (kripke-futr *PROPS*) collect
 		  (list 'iff  
 			(call *PROPS* fma i)  
 			(case (car fma)
-			      ((next)
+			      ((next after )
 				    (call *PROPS* (second fma) (1+ i)))
 			      
 			      ((until)
@@ -897,6 +791,18 @@
 					   (or ,(call *PROPS* (second fma) i)
 						 ,(call *PROPS* fma (1+ i))))))))))
 
+(defun gen-futr2 ()
+  (format t "gen-futr1...~%")(force-output)
+  (loop for fm in (kripke-futr *PROPS*) collect
+	(case (car fm)
+	  ((until release)
+	   `(iff ,(call *PROPS* fm (kripke-k *PROPS*))
+		 ,(call *PROPS* (third fm) (kripke-k *PROPS*))))
+	  ((next)
+	   `(not ,(call *PROPS* fm (kripke-k *PROPS*))))
+	  ((after)
+	   (call *PROPS* fm (kripke-k *PROPS*))))))
+
 
 (defun gen-arith-futr ()
       (format t "define FO future formulae Xt~%")(force-output)
@@ -908,83 +814,6 @@
 			      ((next)
 				    (call *PROPS* (second fma) (1+ i) i)))))))
   
-
-
-(defun LastStateFormula ()
-  (format t "define last state contraints~%")(force-output)
-  (let ((fma-list (append
-		    (kripke-atomic-formulae *PROPS*)
-		    (kripke-bool *PROPS*)
-		    (kripke-futr *PROPS*)
-		    (kripke-past *PROPS*))))
-
-    (list 
-     `(impl (not ,(the-loopEx))
-	    ,(cons 'and 
-		   (loop for fm in fma-list unless (pastp fm) collect 
-			`(not ,(call *PROPS* fm (1+ (kripke-k *PROPS*)))))))
-
-     
-     `(impl ,(the-loopEx)
-	    ,(cons 'and
-		   (loop for fm in fma-list collect ;unless (arith-cop fm) collect
-			`(iff ,(call *PROPS* fm (the-iloop)) ,(call *PROPS* fm (1+ (kripke-k *PROPS*))))))))))
- 
-
-		  
-		  
-		    
-
-
-(defun gen-evt-futr ()
-  (format t "define eventuality for LTL future modalities U,R~%")(force-output)
-
-  (labels(
-	  (the-i-eve-fm (fm)
-			`,(intern (format nil "ZOT-I-EVE_~s" fm))))
-    
-    (if (kripke-futr *PROPS*)	    
-	(list
-	 `(impl ,(the-loopEx)
-		,(append `(and)
-			 (loop for fm in (kripke-futr *PROPS*) 
-			       when (member (car fm) '(until release)) collect
-			       (case (car fm)
-				 ((until)			       
-				  `(impl ,(call *PROPS* fm (kripke-k *PROPS*))
-					 (and 				     
-					  (<= ,(the-iloop) ,(the-i-eve-fm (call-fmla-id *PROPS* fm)))
-					  (<= ,(the-i-eve-fm (call-fmla-id *PROPS* fm)) ,(if *real-constants* (float (kripke-k *PROPS*)) (kripke-k *PROPS*)))
-					  ,(call *PROPS* (third fm) (the-i-eve-fm (call-fmla-id *PROPS* fm))))))
-				 
-				 ((release)			       
-				  `(impl (not ,(call *PROPS* fm (kripke-k *PROPS*)))
-					 (and 
-					  (<= ,(the-iloop) ,(the-i-eve-fm (call-fmla-id *PROPS* fm)))
-					  (<= ,(the-i-eve-fm (call-fmla-id *PROPS* fm)) ,(if *real-constants* (float (kripke-k *PROPS*)) (kripke-k *PROPS*)))
-					  (not ,(call *PROPS* (third fm) (the-i-eve-fm (call-fmla-id *PROPS* fm)))))))))))))))
-       
-	    
-(defun stabilize-constants ()
-  ;(format t "define eventuality for LTL future modalities U,R~%")(force-output)
-
-  (labels(
-	  (the-i-eve-fm (fm)
-			`,(intern (format nil "ZOT-I-EVE_~s" fm))))
-    
-    (if (and (kripke-futr *PROPS*) *real-constants*)
-	(list (list 'and 
-	       (cons 'or (loop for i from 0 to (kripke-k *PROPS*) collect
-				`(= ,(the-iloop) ,(if *real-constants* (float i) i))))
-	       (cons 'and
-		     (loop for fm in (kripke-futr *PROPS*) 
-			   when (member (car fm) '(until release)) collect
-			   (list 'or
-				 `(> ,(the-i-eve-fm (call-fmla-id *PROPS* fm)) ,(if *real-constants* (float (kripke-k *PROPS*)) (kripke-k *PROPS*)))
-				 (cons 'or (loop for i from 0 to (kripke-k *PROPS*) collect
-				       `(= ,(the-i-eve-fm (call-fmla-id *PROPS* fm)) ,(if *real-constants* (float i) i))))))))))))
-				 
-
 
 
 (defun gen-past1 ()
@@ -1003,7 +832,7 @@
 
 (defun gen-past2 ()
   (format t "gen-past2...~%")(force-output)
-  (loop for i from 1 to (1+ (kripke-k *PROPS*)) append
+  (loop for i from 1 to (kripke-k *PROPS*) append
 	(loop for fm in (kripke-past *PROPS*) collect
 	      (case (car fm)
 		((since)
@@ -1023,7 +852,7 @@
 
 
 (defun gen-arith-past ()
-  (format t "define FO future formulae Yt~%")(force-output)
+  (format t "define FO past formulae Yt~%")(force-output)
   (loop for i from 1 to (kripke-k *PROPS*) append    
 	(loop for fma in (kripke-arith-past *PROPS*) collect
 	      (list '=  
@@ -1035,7 +864,7 @@
 
 
 (defun gen-i-atomic-formulae ()
-  (format t "define for interpreted relations: <,>,=,<=,>= ~%")(force-output)
+  (format t "define interpreted relations: <,>,=,<=,>= ~%")(force-output)
   (loop for i from 0 to (kripke-k *PROPS*) append
 	(loop for fma in (kripke-atomic-formulae *PROPS*) 
 	      when (arith-cop fma)
@@ -1074,438 +903,7 @@
 
 
 
-
-(defun gen-existence-condition (ipc-constraints)
-  (format t "define existence condition for Integers~%")(force-output)
-  (when ipc-constraints
-    (labels(       
-	    (max-term-deep (term)
-			   (if (consp term)
-			       (+ 1 (max-term-deep (cadr term)))
-			     0))  
-	    (get-X-term (term i)
-			(if (numberp term)
-			    term
-			  (if (> i 0)
-			      (list 'next (get-X-term term (1- i)))
-			    term)))
-	    
-	    (get-Y-term (term i)
-			(if (numberp term)
-			      term
-			    (if (> i 0)
-				(list 'yesterday (get-Y-term term (1- i)))
-			      term)))
-
-	    (the-f_xy (t1 t2)
-		      `,(intern (format nil "ZOT-F_~s_~s" t1 t2)))
-
-	    (the-tilde-f_xy (t1 t2)
-			    `,(intern (format nil "ZOT-TILDE-F_~s_~s" t1 t2)))
-
-	    (the-b_xy (t1 t2)
-		      `,(intern (format nil "ZOT-B_~s_~s" t1 t2)))
-
-	    (the-tilde-b_xy (t1 t2)
-			    `,(intern (format nil "ZOT-TILDE-B_~s_~s" t1 t2)))
-
-	    (the-bigF_xy (t1 t2)
-			 `,(intern (format nil "ZOT-bigF_~s_~s" t1 t2)))
-
-	    (the-tilde-bigF_xy (t1 t2)
-			       `,(intern (format nil "ZOT-TILDE-bigF_~s_~s" t1 t2)))
-
-	    (the-bigB_xy (t1 t2)
-			 `,(intern (format nil "ZOT-bigB_~s_~s" t1 t2)))
-
-	    (the-tilde-bigB_xy (t1 t2)
-			       `,(intern (format nil "ZOT-TILDE-bigB_~s_~s" t1 t2)))
-
-	    ;; (the-LF_x (t1)
-	    ;; 	      `,(intern (format nil "ZOT-LF_~s" t1)))
-
-	    ;; (the-tilde-LF_x (t1)
-	    ;; 		    `,(intern (format nil "ZOT-TILDE-LF_~s" t1)))
-
-	    ;; (the-LB_x (t1)
-	    ;; 	      `,(intern (format nil "ZOT-LB_~s" t1)))
-
-	    ;; (the-tilde-LB_x (t1)
-	    ;; 		    `,(intern (format nil "ZOT-TILDE-LB_~s" t1)))
-
-
-	    (the-i_xy (t1 t2)
-		      `,(intern (format nil "ZOT-INDEX-I_~s_~s" t1 t2)))		   
-
-	    ;; (remove-single (ls)
-	    ;; 	 (if (and (consp ls) (not (cdr ls)))
-	    ;; 	       nil
-	    ;; 	       (list-check ls)))
-
-	    (list-check (ls)
-			(if (consp ls)				     
-			    (if (cdr ls) ; length(ls)>1
-				(let ((l (remove 'nil (mapcar #'list-check (cdr ls)))))
-				  (if l
-				      (cons (car ls) l)
-				    nil)))					   
-			  ls))
-
-
-	    )
-
-      (nconc
-       
-       (loop for partition in (kripke-related-IPC-vars *PROPS*) append
-       	     (loop for term1 in partition append
-       		   (loop for term2 in partition append
-       			 (loop for j from 0 to (kripke-k *PROPS*) append   
-       			       (loop for h from (- (kripke-max-Y *PROPS*)) to (kripke-max-X *PROPS*) append
-       				     (loop for m from (- (kripke-max-Y *PROPS*)) to (kripke-max-X *PROPS*) append
-       					   (if (<= h m) 
-       					       (if (and (numberp term1) (numberp term2))
-       						   `(
-       						     (iff (,(the-f_xy term1 term2) ,j ,h ,m)
-       							  ,(if (< term1 term2) 'true 'false))
-       						     (iff (,(the-tilde-f_xy term1 term2) ,j ,h ,m) 
-       							  ,(if (<= term1 term2) 'true 'false)))
-       						 (if (and (= h m) (equal term1 term2))
-       						     `(
-       						       (iff (,(the-f_xy term1 term2) ,j ,h ,m) false)
-       						       (iff (,(the-tilde-f_xy term1 term2) ,j ,h ,m) true))
-       						   `(
-       						     (iff (,(the-f_xy term1 term2) ,j ,h ,m)
-       							  (< ,(if (>= h 0) (call *PROPS* (get-X-term term1 h) j) (call *PROPS* (get-Y-term term1 (- h)) j))
-       							     ,(if (>= m 0) (call *PROPS* (get-X-term term2 m) j) (call *PROPS* (get-Y-term term2 (- m)) j))))
-       						     (iff (,(the-tilde-f_xy term1 term2) ,j ,h ,m)
-       							  (<= ,(if (>= h 0) (call *PROPS* (get-X-term term1 h) j) (call *PROPS* (get-Y-term term1 (- h)) j))
-       							      ,(if (>= m 0) (call *PROPS* (get-X-term term2 m) j) (call *PROPS* (get-Y-term term2 (- m)) j)))))))
-       					     `(
-       					       (iff (,(the-f_xy term1 term2) ,j ,h ,m) false)
-       					       (iff (,(the-tilde-f_xy term1 term2) ,j ,h ,m) false)))))))))
-
-       
-       
-       
-       (loop for partition in (kripke-related-IPC-vars *PROPS*) append
-	     (loop for term1 in partition append
-		   (loop for term2 in partition append
-			 (loop for j from 0 to (kripke-k *PROPS*) append   
-			       (loop for h from (- (kripke-max-Y *PROPS*)) to (kripke-max-X *PROPS*) append
-				     (loop for m from (- (kripke-max-Y *PROPS*)) to (kripke-max-X *PROPS*) append
-					   (if (>= h m) 
-					       (if (and (numberp term1) (numberp term2))
-						   `(
-						     (iff (,(the-b_xy term1 term2) ,j ,h ,m)
-							  ,(if (< term1 term2) 'true 'false))
-						     (iff (,(the-tilde-b_xy term1 term2) ,j ,h ,m)
-							  ,(if (<= term1 term2) 'true 'false)))
-						 (if (and (= h m) (equal term1 term2))
-						     `(
-						       (iff (,(the-b_xy term1 term2) ,j ,h ,m) false)
-						       (iff (,(the-tilde-b_xy term1 term2) ,j ,h ,m) true))
-						   `(
-						     (iff (,(the-b_xy term1 term2) ,j ,h ,m)
-							  (< ,(if (>= h 0) (call *PROPS* (get-X-term term1 h) j) (call *PROPS* (get-Y-term term1 (- h)) j))
-							     ,(if (>= m 0) (call *PROPS* (get-X-term term2 m) j) (call *PROPS* (get-Y-term term2 (- m)) j))))
-						     (iff (,(the-tilde-b_xy term1 term2) ,j ,h ,m)
-							  (<= ,(if (>= h 0) (call *PROPS* (get-X-term term1 h) j) (call *PROPS* (get-Y-term term1 (- h)) j))
-							      ,(if (>= m 0) (call *PROPS* (get-X-term term2 m) j) (call *PROPS* (get-Y-term term2 (- m)) j)))))))
-					     `(
-					       (iff (,(the-b_xy term1 term2) ,j ,h ,m) false)
-					       (iff (,(the-tilde-b_xy term1 term2) ,j ,h ,m) false)))))))))
-
-
-
-
-					; DEFINITION OF bigXX in 0 and K
-       (loop for partition in (kripke-related-IPC-vars *PROPS*) append
-       	     (loop for term1 in partition append
-       		   (loop for term2 in partition append
-       			 (loop for h from (- (kripke-max-Y *PROPS*)) to (kripke-max-X *PROPS*) append
-       			       (loop for m from (- (kripke-max-Y *PROPS*)) to (kripke-max-X *PROPS*) append
-       				     `(
-       				       (and
-       					(iff (,(the-bigF_xy term1 term2) ,(kripke-k *PROPS*) ,h ,(kripke-k *PROPS*) ,m)
-       					     (,(the-f_xy term1 term2) ,(kripke-k *PROPS*) ,h ,m))
-       					(iff (,(the-tilde-bigF_xy term1 term2) ,(kripke-k *PROPS*) ,h ,(kripke-k *PROPS*) ,m)
-       					     (,(the-tilde-f_xy term1 term2) ,(kripke-k *PROPS*) ,h ,m)))
-       				       (and		  				       
-       					(iff (,(the-bigB_xy term1 term2) 0 ,h 0 ,m)
-       					     (,(the-b_xy term1 term2) 0 ,h ,m))
-       					(iff (,(the-tilde-bigB_xy term1 term2) 0 ,h 0 ,m)
-       					     (,(the-tilde-b_xy term1 term2) 0 ,h ,m)))))))))
-
-
-
-					; *** CONSISTENCY (I) ***
-       (loop for partition in (kripke-related-IPC-vars *PROPS*) append
-	     (loop for term1 in partition append
-		   (loop for term2 in partition 
-					;when (not (and (numberp term1) (numberp term2)))
-			 append
-			 (loop for i from (kripke-k *PROPS*) downto 1 append
-			       (loop for j from 0 to i append
-				     (loop for l from (- j (+ (kripke-max-X *PROPS*) (kripke-max-Y *PROPS*))) to (1- j)
-					   when (>= l 0)
-					   append
-					;(loop for h from (+ j (- l) (- (kripke-max-Y *PROPS*))) to (kripke-max-X *PROPS*) append
-					   (loop for h from (- (kripke-max-Y *PROPS*)) to (+ (kripke-max-X *PROPS*) (- j) l) append									
-						 (loop for m from (- (kripke-max-Y *PROPS*)) to (kripke-max-X *PROPS*) append
-						       `(
-							 (iff (,(the-bigF_xy term1 term2) ,j ,h ,i ,m)
-							      (,(the-bigF_xy term1 term2) ,l ,(+ h (- j l)) ,i ,m))
-							 (iff (,(the-bigB_xy term1 term2) ,i ,m ,j ,h)
-							      (,(the-bigB_xy term1 term2) ,i ,m ,l ,(+ h (- j l))))
-							 (iff (,(the-tilde-bigF_xy term1 term2) ,j ,h ,i ,m)
-							      (,(the-tilde-bigF_xy term1 term2) ,l ,(+ h (- j l)) ,i ,m))
-							 (iff (,(the-tilde-bigB_xy term1 term2) ,i ,m ,j ,h)
-							      (,(the-tilde-bigB_xy term1 term2) ,i ,m ,l ,(+ h (- j l)))))))))))))
-
-
-
-					; *** CONSISTENCY (II) ***
-       (loop for partition in (kripke-related-IPC-vars *PROPS*) append
-	     (loop for term1 in partition append
-		   (loop for term2 in partition 
-					;when (not (and (numberp term1) (numberp term2)))
-			 append
-			 (loop for i from 0 to (1- (kripke-k *PROPS*)) append
-			       (loop for j from (kripke-k *PROPS*) downto i append
-				     (loop for l from (1+ j) to (+ j (+ (kripke-max-X *PROPS*) (kripke-max-Y *PROPS*)))
-					   when (<= l (kripke-k *PROPS*))
-					   append
-					;(loop for h from (- (kripke-max-Y *PROPS*)) to (+ (kripke-max-X *PROPS*) (- j) l) append
-					   (loop for h from (+ l (- j) (- (kripke-max-Y *PROPS*))) to (kripke-max-X *PROPS*) append									
-						 (loop for m from (- (kripke-max-Y *PROPS*)) to (kripke-max-X *PROPS*) append
-						       `(
-							 (iff (,(the-bigF_xy term1 term2) ,i ,m ,j ,h)
-							      (,(the-bigF_xy term1 term2) ,i ,m ,l ,(- h (- l j))))
-							 (iff (,(the-bigB_xy term1 term2) ,j ,h ,i ,m)
-							      (,(the-bigB_xy term1 term2) ,l ,(- h (- l j)) ,i ,m))
-							 (iff (,(the-tilde-bigF_xy term1 term2) ,i ,m ,j ,h)
-							      (,(the-tilde-bigF_xy term1 term2) ,i ,m ,l ,(- h (- l j))))
-							 (iff (,(the-tilde-bigB_xy term1 term2) ,j ,h ,i ,m)
-							      (,(the-tilde-bigB_xy term1 term2) ,l ,(- h (- l j)),i ,m)))))))))))
-       
-
-
-   
-
-					; bigF/tilde-bigF - bigB/tilde-bigB DEFINITION
-					;(remove 'nil
-       (loop for partition in (kripke-related-IPC-vars *PROPS*) append
-	     (loop for term1 in partition append
-		   (loop for term2 in partition append	    	  			  
-					;when (not (and (numberp term1) (numberp term2))) append
-			 (loop for i from 0 to (kripke-k *PROPS*) append
-			       (loop for j from 0 to (kripke-k *PROPS*) append						      
-				     (loop for h from (- (kripke-max-Y *PROPS*)) to (kripke-max-X *PROPS*) append							    						
-					   (loop for m from (- (kripke-max-Y *PROPS*)) to (kripke-max-X *PROPS*) append
-						 (let ((shift (- (+ j h) (+ i m))))
-						   (if (<= shift 0)
-						       (if (= j i)							      
-							   `(
-							     (iff (,(the-bigF_xy term1 term2) ,j ,h ,i ,m) (,(the-f_xy term1 term2) ,j ,h ,m))
-							     (iff (,(the-tilde-bigF_xy term1 term2) ,j ,h ,i ,m) (,(the-tilde-f_xy term1 term2) ,j ,h ,m)))
-							 (if (< i j)
-							     `(
-							       (iff (,(the-bigF_xy term1 term2) ,j ,h ,i ,m) false)										     
-							       (iff (,(the-tilde-bigF_xy term1 term2) ,j ,h ,i ,m) false))
-							   (if (and (numberp term1) (numberp term2))
-							       `(
-								 (iff (,(the-bigF_xy term1 term2) ,j ,h ,i ,m)
-								      ,(if (< term1 term2) 'true 'false))
-								 (iff (,(the-tilde-bigF_xy term1 term2) ,j ,h ,i ,m)
-								      ,(if (<= term1 term2) 'true 'false)))
-							     (if (and (> (abs shift) (+ (kripke-max-Y *PROPS*) (kripke-max-X *PROPS*))) (= h (- (kripke-max-Y *PROPS*))))
-								 `(
-								   (iff (,(the-bigF_xy term1 term2) ,j ,h ,i ,m)
-									,(list-check 
-									  (cons 'or
-										(loop for term3 in partition collect
-										      (cons 'or
-											    (loop for u from (- (kripke-max-Y *PROPS*)) to (kripke-max-X *PROPS*) 
-												  when (or (/= h u) (not (eq term1 term3)))
-												  collect
-												  `(or
-												    (and 
-												     (,(the-f_xy term1 term3) ,j ,h ,u)
-												     (,(the-tilde-bigF_xy term3 term2) ,j ,u ,i ,m))
-												    (and 
-												     (,(the-tilde-f_xy term1 term3) ,j ,h ,u)
-												     (,(the-bigF_xy term3 term2) ,j ,u ,i ,m)))))))))
-								   
-								   (iff (,(the-tilde-bigF_xy term1 term2) ,j ,h ,i ,m)
-									,(list-check
-									  (cons 'or
-										(loop for term3 in partition collect
-										      (cons 'or
-											    (loop for u from (- (kripke-max-Y *PROPS*)) to (kripke-max-X *PROPS*) 
-												  when (or (/= h u) (not (eq term1 term3)))
-												  collect
-												  `(and 
-												    (,(the-tilde-f_xy term1 term3) ,j ,h ,u)
-												    (,(the-tilde-bigF_xy term3 term2) ,j ,u ,i ,m))
-												  )))))))))))
-						     (if (> shift 0)
-							 `(
-							   (iff (,(the-bigF_xy term1 term2) ,j ,h ,i ,m) false)										     
-							   (iff (,(the-tilde-bigF_xy term1 term2) ,j ,h ,i ,m) false))))))))))))
-
-
-					;(remove 'nil
-       (loop for partition in (kripke-related-IPC-vars *PROPS*) append
-	     (loop for term1 in partition append
-		   (loop for term2 in partition append	    	  			  
-					;when (not (and (numberp term1) (numberp term2))) append
-			 (loop for i from 0 to (kripke-k *PROPS*) append
-			       (loop for j from 0 to (kripke-k *PROPS*) append						      
-				     (loop for h from (- (kripke-max-Y *PROPS*)) to (kripke-max-X *PROPS*) append							    						
-					   (loop for m from (- (kripke-max-Y *PROPS*)) to (kripke-max-X *PROPS*) append
-						 (let ((shift (- (+ j h) (+ i m))))
-						   (if (>= shift 0)
-						       (if (= j i)							      
-							   `(
-							     (iff (,(the-bigB_xy term1 term2) ,j ,h ,i ,m) (,(the-b_xy term1 term2) ,j ,h ,m))
-							     (iff (,(the-tilde-bigB_xy term1 term2) ,j ,h ,i ,m) (,(the-tilde-b_xy term1 term2) ,j ,h ,m)))
-							 (if (> i j)
-							     `(
-							       (iff (,(the-bigB_xy term1 term2) ,j ,h ,i ,m) false)										     
-							       (iff (,(the-tilde-bigB_xy term1 term2) ,j ,h ,i ,m) false))
-							   (if (and (numberp term1) (numberp term2))
-							       `(
-								 (iff (,(the-bigB_xy term1 term2) ,j ,h ,i ,m)
-								      ,(if (< term1 term2) 'true 'false))
-								 (iff (,(the-tilde-bigB_xy term1 term2) ,j ,h ,i ,m)
-								      ,(if (<= term1 term2) 'true 'false)))
-							     (if (and (> (abs shift) (+ (kripke-max-Y *PROPS*) (kripke-max-X *PROPS*))) (= h (kripke-max-X *PROPS*)))
-								 `(
-								   (iff (,(the-bigB_xy term1 term2) ,j ,h ,i ,m)
-									,(list-check
-									  (cons 'or
-										(loop for term3 in partition collect
-										      (cons 'or
-											    (loop for u from (- (kripke-max-Y *PROPS*)) to (kripke-max-X *PROPS*) 
-												  when (or (/= h u) (not (eq term1 term3)))
-												  collect
-												  `(or
-												    (and 
-												     (,(the-b_xy term1 term3) ,j ,h ,u)
-												     (,(the-tilde-bigB_xy term3 term2) ,j ,u ,i ,m))
-												    (and 
-												     (,(the-tilde-b_xy term1 term3) ,j ,h ,u)
-												     (,(the-bigB_xy term3 term2) ,j ,u ,i ,m)))))))))
-								   
-								   (iff (,(the-tilde-bigB_xy term1 term2) ,j ,h ,i ,m)
-									,(list-check
-									  (cons 'or
-										(loop for term3 in partition collect
-										      (cons 'or
-											    (loop for u from (- (kripke-max-Y *PROPS*)) to (kripke-max-X *PROPS*) 
-												  when (or (/= h u) (not (eq term1 term3)))
-												  collect
-												  `(and 
-												    (,(the-tilde-b_xy term1 term3) ,j ,h ,u)
-												    (,(the-tilde-bigB_xy term3 term2) ,j ,u ,i ,m))
-												  )))))))))))
-						     (if (< shift 0)
-							 `(
-							   (iff (,(the-bigB_xy term1 term2) ,j ,h ,i ,m) false)										     
-							   (iff (,(the-tilde-bigB_xy term1 term2) ,j ,h ,i ,m) false))))))))))))
-
-
-
-
-       
-       ;; 					; LOOP
-       ;; (loop for partition in (kripke-related-IPC-vars *PROPS*) append
-       ;; 	     (loop for term1 in partition append  
-       ;; 		   (loop for h from (- (kripke-max-Y *PROPS*)) to (kripke-max-X *PROPS*) append	  
-       ;; 			 `(
-       ;; 			   (iff (,(the-LF_x term1) ,h)
-       ;; 				(,(the-bigF_xy term1 term1) (- ,(the-iloop) 1) ,h ,(kripke-k *PROPS*) ,h))
-       ;; 			   (iff (,(the-tilde-LF_x term1) ,h)
-       ;; 				(,(the-tilde-bigF_xy term1 term1) (- ,(the-iloop) 1) ,h ,(kripke-k *PROPS*) ,h))
-       ;; 			   (iff (,(the-LB_x term1) ,h)
-       ;; 				(,(the-bigB_xy term1 term1) ,(kripke-k *PROPS*) ,h (- ,(the-iloop) 1) ,h))
-       ;; 			   (iff (,(the-tilde-LB_x term1) ,h)
-       ;; 				(,(the-tilde-bigB_xy term1 term1) ,(kripke-k *PROPS*) ,h (- ,(the-iloop) 1) ,h))))))
-       ;; 					; end LOOP
-
-	    (loop for partition in (kripke-related-IPC-vars *PROPS*) append
-	    	  (loop for term1 in partition append
-	    		(loop for term3 in partition 
-	    				when (and (not (equal term1 term3)) (not (and (numberp term1) (numberp term3))))
-	    		      collect
-	    		      `(and (<= ,(the-iloop) ,(the-i_xy term1 term3)) (<= ,(the-i_xy term1 term3) ,(kripke-k *PROPS*))))))
-		  
-       
-
-	  				; *** EXISTENCE CONDITION with EXISTS *** (correct) - better for output
-       (loop for partition in (kripke-related-IPC-vars *PROPS*) collect
-	     `(not
-		    ,(cons 'or
-			 (loop for term1 in partition append
-			       (loop for term3 in partition 
-				     when (not (equal term1 term3)) append
-					   (loop for term2 in partition append
-						 (loop for term4 in partition 
-					when (and (not (equal term1 term3)) (not (and (numberp term1) (numberp term3))))
-						       append	    			      					      
-								       (loop for h from (- (kripke-max-Y *PROPS*)) to (kripke-max-X *PROPS*) append	  								  
-									     (loop for n from (- (kripke-max-Y *PROPS*)) to (kripke-max-X *PROPS*) append
-										   (loop for hp from (- (kripke-max-Y *PROPS*)) to (kripke-max-X *PROPS*) append		
-											 (loop for np from (- (kripke-max-Y *PROPS*)) to (kripke-max-X *PROPS*) collect
-											       `(or
-												 (and
-												  ;(,(the-tilde-LF_x term1) ,h)
-												  (,(the-tilde-bigF_xy term1 term2) (- ,(the-iloop) 1) ,h ,(the-i_xy term1 term3) ,n)
-												  (,(the-tilde-bigF_xy term2 term1) ,(the-i_xy term1 term3) ,n ,(kripke-k *PROPS*) ,h)
-												  ;(,(the-LB_x term3) ,hp)
-												  ,(cons 'or	  														    
-													 `(
-													   (and 
-													    (,(the-tilde-bigB_xy term3 term4) ,(kripke-k *PROPS*) ,hp ,(the-i_xy term1 term3) ,np)
-													    (,(the-bigB_xy term4 term3) ,(the-i_xy term1 term3) ,np (- ,(the-iloop) 1) ,hp))
-													   (and 
-													    (,(the-bigB_xy term3 term4) ,(kripke-k *PROPS*) ,hp ,(the-i_xy term1 term3) ,np)
-													    (,(the-tilde-bigB_xy term4 term3) ,(the-i_xy term1 term3) ,np (- ,(the-iloop) 1) ,hp))))
-												  (or
-												   (,(the-f_xy term2 term4) ,(the-i_xy term1 term3) ,n ,np)
-												   (,(the-b_xy term2 term4) ,(the-i_xy term1 term3) ,n ,np)))
-												 (and 
-												  ;(,(the-tilde-LB_x term1) ,h)
-												  (,(the-tilde-bigB_xy term1 term2) ,(kripke-k *PROPS*) ,h ,(the-i_xy term1 term3) ,n)
-												  (,(the-tilde-bigB_xy term2 term1) ,(the-i_xy term1 term3) ,n (- ,(the-iloop) 1) ,h)
-												  ;(,(the-LF_x term3) ,hp)
-												  ,(cons 'or	  														   
-													 `(
-													   (and 
-													    (,(the-tilde-bigF_xy term3 term4) (- ,(the-iloop) 1) ,hp ,(the-i_xy term1 term3) ,np)
-													    (,(the-bigF_xy term4 term3) ,(the-i_xy term1 term3) ,np ,(kripke-k *PROPS*) ,hp)) 
-													   (and 
-													    (,(the-bigF_xy term3 term4) (- ,(the-iloop) 1) ,hp ,(the-i_xy term1 term3) ,np)
-													    (,(the-tilde-bigF_xy term4 term3) ,(the-i_xy term1 term3) ,np ,(kripke-k *PROPS*) ,hp))))
-												  (or 
-												   (,(the-f_xy term4 term2) ,(the-i_xy term1 term3) ,np ,n)
-												   (,(the-b_xy term4 term2) ,(the-i_xy term1 term3) ,np ,n)))
-												 ))))))))))))	
-
-
-
-
-       ))))
 										     
-
-
-(defun gen-periodic-arith-terms (periodic-arith-terms)
-  (if periodic-arith-terms
-					;(format t "define arithmetic periodic terms~%")(force-output)
-      (loop for term in periodic-arith-terms collect
-	    `(= ,(call *PROPS* term (the-iloop)) ,(call *PROPS* term (1+ (kripke-k *PROPS*)))))))
-
-
 
 (defun gen-regions (bound discrete-regions parametric-regions discrete-counters signals)
 	(format t "Define regions")(force-output)
@@ -1721,14 +1119,15 @@
 		append
 			(nconc
 			  ; define clocks behaviour
-				(loop for i from 0 to (kripke-k *PROPS*) collect
+				(loop for i from 0 to (1- (kripke-k *PROPS*))
+					collect
 					`(or
 						(= ,(call *PROPS* clock-x (float (1+ i))) ,(float 0))
-						(= ,(call *PROPS* clock-x (float (1+ i))) (+ ,(call *PROPS* clock-x (float i)) (delta ,(float i))))))
+						(= ,(call *PROPS* clock-x (float (1+ i))) (+ ,(call *PROPS* clock-x (float i)) ,(intern (format nil "DELTA_~a" i)) ))))
 					  
 				; zot-delta is always positive
-				(loop for i from 0 to (1+ (kripke-k *PROPS*)) collect
-					`(> (delta ,(float i)) ,(float 0))))))
+				(loop for i from 0 to (kripke-k *PROPS*) collect
+					`(> ,(intern (format nil "DELTA_~a" i)) ,(float 0))))))
 
 ))
 
@@ -1752,33 +1151,15 @@
        (rec-prn fma)))
    
    
-   (if loop-free
-   	(nconc
-			(LoopFree)
-			(gen-bool)
-			(gen-futr)
-			;(gen-evt-futr)
-			(gen-past1) ;????
-			(gen-past2))
        
       (nconc
-			(if no-loop
-				`((not ,(the-loopEx))))
-			(LoopConstraints gen-symbolic-val discrete-regions)
 			(gen-bool)
-			(gen-futr)		       
-			(LastStateFormula)
-			(gen-evt-futr)
+			(gen-futr1)
+			(gen-futr2)		       
 			(gen-past1)
-			(gen-past2)	    
-			(gen-arith-futr)
-			(gen-arith-past)
+			(gen-past2)	   
 			(gen-i-atomic-formulae)
-			(gen-arith-constraints)
-			(gen-existence-condition ipc-constraints)
-			(gen-periodic-arith-terms periodic-arith-terms)
-			(stabilize-constants) 
-			(gen-regions bound discrete-regions parametric-regions discrete-counters signals)))))
+			(gen-regions bound discrete-regions parametric-regions discrete-counters signals))))
 
 
 (defun manage-transitions (trans the-k)
@@ -1814,10 +1195,10 @@
 			
 
 			(let ( (l (case logic
-			 				((:QF_UFIDL) "QF_UFIDL")
-			 				((:QF_UFRDL) "QF_UFRDL")
-			 				((:QF_UFLIA) "QF_UFLIA")
-			 				((:QF_UFLRA) "QF_UFLRA")
+			 				((:QF_UFIDL) "QF_IDL")
+			 				((:QF_UFRDL) "QF_RDL")
+			 				((:QF_UFLIA) "QF_LIA")
+			 				((:QF_LRA) "QF_LRA")
 			  				((:QF_AUFLIA) "QF_AUFLIA"))))
 
 			(case smt-dialect
@@ -1827,7 +1208,7 @@
 
 		  (let (  (*print-case* :downcase)
 				  	 (*print-pretty* t)
-			 		 (time-domain (if (or (eq logic :QF_UFRDL) (eq logic :QF_UFLRA))
+			 		 (time-domain (if (or (eq logic :QF_RDL) (eq logic :QF_LRA))
 										*real*
 					 					*int*)) )
 			;write all the propositional items
@@ -1841,27 +1222,32 @@
 					   				(format k ":extrapreds (( ~s ~a ))~%" v time-domain)
 					   				(format k ":extrafuns (( zot-i-eve_~s ~a ))~%" v time-domain))
 								((:smt2) 
-					   				(format k "(declare-fun ~s ( ~a ) Bool )~%" v time-domain)
-					   				(format k "(declare-fun zot-i-eve_~s () ~a )~%" v time-domain))))
+										(loop for i from 0 to (kripke-k *PROPS*) do
+					   					(format k "(declare-fun ~s_~s ( ) Bool )~%" v i time-domain))
+					   					;(format k "(declare-fun zot-i-eve_~s () ~a )~%" v time-domain)
+											)))
 					  (t
 					  	 (if (not (arith-itemp key))
 							(case smt-dialect
 								((:smt) (format k ":extrapreds (( ~s ~a ))~%" v time-domain)) ;legacy for (-P- a)
-								((:smt2) (format k "(declare-fun ~s ( ~a ) Bool )~%" v time-domain))))))
+								((:smt2) (loop for i from 0 to (kripke-k *PROPS*) do
+					   					(format k "(declare-fun ~s_~s ( ) Bool )~%" v i time-domain)))))))
 				 (if (member key (kripke-atomic-formulae formula-structure))
 						(case smt-dialect
 					  		((:smt) (format k ":extrapreds (( ~s ~a ))~%" v time-domain))
-							((:smt2) (format k "(declare-fun ~s ( ~a ) Bool )~%" v time-domain)))
+							((:smt2) (loop for i from 0 to (kripke-k *PROPS*) do
+					   					(format k "(declare-fun ~s_~s ( ) Bool )~%" v i time-domain))))
 					(case key
-					  ((**LOOPEX**) (case smt-dialect 
-											((:smt) (format k ":extrapreds (( ~s ))~%" v))
-											((:smt2) (format k "(declare-fun ~s () Bool )~%" v))))
-					  ((**I_LOOP**) (case smt-dialect 
-											((:smt) (format k ":extrafuns (( ~s ~a ))~%" v time-domain))
-											((:smt2) (format k "(declare-fun ~s () ~a )~%" v time-domain))))
+					 ; ((**LOOPEX**) (case smt-dialect 
+					 ;						((:smt) (format k ":extrapreds (( ~s ))~%" v))
+					 ;						((:smt2) (format k "(declare-fun ~s () Bool )~%" v))))
+					 ; ((**I_LOOP**) (case smt-dialect 
+					 ;						((:smt) (format k ":extrafuns (( ~s ~a ))~%" v time-domain))
+					 ;						((:smt2) (format k "(declare-fun ~s () ~a )~%" v time-domain))))
 					  (t (case smt-dialect
 								((:smt) (format k ":extrapreds (( ~s ~a ))~%" v time-domain))
-								((:smt2)  (format k "(declare-fun ~s ( ~a ) Bool )~%" v time-domain))))))))
+								((:smt2) (loop for i from 0 to (kripke-k *PROPS*) do
+					   					(format k "(declare-fun ~s_~s ( ) Bool )~%" v i time-domain)))))))))
 				  (kripke-list formula-structure))
 
 			;write all the arithmetic items
@@ -1876,9 +1262,11 @@
 					 		((:smt)
 					 				(format k ":extrafuns (( ~s ~A ~A  ))~%" key time-d (string-trim "()" (format nil "~a" sig))))
 					 		((:smt2) 
-					 				(format k "(declare-fun ~s ( ~A ) ~A )~%" key time-d (string-trim "()" (format nil "~a" sig))))))))
+									(loop for i from 0 to (kripke-k *PROPS*) do
+					 					(format k "(declare-fun ~s_~s ( ) ~A )~%" key i (string-trim "()" (format nil "~a" sig)))))))))
 				  *arith-items*)
 
+			#|
 			;write all the parametric constants of clocks
 			(if parametric-regions
 				 (maphash (lambda (key v) 
@@ -1892,7 +1280,7 @@
 					 					((:smt) (format k ":extrafuns (( c_~s ~A ))~%" key time-d))
 					 					((:smt2) (format k "(declare-fun c_~s () ~A )~%" key time-d))))))
 				  *arith-items*))
-
+			
 
 			;write all the temporal arithmetic subfmlas
 			 (maphash (lambda (key v)
@@ -1905,7 +1293,7 @@
 					  			((:smt2 (format k "(declare-fun ~s ( ~a ) ~a )~%" v time-domain time-domain))))))))
 				  (kripke-timed-arith formula-structure))
 
-
+	
 			 ;; MR added if to avoid producing the next predicates if ipc constraints are not used
 				;TODO: update :smt2 format
 			 (if (not (null ipc-constraints))
@@ -1928,7 +1316,7 @@
 					 (format k ":extrapreds (( zot-lb_~s Int ))~%" term1)
 					 (format k ":extrapreds (( zot-tilde-lf_~s Int ))~%" term1)
 					 (format k ":extrapreds (( zot-tilde-lb_~s Int ))~%" term1))))
-			 
+			 |#
 		
 			 (if (>= over-clocks 0)
 				(case discrete-regions
@@ -1937,7 +1325,8 @@
 								((:smt2) (format k "(declare-fun delta ( Int ) Int )~%"))))
 			  		((nil) (case smt-dialect 
 								((:smt) (format k ":extrafuns (( delta Real Real ))~%"))
-								((:smt2) (format k "(declare-fun delta ( Real ) Real )~%"))))))
+								((:smt2) (loop for i from 0 to (kripke-k *PROPS*) do
+					   						(format k "(declare-fun delta_~s ( ) Real )~%" i)))))))
 
 			 (if (not (null smt-assumptions))
 				(format k (concatenate 'string ":assumption " smt-assumptions "~%")))
@@ -1955,6 +1344,8 @@
 					(progn
 						(format k ")") 
 			 			(format k "(check-sat) (get-model)") ) ) ) ) ) )
+
+     
 
 
 
@@ -1986,8 +1377,9 @@
   (setf *smt-metric-futr-operators* nil)
   (setf *smt-metric-past-operators* nil)
   (if (or (eq logic :QF_UFRDL)(eq logic :QF_UFLRA))
-      (setf *real-constants* t))
+  (setf *real-constants* t))
   (setf *metric-operators* nil)
+  (setf *format-smt* t)
   
   ;***************************************
   ;set the global list of dicrete counters - use when over-clocks flag is active
@@ -2015,6 +1407,7 @@
 	(progn 
 	  (format t "~%1. processing formula")
 	  (time (progn
+		  (format t "Formula: ~a~%" formula)
 		  (format t "~%Used boolean propositions: ~%~S~%" (kripke-atomic-formulae *PROPS*))
 		  (format t "~%Used arithmetic terms: ~%~S~%" (kripke-IPC-vars *PROPS*))
 		  (format t "~%Used timed arithmetic terms: ~%~S~%" (kripke-timed-arith-terms *PROPS*))
@@ -2049,7 +1442,23 @@
 					    (deneg (list (list 'not (cons 'and trans))))
 					    (deneg trans)))
 				smt-lib)))
-				      
+			
+		(with-open-file (ff "output.bmc-formula.txt" :direction :output :if-exists :supersede :if-does-not-exist :create)		 
+			 (format ff "~a~%" (list 'and(trio-to-ltl (the-big-formula 
+							 (if (eq with-time t)
+							       (with-time formula) 
+							       formula) 
+							 loop-free 
+							 no-loop 		
+							 periodic-terms
+							 gen-symbolic-val
+							 ipc-constraints
+							 over-clocks
+							 discrete-regions
+							 parametric-regions
+							 discrete-counters
+							 signals)))))
+     			
 		  
 		  (format t "~%done processing formula~%")		  
 		  
