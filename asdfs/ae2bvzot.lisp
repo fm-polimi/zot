@@ -89,15 +89,18 @@
 			(int-or-real (second f))
 			(if (member (first f) '(+ - * mod))
 				(if (and 
-						(or (string= (format nil "~A" (first (int-or-real (second f)))) "Int") (string= (format nil "~A" (first (int-or-real (second f)))) "int"))
-						(or (string= (format nil "~A" (first (int-or-real (third f)))) "Int") (string= (format nil "~A" (first (int-or-real (third f)))) "int")))
+						(eq '(int) (int-or-real (second f)))
+						(eq '(int) (int-or-real (third f))))
 					'(int)
 					'(real))
 				(when (eq (first f) '/) '(real))))
-		(if (eq (get-item-sig (arith-itemp f)) nil) (int-or-real-constant f) (get-item-sig (arith-itemp f)))))
+		(if (eq (get-item-sig (arith-itemp f)) nil) (int-or-real-constant f) (int-or-real-sig f))))
 
 (defun int-or-real-constant (f)
 	 (if (eq (position-if #'integerp (list f)) nil) '(real) '(int)))
+
+(defun int-or-real-sig (f)
+	 (if (string= (string (first (get-item-sig (arith-itemp f)))) "Real") '(real) '(int)))
 
 (defun arity (i f)
   (eq (1- (length f)) i))
@@ -615,15 +618,19 @@
 		   (loop for partition in (kripke-related-IPC-vars *PROPS*) 
 			 when gen-symbolic-val ; when generate-symbolic-valuation is true then build periodicity over symbolic valuation at position k and (i-loop)-1
 			 append
-			 (let* ( (symbolic-valuation-XY-points (get-symbolic-valuation-points partition)) 
+				(let* ( (symbolic-valuation-XY-points (get-symbolic-valuation-points partition)) 
 				     (symbolic-valuation-points (remove-duplicates symbolic-valuation-XY-points)) )
 			       
 			       (loop for point1 in symbolic-valuation-points append
 				     (loop for point2 in (remove point1 symbolic-valuation-points) append
-					   `( (iff ,(make-IPC-constraint '< (call *PROPS* point1 `(- i-loop 1)) (call *PROPS* point2 `(- i-loop 1))) 
-						    ,(make-IPC-constraint '< (call *PROPS* point1 (kripke-k *PROPS*)) (call *PROPS* point2 (kripke-k *PROPS*))))
-					       (iff ,(make-IPC-constraint '= (call *PROPS* point1 `(- i-loop 1)) (call *PROPS* point2 `(- i-loop 1))) 
-						     ,(make-IPC-constraint '= (call *PROPS* point1 (kripke-k *PROPS*)) (call *PROPS* point2 (kripke-k *PROPS*)))))))))))))
+					   `( (iff ,(make-IPC-constraint '< (if (and (eq '(int) (int-or-real point1)) (eq '(real) (int-or-real point2))) (list 'to_real (call *PROPS* point1 `(- i-loop 1))) (call *PROPS* point1 `(- i-loop 1)))
+					   		(if (and (eq '(int) (int-or-real point2)) (eq '(real) (int-or-real point1))) (list 'to_real (call *PROPS* point2 `(- i-loop 1))) (call *PROPS* point2 `(- i-loop 1)))) 
+						    ,(make-IPC-constraint '< (if (and (eq '(int) (int-or-real point1)) (eq '(real) (int-or-real point2))) (list 'to_real (call *PROPS* point1 (kripke-k *PROPS*))) (call *PROPS* point1 (kripke-k *PROPS*)))
+					   		(if (and (eq '(int) (int-or-real point2)) (eq '(real) (int-or-real point1))) (list 'to_real (call *PROPS* point2 (kripke-k *PROPS*))) (call *PROPS* point2 (kripke-k *PROPS*)))))
+					       (iff ,(make-IPC-constraint '= (if (and (eq '(int) (int-or-real point1)) (eq '(real) (int-or-real point2))) (list 'to_real (call *PROPS* point1 `(- i-loop 1))) (call *PROPS* point1 `(- i-loop 1)))
+					   		(if (and (eq '(int) (int-or-real point2)) (eq '(real) (int-or-real point1))) (list 'to_real (call *PROPS* point2 `(- i-loop 1))) (call *PROPS* point2 `(- i-loop 1)))) 
+						    ,(make-IPC-constraint '= (if (and (eq '(int) (int-or-real point1)) (eq '(real) (int-or-real point2))) (list 'to_real (call *PROPS* point1 (kripke-k *PROPS*))) (call *PROPS* point1 (kripke-k *PROPS*)))
+					   		(if (and (eq '(int) (int-or-real point2)) (eq '(real) (int-or-real point1))) (list 'to_real (call *PROPS* point2 (kripke-k *PROPS*))) (call *PROPS* point2 (kripke-k *PROPS*))))))))))))))
 
 (defun gen-arith-futr ()
       (format t "define FO future formulae Xt~%")(force-output)
@@ -675,9 +682,9 @@
 	      collect
 	      (list 'iff
 	    	(list '= (cons (list '_ 'extract i i) (call *PROPS* fma i)) (list '_ 'bv1 '1))
-		    (cons (car fma) (mapcar #'(lambda (x)
-						(call *PROPS* x i))
-					    (cdr fma)))))))
+		    (cons (car fma)	(list
+		    	(if (and (eq '(int) (int-or-real (second fma))) (eq '(real) (int-or-real (third fma)))) (list 'to_real (call *PROPS* (second fma) i)) (call *PROPS* (second fma) i))
+		    	(if (and (eq '(int) (int-or-real (third fma))) (eq '(real) (int-or-real (second fma)))) (list 'to_real (call *PROPS* (third fma) i)) (call *PROPS* (third fma) i))))))))
 ;;<with ite>
 ; (defun gen-i-atomic-formulae ()
 ;   (format t "define for interpreted relations: <,>,=,<=,>= ~%")(force-output)
@@ -700,23 +707,33 @@
 	(loop for fma in (kripke-timed-arith-terms *PROPS*) 
 	      when (arith-opp fma)
 	      collect
-	      (list '=  
-		    (call *PROPS* fma i)  
+	      (list '=
+		    (call *PROPS* fma i)
 		    (case (car fma)
 		      ((+)
-		       `(+ ,(call *PROPS* (second fma) i) ,(call *PROPS* (third fma) i)))
-		      
+		       (list "+" 
+		       	(if (and (eq '(real) (int-or-real fma)) (eq '(int) (int-or-real (second fma)))) (list 'to_real (call *PROPS* (second fma) i)) (call *PROPS* (second fma) i))
+		       	(if (and (eq '(real) (int-or-real fma)) (eq '(int) (int-or-real (third fma)))) (list 'to_real (call *PROPS* (third fma) i)) (call *PROPS* (third fma) i))))
+
 		      ((-)
-		       `(- ,(call *PROPS* (second fma) i) ,(call *PROPS* (third fma) i)))
-		      
+		       (list "-" 
+		       	(if (and (eq '(real) (int-or-real fma)) (eq '(int) (int-or-real (second fma)))) (list 'to_real (call *PROPS* (second fma) i)) (call *PROPS* (second fma) i))
+		       	(if (and (eq '(real) (int-or-real fma)) (eq '(int) (int-or-real (third fma)))) (list 'to_real (call *PROPS* (third fma) i)) (call *PROPS* (third fma) i))))
+
 		      ((*)
-		       `(* ,(call *PROPS* (second fma) i) ,(call *PROPS* (third fma) i)))
-		      
+		       (list "*" 
+		       	(if (and (eq '(real) (int-or-real fma)) (eq '(int) (int-or-real (second fma)))) (list 'to_real (call *PROPS* (second fma) i)) (call *PROPS* (second fma) i))
+		       	(if (and (eq '(real) (int-or-real fma)) (eq '(int) (int-or-real (third fma)))) (list 'to_real (call *PROPS* (third fma) i)) (call *PROPS* (third fma) i))))
+
 		      ((/)
-		       `(/ ,(call *PROPS* (second fma) i) ,(call *PROPS* (third fma) i)))
-		      
+		       (list "/" 
+		       	(if (and (eq '(real) (int-or-real fma)) (eq '(int) (int-or-real (second fma)))) (list 'to_real (call *PROPS* (second fma) i)) (call *PROPS* (second fma) i))
+		       	(if (and (eq '(real) (int-or-real fma)) (eq '(int) (int-or-real (third fma)))) (list 'to_real (call *PROPS* (third fma) i)) (call *PROPS* (third fma) i))))
+
 		      ((mod)
-		       `(mod ,(call *PROPS* (second fma) i) ,(call *PROPS* (third fma) i))))))))
+		       (list "mod" 
+		       	(if (and (eq '(real) (int-or-real fma)) (eq '(int) (int-or-real (second fma)))) (list 'to_real (call *PROPS* (second fma) i)) (call *PROPS* (second fma) i))
+		       	(if (and (eq '(real) (int-or-real fma)) (eq '(int) (int-or-real (third fma)))) (list 'to_real (call *PROPS* (third fma) i)) (call *PROPS* (third fma) i)))))))))
 
 (defun gen-regions (bound)
   (if (> bound 0)
@@ -725,84 +742,46 @@
 		    using (hash-value value)
 		    append
 		    (nconc 
-;<del>
-; (loop for i from 0 to (1+ (kripke-k *PROPS*)) append
-; 	(list `(and (> ,(call *PROPS* key i) -10) (< ,(call *PROPS* key i) 10)))
-; )
-;</del>
-
-
-;<old>
 			  ;;Build the periodicity of regions between (i_loop - 1) and K
 			  (loop for i from 0 to (1- bound) append
 				`(
-				       (iff (= ,(call *PROPS* key `(- i-loop 1)) ,i) (= ,(call *PROPS* key (kripke-k *PROPS*)) ,i))
+				       (iff (= ,(call *PROPS* key `(- i-loop 1)) ,(list 'to_real i)) (= ,(call *PROPS* key (kripke-k *PROPS*)) ,(list 'to_real i)))
 				       (iff (and
-						  (< ,i ,(call *PROPS* key `(- i-loop 1))) 
-						  (< ,(call *PROPS* key `(- i-loop 1)) ,(+ i 1)))
+						  (< ,(list 'to_real i) ,(call *PROPS* key `(- i-loop 1))) 
+						  (< ,(call *PROPS* key `(- i-loop 1)) ,(list 'to_real (+ i 1))))
 					     (and
-						   (< ,i ,(call *PROPS* key (kripke-k *PROPS*))) 
-						   (< ,(call *PROPS* key (kripke-k *PROPS*)) ,(+ i 1))))))
+						   (< ,(list 'to_real i) ,(call *PROPS* key (kripke-k *PROPS*))) 
+						   (< ,(call *PROPS* key (kripke-k *PROPS*)) ,(list 'to_real (+ i 1)))))))
 			  
-			  (list `(iff (= ,(call *PROPS* key `(- i-loop 1)) ,bound) (= ,(call *PROPS* key (kripke-k *PROPS*)) ,bound)))
-			  (list `(iff (> ,(call *PROPS* key `(- i-loop 1)) ,bound) (> ,(call *PROPS* key (kripke-k *PROPS*)) ,bound)))
-;</old>
-;<new>
-			  ; ; Build the periodicity of regions between (i_loop - 1) and K
-			  ; (list `(or
-			  ;   (and 
-			  ;     (or
-			  ;     	(< ,(call *PROPS* key `(- i-loop 1)) 0)
-			  ;     	(> ,(call *PROPS* key `(- i-loop 1)) ,bound))
-		   ;    	  (or
-			  ;     	(< ,(call *PROPS* key (kripke-k *PROPS*)) 0)
-			  ;     	(> ,(call *PROPS* key (kripke-k *PROPS*)) ,bound)))
-		   ;    	(fc ,(call *PROPS* key `(- i-loop 1)) ,(call *PROPS* key (kripke-k *PROPS*)))))
-			  ; (list `(iff (> ,(call *PROPS* key `(- i-loop 1)) ,bound) (> ,(call *PROPS* key (kripke-k *PROPS*)) ,bound)))
-;</new>
+			  (list `(iff (= ,(call *PROPS* key `(- i-loop 1)) ,(list 'to_real bound)) (= ,(call *PROPS* key (kripke-k *PROPS*)) ,(list 'to_real bound))))
+			  (list `(iff (> ,(call *PROPS* key `(- i-loop 1)) ,(list 'to_real bound)) (> ,(call *PROPS* key (kripke-k *PROPS*)) ,(list 'to_real bound))))
 
-;<old>
 			  ; Build the periodicity of regions between (i_loop) and K+1
 			  (loop for i from 0 to (1- bound) append
 			   	`(
-		  	       (iff (= ,(call *PROPS* key `i-loop) ,i) (= ,(call *PROPS* key (1+ (kripke-k *PROPS*))) ,i))
+		  	       (iff (= ,(call *PROPS* key `i-loop) ,(list 'to_real i)) (= ,(call *PROPS* key (1+ (kripke-k *PROPS*))) ,(list 'to_real i)))
 		   	       (iff (and
-		   			  (< ,i ,(call *PROPS* key `i-loop)) 
-		   			  (< ,(call *PROPS* key `i-loop) ,(+ i 1)))
+		   			  (< ,(list 'to_real i) ,(call *PROPS* key `i-loop)) 
+		   			  (< ,(call *PROPS* key `i-loop) ,(list 'to_real (+ i 1))))
 		   		     (and
-		   			   (< ,i ,(call *PROPS* key (1+ (kripke-k *PROPS*)))) 
-		   			   (< ,(call *PROPS* key (1+ (kripke-k *PROPS*))) ,(+ i 1))))))
+		   			   (< ,(list 'to_real i) ,(call *PROPS* key (1+ (kripke-k *PROPS*)))) 
+		   			   (< ,(call *PROPS* key (1+ (kripke-k *PROPS*))) ,(list 'to_real (+ i 1)))))))
 
-			  (list `(iff (= ,(call *PROPS* key `i-loop) ,bound) (= ,(call *PROPS* key (1+ (kripke-k *PROPS*))) ,bound)))
-			  (list `(iff (> ,(call *PROPS* key `i-loop) ,bound) (> ,(call *PROPS* key (1+ (kripke-k *PROPS*))) ,bound)))
-;</old>
-
-;<new>
-			  ; ; Build the periodicity of regions between (i_loop) and K+1
-			  ; (list `(or
-			  ;   (and 
-			  ;     (or
-			  ;       (< ,(call *PROPS* key `i-loop) 0)
-			  ;     	(> ,(call *PROPS* key `i-loop) ,bound))
-		   ;    	  (or
-			  ;       (< ,(call *PROPS* key (1+ (kripke-k *PROPS*))) 0)
-			  ;     	(> ,(call *PROPS* key (1+ (kripke-k *PROPS*))) ,bound)))
-		   ;    	(fc ,(call *PROPS* key `i-loop) ,(call *PROPS* key (1+ (kripke-k *PROPS*))))))
-			  ; (list `(iff (> ,(call *PROPS* key `i-loop) ,bound) (> ,(call *PROPS* key (1+ (kripke-k *PROPS*))) ,bound)))
-;</new>
+			  (list `(iff (= ,(call *PROPS* key `i-loop) ,(list 'to_real bound)) (= ,(call *PROPS* key (1+ (kripke-k *PROPS*))) ,(list 'to_real bound))))
+			  (list `(iff (> ,(call *PROPS* key `i-loop) ,(list 'to_real bound)) (> ,(call *PROPS* key (1+ (kripke-k *PROPS*))) ,(list 'to_real bound))))
 
 			  ; define clocks behavior
 			  (loop for i from 1 to (kripke-k *PROPS*) collect
 				`(or
-				       (= ,(call *PROPS* key (1+ i)) 0)
-				       ; (= ,(call *PROPS* key (1+ i)) (+ ,(call *PROPS* key i) (select delta ,i)))))))
+				       (= ,(call *PROPS* key (1+ i)) 0.0)
+				       ; (= ,(call *PROPS* key (1+ i)) (+ ,(call *PROPS* key i) (select delta ,(list 'to_real i))))))))
 				       (= ,(call *PROPS* key (1+ i)) (+ ,(call *PROPS* key i) (delta ,i)))))))
 
 	      
 	      ; zot-delta is always positive
 	      (loop for i from 1 to (1+ (kripke-k *PROPS*)) collect
-		    ; `(> (select delta ,i) 0)))
-		    `(> (delta ,i) 0)))
+		    ; `(> (select delta ,(list 'to_real i)) 0)))
+		    `(> (delta ,i) 0.0)))
 
 	'(true)))
 
@@ -1174,7 +1153,7 @@
 							 (if (eq (get-item-sort it) 'timed)
 							     time-domain
 							   "")) )
-					       (when (or (string= (format nil "~A" (first (int-or-real key))) "Real") (string= (format nil "~A" (first (int-or-real key))) "real")) (setf real-var t))
+					       (when (eq '(real) (int-or-real key)) (setf real-var t))
 
 						 ))
 					     *arith-items*)
@@ -1190,9 +1169,9 @@
 							   "")) )
 						   (case (car key)
 						     ((next yesterday zeta futr past Zpast)
-						     (progn (format k "(declare-fun ~A (Int) " v) (if (or (string= (format nil "~A" (first (int-or-real key))) "Real") (string= (format nil "~A" (first (int-or-real key))) "real")) (format k "Real)~%") (format k "Int)~%"))))
+						     (progn (format k "(declare-fun ~A (Int) " v) (if (eq '(real) (int-or-real key)) (format k "Real)~%") (format k "Int)~%"))))
 						     ((+ - * / mod)
-						     (progn (format k "(declare-fun ~A (Int) " v) (if (or (string= (format nil "~A" (first (int-or-real key))) "Real") (string= (format nil "~A" (first (int-or-real key))) "real")) (format k "Real)~%") (format k "Int)~%"))))
+						     (progn (format k "(declare-fun ~A (Int) " v) (if (eq '(real) (int-or-real key)) (format k "Real)~%") (format k "Int)~%"))))
 						     ))))
 					     
 					     (kripke-timed-arith *PROPS*))
