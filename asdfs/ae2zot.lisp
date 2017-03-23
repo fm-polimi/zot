@@ -92,7 +92,7 @@
 (defun predicatep (f) 
   (and (consp f) 
        (not 
-	     (in (car f) '(tempus not and or iff next until release since trigger zeta yesterday < > = <= >=)))))
+	     (in (car f) '(tempus not and or iff impl next until release since trigger zeta yesterday < > = <= >=)))))
 	
 (declaim (inline predicatep))
 	
@@ -107,7 +107,7 @@
 
 (defun LTL-formulap (f) 
   (and (consp f)        
-	(in (car f) '(not and or iff next until release since trigger zeta yesterday))))
+	(in (car f) '(not and or iff impl next until release since trigger zeta yesterday))))
 
 (declaim (inline LTL-formulap))
 
@@ -135,7 +135,7 @@
 
 
 (defun bool-fmlap (f) 
-  (and (consp f) (in (car f) '(not and or))))
+  (and (consp f) (in (car f) '(not and or impl iff))))
 
 
 (declaim (inline bool-itemp))
@@ -175,61 +175,46 @@
     ((null f) 'false)
     ((eq f t) 'true)   
     ((or (symbolp f) (stringp f) (integerp f) (predicatep f) (arith-cop f) (arith-opp f)) f)
-    ((eq (car f) 'not)
-     (let ((a (second f)))
-       (cond 
-	 ((eq a t) 'false)
-	 ((null a) 'true)	 
-	 ;((or (symbolp a) (stringp a) (integerp a) (predicatep a) (arith-cop a) (arith-opp a)) f)
-	 ((or (symbolp a) (stringp a) (integerp a) (predicatep a)  (arith-opp a)) f)
-	 (t 
-	  (case (car a)
-	    ((not) (deneg (second a)))
-	    ((and) (deneg (cons 'or (mapcar 
-				     (lambda (x) (deneg `(not ,x)))
-				     (cdr a)))))
-	    ((or) (deneg (cons 'and (mapcar 
-				     (lambda (x) (deneg `(not ,x)))
-				     (cdr a)))))
-	    ((iff) (list 'iff (deneg `(not ,(second a))) (deneg (third a))))
-	    ((next) `(next ,(deneg `(not ,(second a)))))
-	    ((until) 
-	     `(release ,(deneg `(not ,(second a))) ,(deneg `(not ,(third a)))))
-	    ((release) 
-	     `(until ,(deneg `(not ,(second a))) ,(deneg `(not ,(third a)))))
-	    ((yesterday) `(zeta ,(deneg `(not ,(second a)))))
-	    ((zeta) `(yesterday ,(deneg `(not ,(second a)))))
-	    ((since) 
-	     `(trigger ,(deneg `(not ,(second a))) ,(deneg `(not ,(third a)))))	     
-	    ((trigger) 
-	     `(since ,(deneg `(not ,(second a))) ,(deneg `(not ,(third a)))))
-
-	    ((<)
-	     `(>= ,(second a) ,(third a)))
-	     
-	    ((>)
-	     `(<= ,(second a) ,(third a)))
-
-	    ((<=)
-	     `(> ,(second a) ,(third a)))
-	     
-	    ((>=)
-	     `(< ,(second a) ,(third a)))
-
-	    ((!=)
-		  `(= ,(second a) ,(third a)))	 
-            
-	    ((=)
-	     `(or (< ,(second a) ,(third a)) (> ,(second a) ,(third a))))
-
-
-
-	    (t (error "deneg: bad arg ~S" (cons f a)))))))) 
 
     ((and (consp f) (eq (car f) 'and) (null (cdr f))) 'true)
     ((and (consp f) (eq (car f) 'or)  (null (cdr f))) 'false)
+ 
+    ((eq (car f) 'not)
+			(let ((a (second f)))
+       		(cond 
+					 ((eq a t) 'false)
+					 ((null a) 'true)	 
+					 ((or (symbolp a) (stringp a) (integerp a) (predicatep a)  (arith-opp a)) f)
+					 (t 
+					  (case (car a)
+							((not) (deneg (second a)))
+							((and) (deneg (cons 'or (mapcar 
+									  (lambda (x) (deneg `(not ,x)))
+									  (cdr a)))))
+						 	((or) (deneg (cons 'and (mapcar 
+									  (lambda (x) (deneg `(not ,x)))
+									  (cdr a)))))
+						 	((impl) `(and ,(deneg (second a)) ,(deneg `(not (third a)))))
+						 	((iff)  `(or 
+											(and ,(deneg (second a)) ,(deneg `(not (third a))))
+											(and ,(deneg `(not (second a))) ,(deneg (third a)))))		
+						 	((next) `(after ,(deneg `(not ,(second a)))))
+						 	((until) `(release ,(deneg `(not ,(second a))) ,(deneg `(not ,(third a)))))
+							((release) `(until ,(deneg `(not ,(second a))) ,(deneg `(not ,(third a)))))
+						 	((yesterday) `(zeta ,(deneg `(not ,(second a)))))
+						 	((zeta) `(yesterday ,(deneg `(not ,(second a)))))
+						 	((since) `(trigger ,(deneg `(not ,(second a))) ,(deneg `(not ,(third a)))))	     
+						 	((trigger) `(since ,(deneg `(not ,(second a))) ,(deneg `(not ,(third a)))))
+						 	((<) `(>= ,(second a) ,(third a)))
+						 	((>) `(<= ,(second a) ,(third a)))
+							((<=)`(> ,(second a) ,(third a)))
+							((>=)`(< ,(second a) ,(third a)))
+						 	((!=)`(= ,(second a) ,(third a)))	 
+						 	((=) `(or (< ,(second a) ,(third a)) (> ,(second a) ,(third a))))
+		 				 	(t (error "deneg: bad arg ~S" (cons f a))))))))  
 
-					;((member (car f) '(and or next until release since trigger zeta yesterday))   
+    ((and (consp f) (eq (car f) 'and) (null (cdr f))) 'true)
+    ((and (consp f) (eq (car f) 'or)  (null (cdr f))) 'false) 
     (t
      (cons (car f) (mapcar #'deneg (cdr f))))))
 
@@ -248,7 +233,7 @@
 			((impl)
 			      (case smt
 				    ((:smt)
-					  `(implies ,(to-smt-dialect (second f) smt) ,(to-smt-dialect (third f) smt)))
+					  `(impl ,(to-smt-dialect (second f) smt) ,(to-smt-dialect (third f) smt)))
 				    ((:smt2)
 					   `(=> ,(to-smt-dialect (second f) smt) ,(to-smt-dialect (third f) smt)))
 				    (t
@@ -260,17 +245,14 @@
 					  `(iff ,(to-smt-dialect (second f) smt) ,(to-smt-dialect (third f) smt)))
 				    ((:smt2)
 					  `(= ,(to-smt-dialect (second f) smt) ,(to-smt-dialect (third f) smt)))
-					   ;; `(and
-					   ;; 	  (=> ,(to-smt-dialect (second f) smt) ,(to-smt-dialect (third f) smt))
-					   ;; 	  (=> ,(to-smt-dialect (third f) smt) ,(to-smt-dialect (second f) smt))))
 				     (t
 					  `(and 
 						 (or ,(to-smt-dialect `(not ,(second f)) smt) ,(to-smt-dialect (third f) smt))
 						 (or ,(to-smt-dialect (second f) smt) ,(to-smt-dialect `(not ,(third f)) smt))))))
+
 			(t
 			      (cons (car f) (mapcar #'(lambda(x)
 							    (to-smt-dialect x smt)) (cdr f))))))))
-		  
 			
 
  
@@ -468,7 +450,7 @@
 			      (unless (member fm '(true false **I_LOOP** **LOOPEX**))
 				    (push fm (kripke-atomic-formulae a-kripke)))
 			      (case (car fm)
-				    ((and or not iff) 
+				    ((and or not iff impl) 
 					  (push fm (kripke-bool a-kripke)))
 				    ((< = > >= <=) ; if fm is a interpreted RELATION 
 					  (progn
@@ -871,7 +853,8 @@
 				    (cons (car fma) (mapcar #'(lambda (x)
 								    (call *PROPS* x i))
 							  (cdr fma))))
-			      ((iff) (list 'iff (call *PROPS* (second fma) i) (call *PROPS* (third fma) i))))))))
+			      ((iff) (list 'iff (call *PROPS* (second fma) i) (call *PROPS* (third fma) i)))
+					((impl) (list 'impl (call *PROPS* (second fma) i) (call *PROPS* (third fma) i))))))))
 
 (defun gen-futr ()
       (format t "define LTL future formulae X, U, R~%")(force-output)
@@ -1566,52 +1549,54 @@
 							(and (= ,(call *PROPS* clock-x `(- ,(the-iloop) ,(float 1))) ,bound) (= ,(call *PROPS* clock-x (float (kripke-k *PROPS*))) ,bound))
 							(and 
 								(< ,(call *PROPS* clock-x `(- ,(the-iloop) ,(float 1))) ,bound)
-								(< ,(call *PROPS* clock-x (float (kripke-k *PROPS*))) ,bound))))
+								(< ,(call *PROPS* clock-x (float (kripke-k *PROPS*))) ,bound)))
 					
-					;define diagonal constraints
-					(loop for clock-y being the hash-keys of *arith-items*
-						when (not (eq clock-y clock-x))
-						when (not (member clock-y discrete-counters))
-						when (not (member clock-y signals))
-						append
-							(let ((h (intern (format nil "c_~S" clock-y))))								  		
+						;define diagonal constraints
+						(cons 'and
+							(loop for clock-y being the hash-keys of *arith-items*
+								when (not (eq clock-y clock-x))
+								when (not (member clock-y discrete-counters))
+								when (not (member clock-y signals))
+								collect
+									(let ((h (intern (format nil "c_~S" clock-y))))								  		
 	
-								(list		
-									`(implies
-										(and (< ,(call *PROPS* clock-x (float (kripke-k *PROPS*))) ,bound) (< ,(call *PROPS* clock-y (float (kripke-k *PROPS*))) ,bound))
-										(or
-											(and 
-												(= 
-													(- ,(call *PROPS* clock-x `(- ,(the-iloop) ,(float 1))) ,v) 
-													(- ,(call *PROPS* clock-y `(- ,(the-iloop) ,(float 1))) ,h))
-												(= 
-													(- ,(call *PROPS* clock-x (float (kripke-k *PROPS*))) ,v)
-													(= ,(call *PROPS* clock-y (float (kripke-k *PROPS*))) ,h)))
 
-											(and 
-												(< 
-													(- ,(call *PROPS* clock-x `(- ,(the-iloop) ,(float 1))) ,v) 
-													(- ,(call *PROPS* clock-y `(- ,(the-iloop) ,(float 1))) ,h))
-												(< 
-													(- ,(call *PROPS* clock-x (float (kripke-k *PROPS*))) ,v)
-													(= ,(call *PROPS* clock-y (float (kripke-k *PROPS*))) ,h)))
+											`(impl
+												(and (< ,(call *PROPS* clock-x (float (kripke-k *PROPS*))) ,bound) (< ,(call *PROPS* clock-y (float (kripke-k *PROPS*))) ,bound))
+												(or
+													(and 
+														(=
+															(- ,(call *PROPS* clock-x `(- ,(the-iloop) ,(float 1))) ,v) 
+															(- ,(call *PROPS* clock-y `(- ,(the-iloop) ,(float 1))) ,h))
+														(= 
+															(- ,(call *PROPS* clock-x (float (kripke-k *PROPS*))) ,v)
+															(- ,(call *PROPS* clock-y (float (kripke-k *PROPS*))) ,h)))
 
-											(and 
-												(< 
-													(- ,(call *PROPS* clock-y `(- ,(the-iloop) ,(float 1))) ,h) 
-													(- ,(call *PROPS* clock-x `(- ,(the-iloop) ,(float 1))) ,v))
-												(< 
-													(- ,(call *PROPS* clock-y (float (kripke-k *PROPS*))) ,h)
-													(= ,(call *PROPS* clock-x (float (kripke-k *PROPS*))) ,v)))))))) 
+													(and 
+														(< 
+															(- ,(call *PROPS* clock-x `(- ,(the-iloop) ,(float 1))) ,v) 
+															(- ,(call *PROPS* clock-y `(- ,(the-iloop) ,(float 1))) ,h))
+														(< 
+															(- ,(call *PROPS* clock-x (float (kripke-k *PROPS*))) ,v)
+															(- ,(call *PROPS* clock-y (float (kripke-k *PROPS*))) ,h)))
+
+													(and 
+														(< 
+															(- ,(call *PROPS* clock-y `(- ,(the-iloop) ,(float 1))) ,h) 
+															(- ,(call *PROPS* clock-x `(- ,(the-iloop) ,(float 1))) ,v))
+														(< 
+															(- ,(call *PROPS* clock-y (float (kripke-k *PROPS*))) ,h)
+															(- ,(call *PROPS* clock-x (float (kripke-k *PROPS*))) ,v)))))))) 
 
 
  
 
 					;define clocks behaviour
-					(loop for i from 1 to (kripke-k *PROPS*) collect
-						`(or
+					(cons 'and
+						(loop for i from 1 to (kripke-k *PROPS*) collect
+							`(or
 							   (= ,(call *PROPS* clock-x (float (1+ i))) ,(float 0))
-							   (= ,(call *PROPS* clock-x (float (1+ i))) (+ ,(call *PROPS* clock-x (float i)) (delta ,(float i))))))))
+							   (= ,(call *PROPS* clock-x (float (1+ i))) (+ ,(call *PROPS* clock-x (float i)) (delta ,(float i))))))))))
 
 					; zot-delta is always positive
 			 		(loop for i from 1 to (1+ (kripke-k *PROPS*)) collect
@@ -1818,7 +1803,8 @@
 
 			(case smt-dialect
 			  	((:smt) (format k ":logic ~a~%" l))
-				((:smt2) (format k "(set-logic ~a)~%" l))) )
+				((:smt2) t) ;(format k "(set-logic ~a)~%" l))
+				) )
 
 
 		  (let (  (*print-case* :downcase)
@@ -1885,8 +1871,8 @@
 													"")) )
 								(if (not (or (member key signals) (member key discrete-counters)))
 									(case smt-dialect
-					 					((:smt) (format k ":extrafuns (( c_~s ~A ))~%" key time-d))
-					 					((:smt2) (format k "(declare-fun c_~s () ~A )~%" key time-d))))))
+					 					((:smt) (format k ":extrafuns (( c_~s Int ))~%" key ))
+					 					((:smt2) (format k "(declare-fun c_~s () Int )~%" key ))))))
 				  *arith-items*))
 
 
@@ -1982,8 +1968,9 @@
   (setf *smt-metric-futr-operators* nil)
   (setf *smt-metric-past-operators* nil)
   (if (or (eq logic :QF_UFRDL)(eq logic :QF_UFLRA))
-      (setf *real-constants* t))
+  (setf *real-constants* t))
   (setf *metric-operators* nil)
+  (setf *format-smt* t)
   
   ;***************************************
   ;set the global list of dicrete counters - use when over-clocks flag is active
@@ -1993,9 +1980,6 @@
   
   (let ((formula (deneg (trio-to-ltl spec))))
 
-     ;; (format t "~a" (if (eq with-time t)
-     ;; 		       (with-time formula)
-     ;; 		       formula))
     (setf *PROPS* (make-kripke the-time 
 			       (if (eq with-time t)
 				   (with-time formula)
@@ -2017,6 +2001,7 @@
 		  (format t "~%Graph dependency over terms ~%~s~%" (kripke-related-IPC-terms *PROPS*))
 		  (format t "~%Related variables ~%~s~%" (kripke-related-IPC-vars *PROPS*))
 		  (format t "~%Time bound: ~S~%" the-time)
+		  (format t "~%SMT output format: ~S~%~%" smt-lib)
 		  (let ((trans (if transitions 
 				   (manage-transitions transitions the-time) 
 				 '(true))))
@@ -2047,7 +2032,9 @@
 				smt-lib)))
 				      
 		  
-		  (format t "~%done processing formula~%")		  
+		  (format t "~%done processing formula~%")	
+
+    	  (format t "~%Formula:~%~a"  (kripke-formula *PROPS*))		  	  
 		  
 		  (build-smt-file *PROPS* smt-assumptions parametric-regions discrete-regions over-clocks ipc-constraints discrete-counters signals logic smt-lib)
 				    
