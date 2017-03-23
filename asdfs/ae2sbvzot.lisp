@@ -1,9 +1,13 @@
-;; AE2BVZOT: a bounded satisfiability checker (extended bvzot to cover arithmetic constraints).
+;; AE2SBVZOT: a bounded satisfiability checker (extended sbvzot to cover arithmetic constraints).
 ;; Mohammad Mehdi Pourhashem Kallehbasti
 ; ------------------------------------------
-;; Special Config1: ae2bvzot switches to this configuration when there is no Boolean AP and real tvar in the main model.
+;; Special Config1: ae2sbvzot switches to this configuration when there is no Boolean AP and real tvar in the main model.
+;; until with bvugt, instead of redor
+;; t, nil, zot-false are not allowed as AP name. true= t and false=nil (or (!! t))
+;; This version uses inloop bit-vector, without LoopConV for APs.
+
 (in-package :cl-user)
-(defpackage :ae2bvzot
+(defpackage :ae2sbvzot
   (:use :common-lisp 
 	:trio-utils
 	:smt-interface
@@ -15,7 +19,7 @@
 	   :mathsat
 	   :z3
 	   )) 
-(in-package :ae2bvzot) 
+(in-package :ae2sbvzot) 
 (defvar *real-constants* nil)
 
 (defmacro in (x set)
@@ -108,8 +112,6 @@
 (defun to-smt-dialect (f smt bvSize)
   (declare (optimize (debug 0)(safety 0)(speed 3)))
       (cond     
-	    ; ((null f) 'false)
-	    ; ((eq f t) 'true)
 	    ((null f) (bvFalse bvSize))
 	    ((eq f t) (bvTrue bvSize))
 	    ((or (symbolp f) (numberp f)) f)
@@ -131,11 +133,7 @@
 					  `(iff ,(to-smt-dialect (second f) smt bvSize) ,(to-smt-dialect (third f) smt bvSize)))
 				    ((:smt2)
 					  `(iff ,(to-smt-dialect (second f) smt bvSize) ,(to-smt-dialect (third f) smt bvSize))
-					  ; (if (eq freshAP t) `(= ,(to-smt-dialect (second f) smt bvSize) ,(to-smt-dialect (third f) smt bvSize)) `(iff ,(to-smt-dialect (second f) smt bvSize) ,(to-smt-dialect (third f) smt bvSize)))
 					  )
-					   ;; `(and
-					   ;; 	  (=> ,(to-smt-dialect (second f) smt bvSize) ,(to-smt-dialect (third f) smt bvSize))
-					   ;; 	  (=> ,(to-smt-dialect (third f) smt bvSize) ,(to-smt-dialect (second f) smt bvSize))))
 				     (t
 					  `(and 
 						 (or ,(to-smt-dialect `(not ,(second f)) smt bvSize) ,(to-smt-dialect (third f) smt bvSize))
@@ -146,11 +144,10 @@
 
 (defvar *PROPS* nil) ; this will contain a Kripke
 
-(defclass ae2bvzot-kripke (kripke) 
+(defclass ae2sbvzot-kripke (kripke) 
       ((the-arith :accessor kripke-arith :type list) ;all arithmetic formulae
 	    (the-timed-arith :accessor kripke-timed-arith :type hash-table) ;just arithmetic formulae inside with-time
 	    (the-atomic-formulaeHT :accessor kripke-atomic-formulaeHT :type hash-table)
-	    ; (the-AP-arithComp :accessor kripke-AP-arithComp :type hash-table) ;used for GSMT
 	    (the-AP-arithComp :accessor AP-arithComp :type list) ;used for GSMT
 	    (the-GSMT-reduction :accessor GSMT-reduction :type list) ;list of APs for arithmetic comparison that are already defined by GSMT
 	    (the-timed-arith-terms :accessor kripke-timed-arith-terms :type list) ;
@@ -172,13 +169,14 @@
 
 
 (defun make-kripke (k fma)
-      (let ((a-kripke (make-instance 'ae2bvzot-kripke)))
+      (let ((a-kripke (make-instance 'ae2sbvzot-kripke)))
 	    (setf 
 		  (kripke-k a-kripke)      k
 		  (kripke-numvar a-kripke) 0
 					; formula -> integer
 		  (kripke-list a-kripke)   (make-hash-table :test #'equal)
 					; integer -> formula
+		  ; (kripke-allsubf a-kripke)  nil
 		  (kripke-back a-kripke)   (make-array (* k 10) :adjustable t)
 		  ; (kripke-prop a-kripke)   nil
 		  (kripke-atomic-formulae a-kripke)   nil
@@ -191,7 +189,6 @@
 		  (kripke-timed-arith a-kripke)  (make-hash-table :test #'equal)
 		  (kripke-untimed-arith a-kripke)  (make-hash-table :test #'equal)
 		  (kripke-atomic-formulaeHT a-kripke)  (make-hash-table :test #'equal)
-		  ; (AP-arithComp a-kripke)  (make-hash-table :test #'equal)
 		  (AP-arithComp a-kripke)   nil
 		  (kripke-untimed-arith-terms a-kripke) nil 
 		  (kripke-arith-futr a-kripke)   nil
@@ -520,7 +517,7 @@
 			   
 	    )a-kripke))
 
-(defmethod call ((kk ae2bvzot-kripke) obj the-time &rest other)
+(defmethod call ((kk ae2sbvzot-kripke) obj the-time &rest other)
       (cond 
 	    ((eq 'false obj) 'false)
 	    ((eq 'true obj) 'true)
@@ -571,7 +568,7 @@
 
 (defgeneric call-fmla-id (kk obj))
 
-(defmethod call-fmla-id ((kk ae2bvzot-kripke) obj) 
+(defmethod call-fmla-id ((kk ae2sbvzot-kripke) obj) 
   (cond 
     ((eq 'false obj) 'false)
     ((eq 'true obj) 'true)
@@ -685,21 +682,6 @@
 		    (cons (car fma)	(list
 		    	(if (and (eq '(int) (int-or-real (second fma))) (eq '(real) (int-or-real (third fma)))) (list 'to_real (call *PROPS* (second fma) i)) (call *PROPS* (second fma) i))
 		    	(if (and (eq '(int) (int-or-real (third fma))) (eq '(real) (int-or-real (second fma)))) (list 'to_real (call *PROPS* (third fma) i)) (call *PROPS* (third fma) i))))))))
-;;<with ite>
-; (defun gen-i-atomic-formulae ()
-;   (format t "define for interpreted relations: <,>,=,<=,>= ~%")(force-output)
-;   (loop for i from 0 to (kripke-k *PROPS*) append
-; 	(loop for fma in (kripke-atomic-formulae *PROPS*) 
-; 	      when (arith-cop fma)
-; 	      collect
-; 	      (list 'ite
-; 	    	(cons (car fma) (mapcar #'(lambda (x)
-; 						(call *PROPS* x i))
-; 					    (cdr fma)))
-; 	    	(list '= (cons (list '_ 'extract i i) (call *PROPS* fma i)) (list '_ 'bv1 '1))
-; 	    	(list '= (cons (list '_ 'extract i i) (call *PROPS* fma i)) (list '_ 'bv0 '1))
-; 		    ))))
-;;</with ite>
 
 (defun gen-arith-constraints ()
   (format t "define FO terms for +,-,*,/,mod ~%")(force-output)
@@ -806,53 +788,49 @@
 (defun gen-futr ()
   (format t "define LTL future formulae X, U, R~%")(force-output)
   (loop for fma in (kripke-futr *PROPS*) collect
-	(list '=
-		(first (call *PROPS* fma 0))
-		(case (car fma)
-		  ((next)
-		 	(list 'next (first (call *PROPS* (second fma) 0))))
+	(case (car fma)
+	  ((next)
+	 	(list 'next (first (call *PROPS* fma 0)) (first (call *PROPS* (second fma) 0))))
 
-		  ((alwf)
-		 	(list 'alwf (first (call *PROPS* (second fma) 0))))
+	  ((alwf)
+	 	(list 'alwf (first (call *PROPS* fma 0)) (first (call *PROPS* (second fma) 0))))
 
-		  ((somf)
-		 	(list 'somf (first (call *PROPS* (second fma) 0))))
+	  ((somf)
+	 	(list 'somf (first (call *PROPS* fma 0)) (first (call *PROPS* (second fma) 0))))
 
-		  ((alw)
-		 	(list 'alw (first (call *PROPS* (second fma) 0))))
+	  ((alw)
+	 	(list 'alw (first (call *PROPS* fma 0)) (first (call *PROPS* (second fma) 0))))
 
-		  ((som)
-		 	(list 'som (first (call *PROPS* (second fma) 0))))
-	      
-	      ((until)
-			(list 'until (first (call *PROPS* (second fma) 0)) (first (call *PROPS* (third fma) 0))))
+	  ((som)
+	 	(list 'som (first (call *PROPS* fma 0)) (first (call *PROPS* (second fma) 0))))
 
-		  ((release)
-			(list 'release (first (call *PROPS* (second fma) 0)) (first (call *PROPS* (third fma) 0)))))))) ; other operators do not appear here.
+      ((until)
+		(list 'until (first (call *PROPS* fma 0)) (first (call *PROPS* (second fma) 0)) (first (call *PROPS* (third fma) 0))))
+
+	  ((release)
+		(list 'release (first (call *PROPS* fma 0)) (first (call *PROPS* (second fma) 0)) (first (call *PROPS* (third fma) 0)))))))
 
 (defun gen-past2 ()
   (format t "gen-past2...~%")(force-output)
 	(loop for fma in (kripke-past *PROPS*) collect
-	(list '=
-		(first (call *PROPS* fma 0))
 		(case (car fma)
 		((yesterday)
-		 	(list 'yesterday (first (call *PROPS* (second fma) 0))))
+		 	(list 'yesterday (first (call *PROPS* fma 0)) (first (call *PROPS* (second fma) 0))))
 
 		((zeta)
-		 	(list 'zeta (first (call *PROPS* (second fma) 0))))
-	    
-	    ((alwp)
-		 	(list 'alwp (first (call *PROPS* (second fma) 0))))
+		 	(list 'zeta (first (call *PROPS* fma 0)) (first (call *PROPS* (second fma) 0))))
 
-		((somp)
-		 	(list 'somp (first (call *PROPS* (second fma) 0))))
+		((alwp)
+		 	(list 'alwp (first (call *PROPS* fma 0)) (first (call *PROPS* (second fma) 0))))
+
+	 	((somp)
+		 	(list 'somp (first (call *PROPS* fma 0)) (first (call *PROPS* (second fma) 0))))
 
 	    ((since)
-			(list 'since (first (call *PROPS* (second fma) 0)) (first (call *PROPS* (third fma) 0))))
+			(list 'since (first (call *PROPS* fma 0)) (first (call *PROPS* (second fma) 0)) (first (call *PROPS* (third fma) 0))))
 		
-		((trigger)
-			(list 'trigger (first (call *PROPS* (second fma) 0)) (first (call *PROPS* (third fma) 0))))))))
+	    ((trigger)
+			(list 'trigger (first (call *PROPS* fma 0)) (first (call *PROPS* (second fma) 0)) (first (call *PROPS* (third fma) 0)))))))
 
 (defun the-big-formula (fma periodic-arith-terms gen-symbolic-val ipc-constraints bound freshAP GSMT)
   (append
@@ -861,16 +839,6 @@
 	(gen-arith-past)
 	(gen-i-atomic-formulae GSMT) ;defines behavior of AP assigned to arithmetic operators.
 	(gen-arith-constraints)
-	;;;;; (gen-evt-futr)
-	;;;;; (gen-past1) ; [Y(F1)]0 = false
-	;;;;; (gen-existence-condition ipc-constraints)
-	(when freshAP
-		(nconc
-		(gen-futr) ;defines behavior of future temporal operators. 
-		(gen-bool)
-		(gen-past2)
-	))
-	;[implemented] (LastStateFormula) ;l ~ k+1 for all p (AP + arithmetics represented as AP)
 	(LoopConstraints gen-symbolic-val)
 	(gen-regions bound)
 	)))
@@ -913,12 +881,20 @@
 	(substitute (bvFalse size) nil f
 	))))))))
 
+(defun substitutionsf (f size)
+	(substitute (intern (format nil "~A" 'zot-false)) nil f))
+
 (defun bvf (f size newf)
 	(if (atom f) (setf newf (car (substitutions (list f) size)))
 		(loop for x from 0 to (- (list-length f) 1) do
 			(setf (nth x newf) (bvf (nth x f) size (nth x f)))
 			))
 	(values newf))
+
+(defun bvff (f size)
+	(cond 
+		((atom f) f)
+		(t (cons (bvff (car (substitutionsf f size)) size) (bvff (cdr (substitutionsf f size)) size)))))
 
 (defun collapse-atomic-formulae (f)
 	(cond 
@@ -948,7 +924,7 @@
 					; --- MAIN ---
 (defun zot (the-time spec 
 		     &key
-		     (freshAP nil) ; Introduces fresh APS for all "unique" subformulae. If it is set to nil, fresh APs are introduced only for arithmetic constraints.
+		     (freshAP t) ; Introduces fresh APS for all "unique" subformulae. If it is set to nil, fresh APs are introduced only for arithmetic constraints.
 		     (GSMT nil) ;Guide SMT-solver: Adds assertions regarding (obvious) relations between arithmetic constraints over their representative AP. E.g. ap1:(> a b), and ap2:(<= a b) then asserts (= ap1 (bvnot ap2)) and deletes definition of either ap1 or ap2 over every time instant. That means, since we have (<-> ap1[i] (> a[i] b[i])) and (= ap1 (bvnot ap2)) we can delete this: (<-> ap2[i] (<= a[i] b[i])).
 		     (transitions nil)
 		     (negate-transitions nil)
@@ -966,22 +942,25 @@
 		     (smt-metric-futr nil)
 		     (smt-metric-past nil)
 		     )
+
   (setf *smt-metric-futr-operators* smt-metric-futr)
   (setf *smt-metric-past-operators* smt-metric-past)
   (setf *format-smt* t)
   (setf *bitvector* t)
+  (setf *loops* t)
   (setf real-var nil)
   (if (or (eq logic :QF_UFRDL)(eq logic :QF_UFLRA))
       (setf *real-constants* t))
   (setf *metric-operators* nil)
   
-  (let ((formula (trio-to-ltl spec)))
+  (let ((formula (bvff (trio-to-ltl spec) (+ the-time 2) )))
     (setf *PROPS* (make-kripke the-time 
 			       (if (eq with-time t)
 				   (with-time formula)
 				 formula)))
 
-    (format t "This is AE2BVZOT.~%")
+    (format t "This is AE2SBVZOT.~%")
+    (when (and (> over-clocks 0) gen-symbolic-val) (progn (format t "In CLTLoc gen-symbolic-val must not be active.~%") (setf gen-symbolic-val nil)))
     (declare-assumptions smt-declarations)
 
     (let ((undeclared (set-difference (kripke-atomic-formulae *PROPS*) declarations)))
@@ -1000,14 +979,14 @@
 		  (format t "~%Number of Boolean variables: ~%~S~%"(- (length (kripke-atomic-formulae *PROPS*)) (length (kripke-IPC-constraints *PROPS*))))
 		(setf AP-arithComp nil)
 		(setf GSMT-reduction nil)
-		(when GSMT (progn
-		(loop for fma in (kripke-atomic-formulae *PROPS*) when (arith-cop fma) do
-			(setf AP-arithComp (append AP-arithComp (list (list fma (call *PROPS* fma 0))))))
-		(loop for i from 0 to (1- (length AP-arithComp)) do
-			(loop for j from (1+ i) to (1- (length AP-arithComp)) do
-				(let ((f1 (nth i AP-arithComp)) (f2 (nth j AP-arithComp)))
-					(when (and (list-eq (list (second (first f1))) (list (second (first f2)))) (list-eq (list (third (first f1))) (list (third (first f2)))) (eq (get-rel (first(first f1)) (first(first f2))) 'neg))
-						(setf GSMT-reduction (append GSMT-reduction (list (first f2))))))))))
+		; (when GSMT (progn
+		; (loop for fma in (kripke-atomic-formulae *PROPS*) when (arith-cop fma) do
+		; 	(setf AP-arithComp (append AP-arithComp (list (list fma (call *PROPS* fma 0))))))
+		; (loop for i from 0 to (1- (length AP-arithComp)) do
+		; 	(loop for j from (1+ i) to (1- (length AP-arithComp)) do
+		; 		(let ((f1 (nth i AP-arithComp)) (f2 (nth j AP-arithComp)))
+		; 			(when (and (list-eq (list (second (first f1))) (list (second (first f2)))) (list-eq (list (third (first f1))) (list (third (first f2)))) (eq (get-rel (first(first f1)) (first(first f2))) 'neg))
+		; 				(setf GSMT-reduction (append GSMT-reduction (list (first f2))))))))))
 
 		  (let ((trans (if transitions 
 				   (manage-transitions transitions the-time) 
@@ -1044,80 +1023,98 @@
 							   *real*
 							 *int*)))
 				  (setq bvSize (+ the-time 2))
+
 		(format k "(declare-fun i_loop () (_ BitVec ~A))" bvSize)
-		
-		; (format k "~%(declare-fun i-loop () Int)")
-		; 		(format k "~%(assert (and (> i-loop 0) (< i-loop ~A)))" (1+ the-time))
-		; 		; (format k "~%(assert (= (bv2int i_loop) i-loop))")
-		; 		(format k "~%(assert (= ((_ int2bv ~A) i-loop) i_loop))" bvSize)
-		
+		(format k "~%(declare-fun zot-in_loop () (_ BitVec ~A))" bvSize)
+		(format k "~%(assert (= zot-in_loop (bvshl (bvnot (_ bv0 ~A)) i_loop)))" bvSize)
 		(if (or gen-symbolic-val (> over-clocks 0))
 			(progn
-				(format k "~%(declare-fun i-loop () Int)")
-				(format k "~%(assert (and (> i-loop 0) (< i-loop ~A)))" (1+ the-time))
+				(format k "
+(declare-fun i-loop () Int)")
+				(format k "
+(assert (and (> i-loop 0) (< i-loop ~A)))" (1+ the-time))
 				; (format k "~%(assert (= (bv2int i_loop) i-loop))")
-				(format k "~%(assert (= ((_ int2bv ~A) i-loop) i_loop))" bvSize))
-			(format k "~%(assert (and (bvuge i_loop (_ bv1 ~A)) (bvule i_loop (_ bv~A ~A))))" bvSize the-time bvSize))
-			; (progn ;(format k "~%(assert (and (bvuge i_loop (_ bv1 ~A)) (bvule i_loop (_ bv~A ~A))))" bvSize the-time bvSize))
-			; 	(format k "~%(assert (or")
-			; 	(loop for i from 1 to (- bvSize 2) do
-			; 		(format k "~%~4T(= i_loop (_ bv~A ~A))" i bvSize))
-			; 	(format k "))")))
+				(format k "
+(assert (= ((_ int2bv ~A) i-loop) i_loop))" bvSize))
+			(format k "
+(assert (and (bvuge i_loop (_ bv1 ~A)) (bvule i_loop (_ bv~A ~A))))" bvSize the-time bvSize))
+		(format k "
+(define-fun getbit ((x (_ BitVec ~A)) (index (_ BitVec ~A))) (_ BitVec 1)
+	((_ extract 0 0) (bvlshr x index)))~%" bvSize bvSize)
+; 		(format k "
+; (define-fun loopConV ((x (_ BitVec ~A))) Bool
+; 	(and" bvSize)
+; 		(format k "
+; 		(= (getbit x i_loop) ((_ extract ~A ~A) x)) ;; k+1 ~~ i_loop" (+ the-time 1) (+ the-time 1))
+; 		(format k "
+; 		(= (getbit (bvshl x (_ bv1 ~A)) i_loop) ((_ extract ~A ~A) x)))) ;; k ~~ i_loop-1
+; " bvSize the-time the-time)
+		(format k "
+(define-fun loopConF ((x (_ BitVec ~A))) Bool" bvSize)
+		(format k "
+	(= (getbit x i_loop) ((_ extract ~A ~A) x))) ;; k+1 ~~ i_loop
+" (+ the-time 1) (+ the-time 1))
+		(format k "
+(define-fun next ((fap (_ BitVec ~A)) (A (_ BitVec ~A))) Bool
+    (and
+    	(= ((_ extract ~A 0) fap) ((_ extract ~A 1) A))
+		(loopConF fap)))
+		" bvSize bvSize the-time (1+ the-time))
+		(format k "
+(define-fun yesterday ((fap (_ BitVec ~A)) (A (_ BitVec ~A))) Bool
+    (= fap (bvshl A (_ bv1 ~A))))
+		" bvSize bvSize bvSize)
+		(format k "
+(define-fun zeta ((fap (_ BitVec ~A)) (A (_ BitVec ~A))) Bool
+    (= fap (bvor (bvshl A (_ bv1 ~A)) (_ bv1 ~A))))~%" bvSize bvSize bvSize bvSize)
 		
-		(format k "~%(define-fun getbit ((x (_ BitVec ~A)) (index (_ BitVec ~A))) (_ BitVec 1)~%~4T((_ extract 0 0) (bvlshr x index)))~%~4T" bvSize bvSize)
-		(format k "~%(define-fun reverse ((x (_ BitVec ~A))) (_ BitVec ~A)~%~4T" bvSize bvSize)
-		(loop for i from 0 to (- bvSize 3) do
-			(format k "(concat((_ extract ~A ~A)x)" i i))
-		(format k "(concat ((_ extract ~A ~A)x)((_ extract ~A ~A)x)" (- bvSize 2) (- bvSize 2) (1- bvSize) (1- bvSize))
-		(format k (repeat-string bvSize ")"))
-; 		(format k "~%
-; (define-fun ceiling ((x Real)) Int
-;     (ite (= (to_real (to_int x)) x)
-;     	(to_int x)
-;     	(+ 1 (to_int x))))")
-; 		(format k "~%
-; (define-fun fc ((x Real) (y Real)) Bool
-;     (and (= (to_int x) (to_int y)) (= (ceiling x) (ceiling y))))
-; 			")
-		(format k "~%~%(define-fun loopConV ((x (_ BitVec ~A))) Bool~%~4T(and~%" bvSize)
-		(format k "~8T(= (getbit x i_loop) ((_ extract ~A ~A) x) ) ;; k+1 ~~ i_loop~%" (+ the-time 1) (+ the-time 1))
-		(format k "~8T(= (getbit x (bvsub i_loop (_ bv1 ~A))) ((_ extract ~A ~A) x)))) ;; k ~~ i_loop-1~%" bvSize the-time the-time)
-		(format k "~%(define-fun loopConF ((x (_ BitVec ~A))) Bool~%" bvSize)
-		(format k "~4T(= (getbit x i_loop) ((_ extract ~A ~A) x))) ;; k+1 ~~ i_loop~%" (+ the-time 1) (+ the-time 1))
-		(format k "~%(define-fun next ((x (_ BitVec ~A))) (_ BitVec ~A)~%" bvSize bvSize)
-		(format k "~4T(concat (getbit (bvlshr x (_ bv1 ~A)) i_loop) ((_ extract ~A 1) x)))~%" bvSize (+ the-time 1))
-		(format k "~%(define-fun yesterday ((x (_ BitVec ~A))) (_ BitVec ~A)~%" bvSize bvSize)
-		(format k "~4T(bvshl x (_ bv1 ~A)))~%" bvSize)
-		(format k "~%(define-fun zeta ((x (_ BitVec ~A))) (_ BitVec ~A)~%" bvSize bvSize)
-		(format k "~4T(bvor (bvshl x (_ bv1 ~A)) (_ bv1 ~A)))~%" bvSize bvSize)
-		(format k "~%(define-fun untilNL ((A (_ BitVec ~A)) (B (_ BitVec ~A))) (_ BitVec ~A)~%" bvSize bvSize bvSize)
-		(format k "~4T(bvor~%~8TB~%~8T(bvand~%")
-		(format k "~12TA~%")
-		(format k "~12T(bvnot~%")
-		(format k "~16T(reverse~%")
-		(format k "~20T(bvadd~%")
-		(format k "~24T(reverse (bvor B A))~%")
-		(format k "~24T(reverse B)))))))~%")
-		(format k "~%(define-fun until ((A (_ BitVec ~A)) (B (_ BitVec ~A))) (_ BitVec ~A)" bvSize bvSize bvSize)
-		(format k "~%~4T(untilNL A (concat (getbit (untilNL A B) i_loop) ((_ extract ~A 0) B))))" the-time)
-		(format k "~%(define-fun release ((A (_ BitVec ~A)) (B (_ BitVec ~A))) (_ BitVec ~A)~%" bvSize bvSize bvSize)
-		(format k "~4T(bvnot (until (bvnot A) (bvnot B))))~%")
-		(format k "~%(define-fun since ((A (_ BitVec ~A)) (B (_ BitVec ~A))) (_ BitVec ~A)~%" bvSize bvSize bvSize)
-		(format k "~4T(bvor~%~8TB~%~8T(bvand~%~12TA~%~12T(bvnot~%~16T(bvadd~%~20T(bvor B A)~%~20TB)))))~%")
-		(format k "~%(define-fun trigger ((A (_ BitVec ~A)) (B (_ BitVec ~A))) (_ BitVec ~A)~%" bvSize bvSize bvSize)
-		(format k "~4T(bvnot (since (bvnot A) (bvnot B))))~%")
-		(format k "~%(define-fun alw ((x (_ BitVec ~A))) (_ BitVec ~A)~%" bvSize bvSize)
-		(format k "~4T((_ repeat ~A) (bvredand x)))~%" bvSize)
-		(format k "~%(define-fun som ((x (_ BitVec ~A))) (_ BitVec ~A)~%" bvSize bvSize)
-		(format k "~4T((_ repeat ~A) (bvredor x)))~%" bvSize)
-		(format k "~%(define-fun alwfNL ((x (_ BitVec ~A))) (_ BitVec ~A)~%~4T(bvand~%~8Tx~%~8T(reverse~%~12T(bvsub~%~16T(reverse (bvnot x))~%~16T(_ bv1 ~A)))))~%" bvSize bvSize bvSize)
-		(format k "~%(define-fun alwf ((x (_ BitVec ~A))) (_ BitVec ~A)~%~4T(alwfNL (concat (getbit (alwfNL x) i_loop) ((_ extract ~A 0) x))))~%" bvSize bvSize the-time)
-		(format k "~%(define-fun alwp ((x (_ BitVec ~A))) (_ BitVec ~A)~%~4T(bvand~%~8Tx~%~8T(bvsub~%~12T(bvnot x)~%~12T(_ bv1 ~A))))~%" bvSize bvSize bvSize)
-		(format k "~%(define-fun somfNL ((x (_ BitVec ~A))) (_ BitVec ~A)~%~4T(bvor~%~8Tx~%~8T(bvnot~%~12T(reverse~%~16T(bvsub~%~20T(reverse x)~%~20T(_ bv1 ~A))))))~%" bvSize bvSize bvSize)
-		(format k "~%(define-fun somf ((x (_ BitVec ~A))) (_ BitVec ~A)~%~4T(somfNL (concat (getbit (somfNL x) i_loop) ((_ extract ~A 0) x))))~%" bvSize bvSize the-time)
-		(format k "~%(define-fun somp ((x (_ BitVec ~A))) (_ BitVec ~A)~%~4T(bvor~%~8Tx~%~8T(bvnot~%~12T(bvsub~%~16Tx~%~16T(_ bv1 ~A)))))~%"bvSize bvSize bvSize)
+		(format k "
+(define-fun until ((fap (_ BitVec ~A)) (A (_ BitVec ~A)) (B (_ BitVec ~A))) Bool
+	(and" bvSize bvSize bvSize)
+		(format k "
+		(= ((_ extract ~A 0) fap) (bvor ((_ extract ~A 0) B) (bvand ((_ extract ~A 0) A) ((_ extract ~A 1) fap))))" the-time the-time the-time (1+ the-time))
+		(format k "
+		(= #b1 (bvor ((_ extract ~A ~A) A) ((_ extract ~A ~A) B) (bvnot ((_ extract ~A ~A) fap))))
+		(= #b1 (bvor (bvnot ((_ extract ~A ~A) B)) ((_ extract ~A ~A) fap)))
+		(loopConF fap)
+		(or (= #b0 ((_ extract ~A ~A) fap))
+			(= #b1 (bvredor (bvand ((_ extract ~A 1) B) ((_ extract ~A 1) zot-in_loop)))))))
+" (1+ the-time) (1+ the-time) (1+ the-time) (1+ the-time) (1+ the-time) (1+ the-time)  (1+ the-time) (1+ the-time) (1+ the-time) (1+ the-time) (1+ the-time) (1+ the-time) the-time the-time)
+		(format k "
+(define-fun release ((fap (_ BitVec ~A)) (A (_ BitVec ~A)) (B (_ BitVec ~A))) Bool
+	(until (bvnot fap) (bvnot A) (bvnot B)))~%" bvSize bvSize bvSize)
+		
+		(format k "
+(define-fun since ((fap (_ BitVec ~A)) (A (_ BitVec ~A)) (B (_ BitVec ~A))) Bool" bvSize bvSize bvSize)
+		(format k "
+	(and
+		(= ((_ extract 0 0) fap) ((_ extract 0 0) B) )")
+		(format k "
+		(= ((_ extract ~A 1) fap) (bvor ((_ extract ~A 1) B) (bvand ((_ extract ~A 1) A) ((_ extract ~A 0) fap))))" (1+ the-time) (1+ the-time) (1+ the-time) the-time)
+		(format k "))~%")
+		(format k "
+(define-fun trigger ((fap (_ BitVec ~A)) (A (_ BitVec ~A)) (B (_ BitVec ~A))) Bool
+	(since (bvnot fap) (bvnot A) (bvnot B)))~%" bvSize bvSize bvSize)
+		(format k "
+(define-fun alw ((fap (_ BitVec ~A)) (A (_ BitVec ~A))) Bool
+	(= fap ((_ repeat ~A) (bvredand A))))~%" bvSize bvSize bvSize)
+		(format k "
+(define-fun som ((fap (_ BitVec ~A)) (A (_ BitVec ~A))) Bool
+	(= fap ((_ repeat ~A) (bvredor A))))~%" bvSize bvSize bvSize)
+		(format k "
+(define-fun alwf ((fap (_ BitVec ~A)) (A (_ BitVec ~A))) Bool
+	(until (bvnot fap) ~A (bvnot A)))~%" bvSize bvSize (bvTrue bvSize))
+		(format k "
+(define-fun alwp ((fap (_ BitVec ~A)) (A (_ BitVec ~A))) Bool
+    (since (bvnot fap) ~A (bvnot A)))~%" bvSize bvSize (bvTrue bvSize))
+		(format k "
+(define-fun somp ((fap (_ BitVec ~A)) (A (_ BitVec ~A))) Bool
+    (since fap ~A A))~%" bvSize bvSize (bvTrue bvSize))
+		(format k "
+(define-fun somf ((fap (_ BitVec ~A)) (A (_ BitVec ~A))) Bool
+	(until fap ~A A))~%~%" bvSize bvSize (bvTrue bvSize))
 		(format k "(define-fun bviff ((A (_ BitVec ~A)) (B (_ BitVec ~A))) (_ BitVec ~A)~%~4T(bvxnor A B))~%" bvSize bvSize bvSize)
-		(format k ";;;;;;Used propositions and their loop constraints:~%")
+		(format k ";;;;;;Used propositions:~%")
 					;write all the propositional items
 				    (maphash (lambda (key v)
 						   (format dict "~s -> ~s~%" v key)
@@ -1125,10 +1122,14 @@
 						   (case (car key)
 							(t
 						      (if (and (not (arith-itemp key)) (or freshAP (arith-cop key)))
-							  (format k "(declare-fun ~A () (_ BitVec ~A))~%" (string-downcase v) bvSize)
+							  	(format k "(declare-fun ~A () (_ BitVec ~A))~%" (string-downcase v) bvSize)
 							  ))) ;legacy for (-P- a)
 						 (if (member key (kripke-atomic-formulae *PROPS*))
-						     (format k "(declare-fun ~A () (_ BitVec ~A))~%" (string-downcase v) bvSize))))
+						     (progn (format k "(declare-fun ~A () (_ BitVec ~A))~%" (string-downcase v) bvSize)
+						     	(when (string= (string-downcase v) "t") (format k "(assert (= ~A ~A))~%" (string-downcase v) (bvTrue bvSize)))
+						     	(when (string= (string-downcase v) "zot-false") (format k "(assert (= ~A ~A))~%" (string-downcase v) (bvFalse bvSize))))
+						     	))
+					       )
 					     (kripke-list *PROPS*))
 
 					;write all the arithmetic items
@@ -1176,24 +1177,46 @@
 					     
 					     (kripke-timed-arith *PROPS*))
 
-				    (if (> over-clocks 0)
-					  (format k "(declare-fun delta (Int) Real)~%"))
+			    (if (> over-clocks 0)
+				  (format k "(declare-fun delta (Int) Real)~%"))
 
-				    (if (not (null smt-assumptions))
-					(format k (concatenate 'string ":assumption " smt-assumptions "~%"))))
-				  
-			    (format k "(assert ")
-			    (let ((*print-pretty* nil))
-				  (write (kripke-formula *PROPS*) :stream k :escape nil :case :downcase))
-			    (format k ")~%")
-			    
+			    (if (not (null smt-assumptions))
+				(format k (concatenate 'string ":assumption " smt-assumptions "~%"))))
+				(when (> (length (kripke-formula *PROPS*)) 3);to avoid inserting "(and true true)".
+					(format k "(assert ")
+				    (let ((*print-pretty* nil))
+					  (write (kripke-formula *PROPS*) :stream k :escape nil :case :downcase))
+				    (format k ")~%"))
+			    ; <defines faps>
+			    (when (> (length (gen-futr)) 0)
+			    	(format k "(assert ")
+				    (let ((*print-pretty* nil))
+					  (write (append '(and) (gen-futr)) :stream k :escape nil :case :downcase))
+				    (format k ")~%"))
+			    (when (> (length (gen-past2)) 0)
+			    	(format k "(assert ")
+				    (let ((*print-pretty* nil))
+					  (write (append '(and) (gen-past2)) :stream k :escape nil :case :downcase))
+				    (format k ")~%"))
+			    (when (> (length (gen-bool)) 0)
+			    	(format k "(assert ")
+				    (let ((*print-pretty* nil))
+					  (write (append '(and) (gen-bool)) :stream k :escape nil :case :downcase))
+				    (format k ")~%"))
+			    ; </defines faps>
+
 			
 			(loop for f in (kripke-atomic-formulae *PROPS*) do
 				(setf (gethash f (kripke-atomic-formulaeHT *PROPS*)) (gethash f (kripke-list *PROPS*))))
-
-			 ;Loop Constraints for all atomic formulae (k ~ i_loop-1) and (k+1 ~ i_loop)
+			
+			;Loop Constraints for all atomic formulae (k ~ i_loop-1) and (k+1 ~ i_loop)
+			; (loop for p in (kripke-atomic-formulae *PROPS*)
+			; 	do (format k "(assert (loopConV ~A))~%" (string-downcase (gethash p (kripke-list *PROPS*)))))
 			(loop for p in (kripke-atomic-formulae *PROPS*)
-				do (format k "(assert (loopConV ~A))~%" (string-downcase (gethash p (kripke-list *PROPS*)))))
+				do (format k "(assert (loopConF ~A))~%" (string-downcase (gethash p (kripke-list *PROPS*)))))
+
+
+
 			(when GSMT (progn
 			(format k ";;;;;;Guides for the SMT-solver:")
 			(loop for i from 0 to (1- (length AP-arithComp)) do
@@ -1219,21 +1242,19 @@
 
 			(format k ";;;;;;The main formula is asserted to be true at the time instant 1:~%")
 			(if freshAP
-				(progn (format k "(assert (= (getbit zot-p1")
-				(format k " (_ bv1 ~A)) #b1))~%" bvSize))
-
+				(format k "(assert (= ((_ extract 1 1) zot-p1) #b1))~%")
+				
 				(progn (format k "(assert (= (getbit ")
 				(format k (string-downcase (format nil "~A" (bvf (collapse-atomic-formulae formula) bvSize (collapse-atomic-formulae formula)))))
 				(format k " (_ bv1 ~A)) #b1))~%" bvSize)))
 			(if (and (= (- (length (kripke-atomic-formulae *PROPS*)) (length (kripke-IPC-constraints *PROPS*))) 0) (not real-var) (= over-clocks 0))
 				;;<Special Config1>
-				(format k "(check-sat-using (then (! simplify :blast_eq_value true :local_ctx true) solve-eqs (repeat bit-blast) (! simplify :blast_eq_value true :local_ctx true) (! qflia :bv.enable_int2bv true :arith.branch_cut_ratio 5 :case_split 0 :mbqi false :relevancy 0 :arith.propagate_eqs false :local_ctx true)) :print_model true)~%")
+				(format k "(check-sat-using (then elim-uncnstr (! simplify :bv_le_extra true :blast_eq_value true :local_ctx true) solve-eqs (repeat bit-blast) (! qfauflia :bv.enable_int2bv true :arith.branch_cut_ratio 5 :case_split 0 :mbqi false :relevancy 0 :arith.propagate_eqs false :local_ctx true)) :print_model true)~%")
 				;;<Special Config1>
-				(format k "(check-sat-using (then (! simplify :blast_eq_value true :local_ctx true) solve-eqs (repeat bit-blast) (! simplify :blast_eq_value true :local_ctx true) (! smt :bv.enable_int2bv true :arith.branch_cut_ratio 5 :case_split 0 :mbqi false :relevancy 0)) :print_model true)~%"))
+				(format k "(check-sat-using (then elim-uncnstr (! simplify :bv_le_extra true :blast_eq_value true :local_ctx true) solve-eqs (repeat bit-blast) (! smt :bv.enable_int2bv true :arith.branch_cut_ratio 5 :case_split 0 :relevancy 0 :auto_config false :restart_strategy 2)) :print_model true)~%"))
 			(format k "(exit)")
 			))
-		   (to-smt-and-back *PROPS* smt-solver :smt-lib :smt2 :arith-bitvector :t)
-		  
+		    (to-smt-and-back *PROPS* smt-solver :smt-lib :smt2 :arith-bitvector :t)
 		  )))))))
 
 (defun declare-assumptions (list)

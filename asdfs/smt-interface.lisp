@@ -346,9 +346,6 @@
     	   ))
     ))
 
-
-
-
 ;;<bitvector>
 (defun trim-split (string)
     (let ((strtrim (string-trim " " string)))
@@ -387,6 +384,7 @@
       	(if (string= (subseq (car (trim-split line)) 0 1) "#")
       		(setf (gethash currentVar var-bin) (gen-bin (car (trim-split line))))
       		)))
+	(force-output)
  (setq i_loop (read-from-string(format nil "~D" (read-from-string (concatenate 'string "#b" (gethash "i_loop" var-bin) )))))
  (remhash "i_loop" var-bin)
  (with-open-file (ff "output.hist.txt" 
@@ -399,7 +397,7 @@
 	   	(format ff "------ time ~s ------~%" i)
 	   	(if (= i i_loop) (progn (format t "**LOOP**~%")(format ff "**LOOP**~%")))
 	   	(maphash #'(lambda (var bin) 
-	   		(if (string= (subseq bin (- k i) (1+ (- k i))) "1")
+	   		(if (and (not (string= "T" (string-upcase var))) (or (< (length (string-upcase var)) 5) (not (string= "ZOT-" (subseq (string-upcase var) 0 4)))) (string= (subseq bin (- k i) (1+ (- k i))) "1"))
 	   			(progn
 	   					(format t "  ~a~%" (string-upcase var))
 	   					(format ff "  ~a~%" (string-upcase var))
@@ -408,7 +406,7 @@
 
 	   		) var-bin)
 	 	)
-	(format t  "------ end of bvzot result ------~%")
+	(format t  "------ end ------~%")
 
 	(format ff "------ end ------~%")))
 ;;</bitvector>
@@ -500,6 +498,17 @@
 
 
 (defun translate-abvsmt2-output (k loops) nil
+	;;Checks if the plugin is used only for completeness check where the output.1.txt does not contain any model.
+(setf nomodel t)
+(with-open-file (stream "output.1.txt" :direction :input)
+   (do ((line (read-line stream nil) (read-line stream nil)))
+        ((null line))
+         (if (string= line "sat")
+               (do ((line1 (read-line stream nil) (read-line stream nil)))
+                  ((null line1))
+                  (when (> (length line1) 5) (when (string= (subseq line1 0 6) "(model") (progn (setf nomodel nil) (return))))))))
+(when nomodel (progn (format t "The plugin is used for completeness check, and by default no model is returned. Enable the flag getLFmodel in order to include the model.") (return-from translate-abvsmt2-output nil)))
+                  	
 (setf *read-default-float-format* 'double-float)
 (setq ap-val  (make-hash-table :test #'equal))		;; Key: AP name,											Value: value
 (setq ar-val  (make-hash-table :test #'equal))		;; Key: array name,											Value: Z3 output (a chronologically ordered list)
