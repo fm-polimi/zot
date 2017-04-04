@@ -198,7 +198,7 @@
 						 	((iff)  `(or 
 											(and ,(deneg (second a)) ,(deneg `(not (third a))))
 											(and ,(deneg `(not (second a))) ,(deneg (third a)))))		
-						 	((next) `(after ,(deneg `(not ,(second a)))))
+						 	((next) `(next ,(deneg `(not ,(second a)))))
 						 	((until) `(release ,(deneg `(not ,(second a))) ,(deneg `(not ,(third a)))))
 							((release) `(until ,(deneg `(not ,(second a))) ,(deneg `(not ,(third a)))))
 						 	((yesterday) `(zeta ,(deneg `(not ,(second a)))))
@@ -391,7 +391,7 @@
 				   (if (not (null sig)) 
 					 (cond 
 					       ((string= tp "Bool") (setf (gethash fm (kripke-list a-kripke)) fm))
-					       (t (error "I'm parsing a LTL formula: type inconsistency of non boolean ~S: ~s inside a LTL formula! ~%" fm tp)))
+					       (t (error "1: I'm parsing a LTL formula: type inconsistency of non boolean ~S: ~s inside a LTL formula! ~%" fm tp)))
 
 					; if fm is an AP, put fm in kripke-list
 					 (if (symbolp fm)
@@ -404,7 +404,7 @@
 							   (intern (format nil "ZOT-P~s" (incf (kripke-numvar a-kripke)))))
 
 					;otherwise rise an error!!						 
-						     (error "I'm parsing a LTL formula: type inconsistency of non boolean ~S: ~s inside a LTL formula! ~%" fm tp))))))
+						     (error "2: I'm parsing a LTL formula: type inconsistency of non boolean ~S: ~s inside a LTL formula! ~%" fm tp))))))
 		   
 					; ** recursively process LTL formula ** 
 		     (if (not (or (arith-opp fm) (arith-cop fm) (arith-itemp fm)))
