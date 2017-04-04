@@ -908,7 +908,8 @@
      
      `(impl ,(the-loopEx)
 	    ,(cons 'and
-		   (loop for fm in fma-list collect ;unless (arith-cop fm) collect
+		   (loop for fm in fma-list ;unless (arith-cop fm) 
+			collect
 			`(iff ,(call *PROPS* fm (the-iloop)) ,(call *PROPS* fm (1+ (kripke-k *PROPS*))))))))))
  
 
@@ -927,7 +928,7 @@
     (if (kripke-futr *PROPS*)	    
 	(list
 	 `(impl ,(the-loopEx)
-		,(append `(and)
+		,(append `(and true)
 			 (loop for fm in (kripke-futr *PROPS*) 
 			       when (member (car fm) '(until release)) collect
 			       (case (car fm)
@@ -957,13 +958,13 @@
 	(list (list 'and 
 	       (cons 'or (loop for i from 0 to (kripke-k *PROPS*) collect
 				`(= ,(the-iloop) ,(if *real-constants* (float i) i))))
-	       (cons 'and
+	       (cons 'and (cons 't
 		     (loop for fm in (kripke-futr *PROPS*) 
 			   when (member (car fm) '(until release)) collect
 			   (list 'or
 				 `(> ,(the-i-eve-fm (call-fmla-id *PROPS* fm)) ,(if *real-constants* (float (kripke-k *PROPS*)) (kripke-k *PROPS*)))
 				 (cons 'or (loop for i from 0 to (kripke-k *PROPS*) collect
-				       `(= ,(the-i-eve-fm (call-fmla-id *PROPS* fm)) ,(if *real-constants* (float i) i))))))))))))
+				       `(= ,(the-i-eve-fm (call-fmla-id *PROPS* fm)) ,(if *real-constants* (float i) i)))))))))))))
 				 
 
 
@@ -2046,7 +2047,7 @@
 		  
 		  (format t "~%done processing formula~%")	
 
-    	  ;(format t "~%Formula:~%~a"  (kripke-formula *PROPS*))		  	  
+    	  (format t "~%Formula:~%~a"  (kripke-formula *PROPS*))		  	  
 		  
 		  (build-smt-file *PROPS* smt-assumptions parametric-regions discrete-regions over-clocks ipc-constraints discrete-counters signals logic smt-lib)
 				    
