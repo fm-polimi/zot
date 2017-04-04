@@ -163,14 +163,15 @@
 						(t 
 							(let ( (varname (cut-name line) ) ) 
 								(loop
-									for i from 1 to k  
+									for i from 0 to k  
 									for line = (read-line ff nil)
 									for elem = (get-values line) 
 									for index = (floor (read-from-string (car elem)))
+									when (and (<= index k) (<= 0 index))
 									do (let ( (vect-el (aref time index)) )
 											(setf (aref time index) (append vect-el (list (cons varname (cdr elem)))))))))))))
-;		(loop for i from 0 to k
-;				do (format t "~a ~%" (aref time i) :pretty t))
+	;	(loop for i from 0 to k
+	;			do (format t "~a ~%" (aref time i) :pretty t))
 
 		(with-open-file (ff "output.hist.txt" 
     			:direction :output 
@@ -186,7 +187,7 @@
     	   	(loop 
 					for e in (aref time i)
 					for item = (car e)
-					for val = (cadr e)
+					for val = (string-right-trim "?" (cadr e))
 					do
 						(cond 
 							((string= item "loopex") (format t "**LOOP**~%"))
