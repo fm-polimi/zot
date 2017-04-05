@@ -1897,7 +1897,7 @@
 					  ((next yesterday + - * / mod)
 							(case smt-dialect
 					   		((:smt) (format k ":extrafuns (( ~s ~a ~a ))~%" v time-domain time-domain))
-					  			((:smt2 (format k "(declare-fun ~s ( ~a ) ~a )~%" v time-domain time-domain))))))))
+					  			((:smt2) (format k "(declare-fun ~s ( ~a ) ~a )~%" v time-domain time-domain)))))))
 				  (kripke-timed-arith formula-structure))
 
 
