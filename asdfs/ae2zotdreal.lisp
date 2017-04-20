@@ -136,7 +136,7 @@
 
 
 (defun bool-fmlap (f) 
-  (and (consp f) (in (car f) '(not and or))))
+  (and (consp f) (in (car f) '(not and or impl iff))))
 
 
 (declaim (inline bool-itemp))
@@ -1111,30 +1111,52 @@
 
 
 	; if bound == 0 then create only increment constraints and no periodicity formulae on regions 
-	(append
+	(nconc
 		(loop for clock-x being the hash-keys of *arith-items*
 		using (hash-value value)
 		when (not (member clock-x discrete-counters))
 		when (not (member clock-x signals))
 		append
-			(nconc
 			  ; define clocks behaviour
 				(loop for i from 0 to (1- (kripke-k *PROPS*))
 					collect
 					`(or
 						(= ,(call *PROPS* clock-x (float (1+ i))) ,(float 0))
-						(= ,(call *PROPS* clock-x (float (1+ i))) (+ ,(call *PROPS* clock-x (float i)) ,(intern (format nil "DELTA_~a" i)) ))))
+						(= ,(call *PROPS* clock-x (float (1+ i))) (+ ,(call *PROPS* clock-x (float i)) ,(intern (format nil "DELTA_~a" i)) )))))
 					  
 				; zot-delta is always positive
-				(loop for i from 0 to (kripke-k *PROPS*) collect
-					`(> ,(intern (format nil "DELTA_~a" i)) ,(float 0))))))
+		(loop for i from 0 to (kripke-k *PROPS*) collect
+			`(> ,(intern (format nil "DELTA_~a" i)) ,(float 0)))
+
+				;define intervals from the origin
+		(loop for i from 1 to (kripke-k *PROPS*) collect
+				`(= ,(intern (format nil "I_~a" i)) 
+					 (+ ,(if (eq (1- i) 0) (intern (format nil "DELTA_~a" (1- i))) (intern (format nil "I_~a" (1- i)))) 
+						 ,(intern (format nil "DELTA_~a" i))))))
 
 ))
 
 
+(defun gen-universal-constraints-on-signals (mtl-intervals)
+;
+; mtl-intervals must be a list of pairs (H_j fmla) where fmla is an atomic CLTLoc formula on a signal such as x>0
+;
+	(format t "define universal quantification on MTL signals ~%")(force-output)
+	(loop for i from 0 to (kripke-k *PROPS*) append    
+		(loop for interval-description in mtl-intervals 	    
+		collect
+			(let ( (interval (first interval-description)) 
+					 (signal (second interval-description))
+					 (relation (third interval-description))
+					 (constant (fourth interval-description))				 
+					 (a (if (eq i 0) 0 (if (eq i 1) (intern (format nil "DELTA_~a" (1- i))) (intern (format nil "I_~a" (1- i))))))
+					 (b (if (eq i 0) (intern (format nil "DELTA_~a" i)) (intern (format nil "I_~a" i))))
+				  )
+			`(impl ,(call *PROPS* interval i) (forall_t 1 ,a ,b (,relation ,signal ,constant))))))
+)
 
 
-(defun the-big-formula (fma loop-free no-loop periodic-arith-terms gen-symbolic-val ipc-constraints bound discrete-regions parametric-regions discrete-counters signals)      
+(defun the-big-formula (fma loop-free no-loop periodic-arith-terms gen-symbolic-val ipc-constraints bound discrete-regions parametric-regions discrete-counters signals mtl-intervals)      
   (cons
    (if (temp-fmlap fma)
        (call *PROPS* (cadr fma) 1)
@@ -1159,7 +1181,9 @@
 			(gen-past1)
 			(gen-past2)	   
 			(gen-i-atomic-formulae)
-			(gen-regions bound discrete-regions parametric-regions discrete-counters signals))))
+			(gen-regions bound discrete-regions parametric-regions discrete-counters signals)
+			(gen-universal-constraints-on-signals mtl-intervals)
+		)))
 
 
 (defun manage-transitions (trans the-k)
@@ -1326,10 +1350,11 @@
 			  		((nil) (case smt-dialect 
 								((:smt) (format k ":extrafuns (( delta Real Real ))~%"))
 								((:smt2) (loop for i from 0 to (kripke-k *PROPS*) do
+												(if (> i 0) (format k "(declare-fun i_~s ( ) Real )~%" i))
 					   						(format k "(declare-fun delta_~s ( ) Real )~%" i)))))))
 
 			 (if (not (null smt-assumptions))
-				(format k (concatenate 'string ":assumption " smt-assumptions "~%")))
+				(format k (concatenate 'string "(assert " smt-assumptions ")~%")))
 		  
 			; *******************
 			; print the formula |
@@ -1371,6 +1396,7 @@
 			  (parametric-regions nil)
 			  (discrete-counters nil)
 			  (signals nil)
+			  (mtl-intervals nil)
 		     )
 
 					;(setf *periodic-arith-vars* periodic-vars)
@@ -1424,8 +1450,9 @@
 				      	    (manage-transitions (list *zot-item-constraints*) 
 				      		  (1+ the-time)))
 				      
-				      (trio-to-ltl (the-big-formula 
-							 (if (eq with-time t)
+				      (trio-to-ltl 
+							(the-big-formula 
+							 	(if (eq with-time t)
 							       (with-time formula) 
 							       formula) 
 							 loop-free 
@@ -1437,7 +1464,9 @@
 							 discrete-regions
 							 parametric-regions
 							 discrete-counters
-							 signals))
+							 signals
+							 mtl-intervals
+						))
 				      (if (and trans negate-transitions)
 					    (deneg (list (list 'not (cons 'and trans))))
 					    (deneg trans)))
@@ -1457,7 +1486,9 @@
 							 discrete-regions
 							 parametric-regions
 							 discrete-counters
-							 signals)))))
+							 signals
+							 mtl-intervals
+				)))))
      			
 		  
 		  (format t "~%done processing formula~%")		  
