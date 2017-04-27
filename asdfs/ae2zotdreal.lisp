@@ -1128,11 +1128,12 @@
 		(loop for i from 0 to (kripke-k *PROPS*) collect
 			`(> ,(intern (format nil "DELTA_~a" i)) ,(float 0)))
 
-				;define intervals from the origin
-		(loop for i from 1 to (kripke-k *PROPS*) collect
-				`(= ,(intern (format nil "I_~a" i)) 
-					 (+ ,(if (eq (1- i) 0) (intern (format nil "DELTA_~a" (1- i))) (intern (format nil "I_~a" (1- i)))) 
-						 ,(intern (format nil "DELTA_~a" i))))))
+				;define NOW from the origin
+		(loop for i from 0 to (kripke-k *PROPS*) collect
+				`(= ,(intern (format nil "NOW_~a" i))
+					,(if (eq i 0)
+						(float 0) 
+					 	`(+ ,(intern (format nil "NOW_~a" (1- i))) ,(intern (format nil "DELTA_~a" i)))))) )
 
 ))
 
@@ -1149,14 +1150,35 @@
 					 (signal (second interval-description))
 					 (relation (third interval-description))
 					 (constant (fourth interval-description))				 
-					 (a (if (eq i 0) 0 (if (eq i 1) (intern (format nil "DELTA_~a" (1- i))) (intern (format nil "I_~a" (1- i))))))
-					 (b (if (eq i 0) (intern (format nil "DELTA_~a" i)) (intern (format nil "I_~a" i))))
+					 (a (intern (format nil "NOW_~a" i))) 
+					 (b (intern (format nil "NOW_~a" (1+ i))))
 				  )
-			`(impl ,(call *PROPS* interval i) (forall_t 1 ,a ,b (,relation ,signal ,constant))))))
+			`(impl ,(call *PROPS* interval i) (forall_t 1 \[ ,a ,b \] (,relation ,signal ,constant))))))
 )
 
+(defun gen-integral-constraints-on-signals (init-signals signals flows)
+;
+; init-signals must be a list of pairs (signal_name value) 
+;
+	(format t "define integrals on MTL signals ~%")(force-output)
+(nconc 
+	(loop for i from 0 to (kripke-k *PROPS*) append    
+		(loop for init-descriptor in init-signals 	    
+		collect
+			(let ( (signal (first init-descriptor))
+				(init-value (second init-descriptor)) )
+				
+				(if (eq i 0)
+					`(= ,(intern (format nil "~a_~a" signal i)) ,init-value)
+					`(= ,(intern (format nil "~a_~a" signal i)) ,(intern (format nil "~a_~a_t" signal i)) ) )))) 
 
-(defun the-big-formula (fma loop-free no-loop periodic-arith-terms gen-symbolic-val ipc-constraints bound discrete-regions parametric-regions discrete-counters signals mtl-intervals)      
+	(loop for i from 0 to (kripke-k *PROPS*) append    
+		(loop for signal-name in signals 	    
+		collect
+			`(= ,(intern (format nil "[~a_~a_t]" signal-name i)) integral 0.0 ,(intern (format nil "now_~a" i)) ,(intern (format nil "[~a_0]" signal-name)) flow\_1))))
+)
+
+(defun the-big-formula (fma loop-free no-loop periodic-arith-terms gen-symbolic-val ipc-constraints bound discrete-regions parametric-regions discrete-counters signals mtl-intervals init-signals)      
   (cons
    (if (temp-fmlap fma)
        (call *PROPS* (cadr fma) 1)
@@ -1183,6 +1205,7 @@
 			(gen-i-atomic-formulae)
 			(gen-regions bound discrete-regions parametric-regions discrete-counters signals)
 			(gen-universal-constraints-on-signals mtl-intervals)
+			(gen-integral-constraints-on-signals init-signals signals nil)	
 		)))
 
 
@@ -1208,26 +1231,12 @@
 
 
 
-(defun build-smt-file (formula-structure smt-assumptions parametric-regions discrete-regions over-clocks ipc-constraints discrete-counters signals logic smt-dialect)
+(defun build-smt-file (formula-structure smt-assumptions parametric-regions discrete-regions over-clocks ipc-constraints discrete-counters signals logic smt-dialect flows)
 
   (with-open-file (k "./output.smt.txt" :direction :output :if-exists :supersede)  
-		(with-open-file (dict "./output.dict.txt" :direction :output :if-exists :supersede)
+	(with-open-file (dict "./output.dict.txt" :direction :output :if-exists :supersede)
 
-			(case smt-dialect
-			  	((:smt) (format k "(benchmark b~%"))
-				((:smt2) 't))		  
-			
-
-			(let ( (l (case logic
-			 				((:QF_UFIDL) "QF_IDL")
-			 				((:QF_UFRDL) "QF_RDL")
-			 				((:QF_UFLIA) "QF_LIA")
-			 				((:QF_LRA) "QF_LRA")
-			  				((:QF_AUFLIA) "QF_AUFLIA"))))
-
-			(case smt-dialect
-			  	((:smt) (format k ":logic ~a~%" l))
-				((:smt2) (format k "(set-logic ~a)~%" l))) )
+	(format k "(set-logic QF_NRA_ODE)~%")
 
 
 		  (let (  (*print-case* :downcase)
@@ -1350,12 +1359,23 @@
 			  		((nil) (case smt-dialect 
 								((:smt) (format k ":extrafuns (( delta Real Real ))~%"))
 								((:smt2) (loop for i from 0 to (kripke-k *PROPS*) do
-												(if (> i 0) (format k "(declare-fun i_~s ( ) Real )~%" i))
+											(format k "(declare-fun now_~s ( ) Real )~%" i)
 					   						(format k "(declare-fun delta_~s ( ) Real )~%" i)))))))
 
 			 (if (not (null smt-assumptions))
 				(format k (concatenate 'string "(assert " smt-assumptions ")~%")))
-		  
+
+
+			; ***********************
+			; print the ODE asserts |
+			; ***********************
+			(if (not (null flows))
+				(loop for fl in flows do
+					(let ( (flow-name (first fl))
+						(flow-def (second fl)) )
+					(format k "(define-ode ~a ( ~a ) )~%" flow-name flow-def))))
+					
+
 			; *******************
 			; print the formula |
 			; *******************
@@ -1367,8 +1387,8 @@
 				((:smt) (format k ")"))
 				((:smt2)
 					(progn
-						(format k ")") 
-			 			(format k "(check-sat) (get-model)") ) ) ) ) ) )
+						(format k ")~%") 
+			 			(format k "(check-sat)~%(get-model)") ) ) ) ) ) )
 
      
 
@@ -1397,6 +1417,8 @@
 			  (discrete-counters nil)
 			  (signals nil)
 			  (mtl-intervals nil)
+			(init-signals nil)
+			(flows nil)
 		     )
 
 					;(setf *periodic-arith-vars* periodic-vars)
@@ -1466,6 +1488,7 @@
 							 discrete-counters
 							 signals
 							 mtl-intervals
+							 init-signals
 						))
 				      (if (and trans negate-transitions)
 					    (deneg (list (list 'not (cons 'and trans))))
@@ -1488,12 +1511,13 @@
 							 discrete-counters
 							 signals
 							 mtl-intervals
+							 init-signals
 				)))))
      			
 		  
 		  (format t "~%done processing formula~%")		  
 		  
-		  (build-smt-file *PROPS* smt-assumptions parametric-regions discrete-regions over-clocks ipc-constraints discrete-counters signals logic smt-lib)
+		  (build-smt-file *PROPS* smt-assumptions parametric-regions discrete-regions over-clocks ipc-constraints discrete-counters signals logic smt-lib flows)
 				    
 		  (to-smt-and-back *PROPS* smt-solver :smt-lib smt-lib))))))))
 
