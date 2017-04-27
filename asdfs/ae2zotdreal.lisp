@@ -1133,7 +1133,7 @@
 				`(= ,(intern (format nil "NOW_~a" i))
 					,(if (eq i 0)
 						(float 0) 
-					 	`(+ ,(intern (format nil "NOW_~a" (1- i))) ,(intern (format nil "DELTA_~a" i)))))) )
+					 	`(+ ,(intern (format nil "NOW_~a" (1- i))) ,(intern (format nil "DELTA_~a" (1- i))))))) )
 
 ))
 
@@ -1143,7 +1143,7 @@
 ; mtl-intervals must be a list of pairs (H_j fmla) where fmla is an atomic CLTLoc formula on a signal such as x>0
 ;
 	(format t "define universal quantification on MTL signals ~%")(force-output)
-	(loop for i from 0 to (kripke-k *PROPS*) append    
+	(loop for i from 0 to (1- (kripke-k *PROPS*)) append    
 		(loop for interval-description in mtl-intervals 	    
 		collect
 			(let ( (interval (first interval-description)) 
@@ -1153,7 +1153,7 @@
 					 (a (intern (format nil "NOW_~a" i))) 
 					 (b (intern (format nil "NOW_~a" (1+ i))))
 				  )
-			`(impl ,(call *PROPS* interval i) (forall_t 1 \[ ,a ,b \] (,relation ,signal ,constant))))))
+			`(impl ,(call *PROPS* interval i) (forall_t 1 \[ ,a ,b \] (,relation ,(intern (format nil "~a_~a_t" signal i)) ,constant))))))
 )
 
 (defun gen-integral-constraints-on-signals (init-signals signals flows)
@@ -1170,12 +1170,12 @@
 				
 				(if (eq i 0)
 					`(= ,(intern (format nil "~a_~a" signal i)) ,init-value)
-					`(= ,(intern (format nil "~a_~a" signal i)) ,(intern (format nil "~a_~a_t" signal i)) ) )))) 
+					`(= ,(intern (format nil "~a_~a" signal i)) ,(intern (format nil "~a_~a_t" signal (1- i))) ) )))) 
 
-	(loop for i from 0 to (kripke-k *PROPS*) append    
+	(loop for i from 0 to (1- (kripke-k *PROPS*)) append    
 		(loop for signal-name in signals 	    
 		collect
-			`(= ,(intern (format nil "[~a_~a_t]" signal-name i)) integral 0.0 ,(intern (format nil "now_~a" i)) ,(intern (format nil "[~a_0]" signal-name)) flow\_1))))
+			`(= ,(intern (format nil "[~a_~a_t]" signal-name i)) (integral 0.0 ,(intern (format nil "now_~a" (1+ i))) ,(intern (format nil "[~a_0]" signal-name)) flow\_1)))))
 )
 
 (defun the-big-formula (fma loop-free no-loop periodic-arith-terms gen-symbolic-val ipc-constraints bound discrete-regions parametric-regions discrete-counters signals mtl-intervals init-signals)      
@@ -1271,12 +1271,12 @@
 							((:smt2) (loop for i from 0 to (kripke-k *PROPS*) do
 					   					(format k "(declare-fun ~s_~s ( ) Bool )~%" v i time-domain))))
 					(case key
-					 ; ((**LOOPEX**) (case smt-dialect 
-					 ;						((:smt) (format k ":extrapreds (( ~s ))~%" v))
-					 ;						((:smt2) (format k "(declare-fun ~s () Bool )~%" v))))
-					 ; ((**I_LOOP**) (case smt-dialect 
-					 ;						((:smt) (format k ":extrafuns (( ~s ~a ))~%" v time-domain))
-					 ;						((:smt2) (format k "(declare-fun ~s () ~a )~%" v time-domain))))
+					  ((**LOOPEX**)) ;(case smt-dialect 
+					 		;				((:smt) (format k ":extrapreds (( ~s ))~%" v))
+					 		;				((:smt2) (format k "(declare-fun ~s () Bool )~%" v))))
+					  ((**I_LOOP**)) ;(case smt-dialect 
+					 		;				((:smt) (format k ":extrafuns (( ~s ~a ))~%" v time-domain))
+					 		;				((:smt2) (format k "(declare-fun ~s () ~a )~%" v time-domain))))
 					  (t (case smt-dialect
 								((:smt) (format k ":extrapreds (( ~s ~a ))~%" v time-domain))
 								((:smt2) (loop for i from 0 to (kripke-k *PROPS*) do
@@ -1296,7 +1296,10 @@
 					 				(format k ":extrafuns (( ~s ~A ~A  ))~%" key time-d (string-trim "()" (format nil "~a" sig))))
 					 		((:smt2) 
 									(loop for i from 0 to (kripke-k *PROPS*) do
-					 					(format k "(declare-fun ~s_~s ( ) ~A )~%" key i (string-trim "()" (format nil "~a" sig)))))))))
+					 					(format k "(declare-fun ~s_~s ( ) ~A )~%" key i (string-trim "()" (format nil "~a" sig)))
+										(if (member key signals)
+											(format k "(declare-fun ~s_~s_t ( ) ~A )~%" key i (string-trim "()" (format nil "~a" sig))))))))))
+
 				  *arith-items*)
 
 			#|
@@ -1372,8 +1375,12 @@
 			(if (not (null flows))
 				(loop for fl in flows do
 					(let ( (flow-name (first fl))
-						(flow-def (second fl)) )
+						(flow-def (second fl)) 
+						(flow-varname (third fl)) )
+
+					(format k "(declare-fun ~a ( ) Real)~%" flow-varname )
 					(format k "(define-ode ~a ( ~a ) )~%" flow-name flow-def))))
+	
 					
 
 			; *******************
@@ -1388,7 +1395,7 @@
 				((:smt2)
 					(progn
 						(format k ")~%") 
-			 			(format k "(check-sat)~%(get-model)") ) ) ) ) ) )
+			 			(format k "(check-sat)~%(exit)") ) ) ) ) ) )
 
      
 
