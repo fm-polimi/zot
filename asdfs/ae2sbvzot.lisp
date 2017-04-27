@@ -1159,7 +1159,7 @@
 		append
 			(nconc
 			  ; define clocks behaviour
-				(loop for i from 1 to (kripke-k *PROPS*) collect
+				(loop for i from 0 to (kripke-k *PROPS*) collect
 					`(or
 						(= ,(call *PROPS* clock-x (1+ i)) ,(float 0))
 						(= ,(call *PROPS* clock-x (1+ i)) (+ ,(call *PROPS* clock-x i) (delta ,(float i))))))
