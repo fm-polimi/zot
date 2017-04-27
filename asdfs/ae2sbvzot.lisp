@@ -1057,7 +1057,7 @@
 
 				; zot-delta is always positive
 			 	(loop for i from 0 to (1+ (kripke-k *PROPS*)) collect
-					`(> (delta ,(float i)) ,(float 0)))) 
+					`(> (delta ,i) ,(float 0)))) 
  
 
 			  
@@ -1161,12 +1161,12 @@
 			  ; define clocks behaviour
 				(loop for i from 1 to (kripke-k *PROPS*) collect
 					`(or
-						(= ,(call *PROPS* clock-x (float (1+ i))) ,(float 0))
-						(= ,(call *PROPS* clock-x (float (1+ i))) (+ ,(call *PROPS* clock-x (float i)) (delta ,(float i))))))
+						(= ,(call *PROPS* clock-x (1+ i)) ,(float 0))
+						(= ,(call *PROPS* clock-x (1+ i)) (+ ,(call *PROPS* clock-x i) (delta ,(float i))))))
 					  
 				; zot-delta is always positive
 				(loop for i from 0 to (1+ (kripke-k *PROPS*)) collect
-					`(> (delta ,(float i)) ,(float 0))))))
+					`(> (delta ,i) ,(float 0))))))
 
 ))
 
@@ -1636,7 +1636,7 @@
 								  (kripke-timed-arith *PROPS*))
 
 
-			    (if (> over-clocks 0)
+			    (if (>= over-clocks 0)
 				  (format k "(declare-fun delta (Int) Real)~%"))
 
 			    (if (not (null smt-assumptions))
