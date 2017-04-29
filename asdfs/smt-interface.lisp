@@ -161,15 +161,23 @@
 									(setf (aref time i-loop-num) (append (aref time i-loop-num) (list (list "loopex")))))))
 											
 						(t 
-							(let ( (varname (cut-name line) ) ) 
+							(let ( (varname (cut-name line) ) (defined-positions (list)) ) 
 								(loop
-									for i from 0 to k  
+									for i from 0 to (1+ k)  
 									for line = (read-line ff nil)
-									for elem = (get-values line) 
+									for elem = (if (search "ite" line) (get-values line) `(,(format nil "~a" -1) ,(string-trim " )" line))) 
 									for index = (floor (read-from-string (car elem)))
+									while (not (eq index -1))
+
+									do (if (not (eq index -1)) (setq defined-positions (append defined-positions (list index))))
 									when (and (<= index k) (<= 0 index))
 									do (let ( (vect-el (aref time index)) )
-											(setf (aref time index) (append vect-el (list (cons varname (cdr elem)))))))))))))
+											(setf (aref time index) (append vect-el (list (cons varname (cdr elem))))))
+									
+									finally (loop for j from 0 to k
+											do (if (not (member j defined-positions))
+												(setf (aref time j) (append (aref time j) (list (cons varname (cdr elem))))))))
+))))))
 	;	(loop for i from 0 to k
 	;			do (format t "~a ~%" (aref time i) :pretty t))
 
@@ -192,7 +200,7 @@
 						(cond 
 							((string= item "loopex") (format t "**LOOP**~%"))
 							((numberp (read-from-string val)) (format t "~a = ~a~%" item val) (format ff "~a = ~a~%" item val))
-							((string= val "true") (format t "~a~%" (string-upcase item)) (format ff "~a~%" (string-upcase item) ) ) ) ) 
+							((string= val "true") (format t "~a~%" (string-upcase item)) (format ff "~a~%" (string-upcase item) ) ) ) )  
 
 			finally
     	   	(format t  "------ end ------~%")
