@@ -1538,8 +1538,8 @@
 				when (not (member clock-x discrete-counters))
 				when (not (member clock-x signals))
 				append
-					(let ((v (intern (format nil "zot-c_~S" clock-x)))
-						   (v1 (intern (format nil "(+ zot-c_~S 1.0)" clock-x))))
+					(let ((v (intern (format nil "(to_real zot-c_~S)" clock-x)))
+						   (v1 (intern (format nil "(+ (to_real zot-c_~S) 1.0)" clock-x))))
 				
 					(list 
 						`(or
@@ -1553,13 +1553,13 @@
 											(< ,v ,(call *PROPS* clock-x (float (1+ (kripke-k *PROPS*)))))
 											(< ,(call *PROPS* clock-x (float (1+ (kripke-k *PROPS*)))) ,v1)))
 
-								(<= 0 ,v) 
-								(< ,v ,bound))
+								(<= ,(float 0) ,v) 
+								(< ,v ,(float bound)))
 
-							(and (= ,(call *PROPS* clock-x (the-iloop)) ,bound) (= ,(call *PROPS* clock-x (float (1+ (kripke-k *PROPS*)))) ,bound))
+							(and (= ,(call *PROPS* clock-x (the-iloop)) ,(float bound)) (= ,(call *PROPS* clock-x (float (1+ (kripke-k *PROPS*)))) ,(float bound)))
 							(and 
-								(< ,bound ,(call *PROPS* clock-x (the-iloop)))
-								(< ,bound ,(call *PROPS* clock-x (float (1+ (kripke-k *PROPS*)))))))
+								(< ,(float bound) ,(call *PROPS* clock-x (the-iloop)))
+								(< ,(float bound) ,(call *PROPS* clock-x (float (1+ (kripke-k *PROPS*)))))))
 					
 						;define diagonal constraints
 						(cons 'and (cons 't
@@ -1570,10 +1570,10 @@
 								when (not (member clock-y discrete-counters))
 								when (not (member clock-y signals))
 								collect
-									(let ( (h (intern (format nil "zot-c_~S" clock-y))) )					  		
+									(let ( (h (intern (format nil "(to_real zot-c_~S)" clock-y))) )					  		
 
 											`(impl
-												(and (< ,(call *PROPS* clock-x (float (1+ (kripke-k *PROPS*)))) ,bound) (< ,(call *PROPS* clock-y (float (1+ (kripke-k *PROPS*)))) ,bound))
+												(and (< ,(call *PROPS* clock-x (float (1+ (kripke-k *PROPS*)))) ,(float bound)) (< ,(call *PROPS* clock-y (float (1+ (kripke-k *PROPS*)))) ,(float bound)))
 												(or
 													(and 
 														(=
