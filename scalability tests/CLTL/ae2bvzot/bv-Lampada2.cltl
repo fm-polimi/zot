@@ -1,0 +1,204 @@
+(asdf:operate 'asdf:load-op 'ae2bvzot)
+(use-package :trio-utils)
+
+(define-tvar c1 *real*)
+(define-tvar c2 *real*)
+
+;; da aggiungere per la proprieta'
+(define-tvar caux *real*)
+
+(defvar D 5)
+
+;; On <-> c1 = 0 || c2 = 0
+(defconstant f1
+  (<->
+   (-P- On)
+   (|| ([=] (-V- c1) 0) ([=] (-V- c2) 0))
+   ))
+
+
+;; c1 = 0 -> !(c2 > 0 U c1 = 0)
+(defconstant f2
+  (->
+   ([=] (-V- c1) 0)
+   (next (!! (until ([>] (-V- c2) 0) ([=] (-V- c1) 0))))
+   ))
+
+;; c2 = 0 -> !(c1 > 0 U c2 = 0)
+(defconstant f3
+  (->
+   ([=] (-V- c2) 0)
+   (next (!! (until ([>] (-V- c1) 0) ([=] (-V- c2) 0))))
+   ))
+
+;; c1 = 0 -> !(c2 = 0)
+(defconstant f4
+  (->
+   ([=] (-V- c1) 0)
+   (!! ([=] (-V- c2) 0))
+   ))
+
+;; L <-> !TurnOff S On
+(defconstant f5
+  (<->
+   (-P- L)
+   (since (!! (-P- TurnOff)) (-P- On))
+   ))
+
+;; On -> !Off
+(defconstant f6
+  (->
+   (-P- On)
+   (!! (-P- Off))
+   ))
+
+;; TurnOff <-> Y(L) && (c1 = D && c2 > D || c2 = D && c1 > D || Off)
+(defconstant f7
+  (<->
+   (-P- TurnOff)
+   (&&
+    (yesterday (-P- L))
+    (||
+     (&& ([=] (-V- c1) D) ([>] (-V- c2) D))
+     (&& ([=] (-V- c2) D) ([>] (-V- c1) D))
+     (-P- Off)))
+   ))
+
+;; Y(L) -> (0 < c1 <= D || 0 < c2 <= D)
+(defconstant f8
+  (->
+   (yesterday (-P- L))
+   (|| (&& ([>] (-V- c1) 0) ([<=] (-V- c1) D)) (&& ([>] (-V- c2) 0) ([<=] (-V- c2) D)))
+   ))
+
+
+;;  cp = 0 <-> L && !Y(L)
+(defconstant fp1
+  (<->
+   ([=] (-V- caux) 0)
+   (&&
+    (-P- L)
+    (!! (yesterday (-P- L))))
+   ))
+
+;; Y(L) -> cp <= D
+(defconstant p1
+  (->
+   (yesterday (-P- L))
+   ([<=] (-V- caux) D)
+   ))
+	  
+
+;; :def p3 (-> (F_i+ 0 (&& l (G_ei 0 5 l))) (F_i+ 0 (|| on (F_ei 0 5 on))))
+(defconstant p3
+  (->
+   (somf
+    (&& (-P- L)
+    ([>=] (-V- caux) D)))
+   (somf
+    (&& (-P- On)
+	(||
+	 (&&
+	  ([=] (-V- c1) 0)
+	  (next (until ([>] (-V- c1) 0) (&& (-P- On) ([<=] (-V- c1) D)))))
+	 (&&
+	  ([=] (-V- c2) 0)
+	  (next (until ([>] (-V- c2) 0) (&& (-P- On) ([<=] (-V- c2) D)))))
+	  )))
+   ))
+
+(defconstant p3lt
+  (->
+   (somf
+    (&& (-P- L)
+    ([>=] (-V- caux) D)))
+   (somf
+    (&& (-P- On)
+	(||
+	 (&&
+	  ([=] (-V- c1) 0)
+	  (next (until ([>] (-V- c1) 0) (&& (-P- On) ([<] (-V- c1) D)))))
+	 (&&
+	  ([=] (-V- c2) 0)
+	  (next (until ([>] (-V- c2) 0) (&& (-P- On) ([<] (-V- c2) D)))))
+	  )))
+   ))
+
+
+(defconstant init
+  (yesterday
+   (&&
+    (!! (-P- On))
+    (!! (-P- L))
+    (!! (-P- Off))
+    (!! (-P- TurnOff))
+  )))
+
+(defconstant clockpos
+  (alwf
+   (&&
+    ([>=] (-V- c1) 0)
+    ([>=] (-V- c2) 0)
+    ([>=] (-V- caux) 0)
+    )))
+
+(defconstant timeadv
+  (alwf
+   (&&
+    (somf
+     (||
+      ([=] (-V- c1) 0)
+      ([>] (-V- c1) D)
+      ))
+    (somf
+     (||
+      ([=] (-V- c2) 0)
+      ([>] (-V- c2) D)
+      ))
+    (somf
+     (||
+      ([=] (-V- caux) 0)
+      ([>] (-V- caux) D)
+      ))
+    )))
+
+(defconstant constraints
+   (&&
+    (alwf
+     (&&
+      (!! (-P- Off))
+      (!! (-P- TurnOff))
+      ;; (somf ([=] (-V- c1) 0))
+      ;; (somf ([=] (-V- c2) 0))
+      (-> (-P- On) (alwf_e (!! (-P- On))))
+      ))
+    (somf (-P- On))
+  ))
+
+
+(ae2bvzot:zot 70
+   (&& (alwf (&&
+	      f1
+	      f2
+	      f3
+	      f4
+	      f5
+	      f6
+	      f7
+	      f8
+	      ))
+       init
+       clockpos
+       timeadv
+       constraints
+       (alwf fp1)
+       ;; (!! (alwf p1))
+       ;; (!! p3)
+       (!! p3lt)
+       )
+
+   :logic :QF_UFLRA
+   :gen-symbolic-val 'nil
+   :over-clocks 5
+)
+

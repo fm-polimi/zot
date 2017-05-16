@@ -1,0 +1,4 @@
+read_model -i output.smv
+go_msat
+check_ltlspec_inc_coi -v smt -e smt -k 120
+quit
