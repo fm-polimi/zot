@@ -1,0 +1,8 @@
+read_model -i output.smv
+flatten_hierarchy
+encode_variables
+build_flat_model
+build_boolean_model
+bmc_setup
+check_ltlspec_inc_coi -v sat -e sat -k 50
+quit

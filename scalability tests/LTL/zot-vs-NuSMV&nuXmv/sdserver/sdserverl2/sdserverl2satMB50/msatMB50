@@ -1,0 +1,4 @@
+read_model -i output.smv
+go_msat
+msat_check_ltlspec_sbmc_inc -k 50
+quit

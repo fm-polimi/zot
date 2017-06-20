@@ -1,0 +1,7 @@
+read_model -i output.smv;
+flatten_hierarchy;
+encode_variables;
+build_boolean_model;
+bmc_setup;
+check_ltlspec_sbmc -k 60;
+quit;
