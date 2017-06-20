@@ -233,7 +233,7 @@
 			((impl)
 			      (case smt
 				    ((:smt)
-					  `(impl ,(to-smt-dialect (second f) smt) ,(to-smt-dialect (third f) smt)))
+					  `(implies ,(to-smt-dialect (second f) smt) ,(to-smt-dialect (third f) smt)))
 				    ((:smt2)
 					   `(=> ,(to-smt-dialect (second f) smt) ,(to-smt-dialect (third f) smt)))
 				    (t
