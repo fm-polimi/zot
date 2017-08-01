@@ -1061,6 +1061,9 @@
  			; "item" in the next position to be equal to the value in the current position
 			(_f_name_eq (intern (concatenate 'string "<" (concatenate 'string (symbol-name varname) ">")))) 
 
+			; _f_name_neq is the negation of _f_name_eq semantics
+			(_f_name_neq (intern (concatenate 'string "^<" (concatenate 'string (symbol-name varname) ">")))) 
+
 			; the-val is a new fresh Lisp symbol
 			(the-val (gensym)) )
 
@@ -1098,9 +1101,13 @@
 					t
 					(append '(and) 
 					 			(loop for i from 0 to (floor (log (1- (length ,domain)) 2)) collect
-									(list 'iff (-P- ,varname i) (list 'next (-P- ,varname i))))))))))
+									(list 'iff (-P- ,varname i) (list 'next (-P- ,varname i))))))
 
-
+				(defun ,_f_name_neq ()
+					t
+					(append '(or) 
+					 			(loop for i from 0 to (floor (log (1- (length ,domain)) 2)) collect
+									(list 'iff (list 'not (-P- ,varname i)) (list 'next (-P- ,varname i))))))))))
 
  
 
