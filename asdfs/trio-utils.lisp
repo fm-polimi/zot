@@ -1051,32 +1051,54 @@
 ;; Define-item is based on a base 2 counter, starting from 0
 ;;-----------------------------------------------------------------------
 (defmacro define-item (varname domain) 
-   (let ((_f_name (intern (concatenate 'string (symbol-name varname) "=")))
-	(the-val (gensym)))
+   (let (
+			; _f_name is the function name of the form "item=" that is used to assign 
+			; a value of the domain to the variable "item"
+			(_f_name (intern (concatenate 'string (symbol-name varname) "=")))
 
-    `(if (= 1 (length ,domain))
+			; _f_name_eq is the function name of the form "<item>" that is used to constraint 
+			; the value of "item" between two positions of the LTL model. "<item>" forces the value of
+ 			; "item" in the next position to be equal to the value in the current position
+			(_f_name_eq (intern (concatenate 'string "<" (concatenate 'string (symbol-name varname) ">")))) 
 
-      (defun ,_f_name (,the-val)
-	 (-P- ,varname ,the-val))
+			; the-val is a new fresh Lisp symbol
+			(the-val (gensym)) )
+
+	
+		`(if (= 1 (length ,domain))
+			(defun ,_f_name (,the-val)
+	 			(-P- ,varname ,the-val))
 
       ; --- |domain| > 1 ---
-      (progn
-	 (unless *zot-item-constraints*
-	   (setf *zot-item-constraints* '(and)))
-	 (setf *zot-item-constraints*
-	       (append *zot-item-constraints* (list (item-constraints  ',varname (length ,domain) 
-								       (floor (log (1- (length ,domain)) 2)))))
-	       )
+      	(progn
+				; if *zot-item-constraints* is not defined then create an empty list 'and
+	 			(unless *zot-item-constraints* (setf *zot-item-constraints* '(and)))
+	 			
+				; add to *zot-item-constraints* the contraints on the domain of the item by means of function item-constraints 
+				(setf *zot-item-constraints*
+	       		(append *zot-item-constraints* 
+								(list (item-constraints ',varname (length ,domain) 
+								       						(floor (log (1- (length ,domain)) 2))))))
 
-	 (setf (gethash (symbol-name ',varname) *items*) ,domain)
-	 (defun ,_f_name (,the-val)
-	   t
-	   (append '(and) 
-		 (loop for i from 0 to (floor (log (1- (length ,domain)) 2)) collect
-		       (if (eql (mod (floor (position ,the-val ,domain) (expt 2 i)) 2) 0)
-			 (list 'not 
-			       (-P- ,varname i))
-			 (-P- ,varname i)))))))))
+				; add the item name and its domain to variable *items*
+	 			(setf (gethash (symbol-name ',varname) *items*) ,domain)
+
+				; define the helper function item= 
+				; the-val is a new fresh symbol produced by gensym Lisp function
+				; the function calculates the binary expansion of the value in the-value symbol. If the i-th digit is 1 then -P- enforces the itemname_i
+			 	(defun ,_f_name (,the-val)
+					t
+					(append '(and) 
+					 			(loop for i from 0 to (floor (log (1- (length ,domain)) 2)) collect
+							 		(if (eql (mod (floor (position ,the-val ,domain) (expt 2 i)) 2) 0)
+						 				(list 'not (-P- ,varname i))
+						 				(-P- ,varname i)))))
+
+				(defun ,_f_name_eq ()
+					t
+					(append '(and) 
+					 			(loop for i from 0 to (floor (log (1- (length ,domain)) 2)) collect
+									(list 'iff (-P- ,varname i) (list 'next (-P- ,varname i))))))))))
 
 
 
