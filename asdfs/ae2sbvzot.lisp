@@ -1387,6 +1387,18 @@
 		('< (case c2 ('> 'nand) ('= 'nand) ('>= 'neg) ('<= 'impliesR)))
 		('>= (case c2 ('> 'impliesL) ('= 'impliesL) ('< 'neg)))
 		('<= (case c2 ('> 'neg) ('= 'impliesL) ('< 'impliesL)))))
+
+(defun to-bv (f)
+	(cond 
+		((atom f) 
+			(cond
+				((eq f 'and) 'bvand)
+				((eq f 'or) 'bvor)
+				((eq f 'impl) 'bvimpl)
+				((eq f 'not) 'bvnot)
+				(t f)))
+		(t (cons (to-bv (car f)) (to-bv (cdr f))))))
+
 					; --- MAIN ---
 (defun zot (the-time spec
 		     &key
@@ -1470,9 +1482,9 @@
 		    (setf (kripke-formula *PROPS*)
 			  (to-smt-dialect 
 				(nconc (list 'and)						 
-				      (when *zot-item-constraints*
-				      	    (manage-transitions (list *zot-item-constraints*) 
-				      		  (1+ the-time)))
+				      ; (when *zot-item-constraints*
+				      ; 	    (manage-transitions (list *zot-item-constraints*) 
+				      ; 		  (1+ the-time)))
 				      
 				      (trio-to-ltl (the-big-formula
 							 (if (eq with-time t)
@@ -1495,9 +1507,6 @@
 					    (list (list 'not (cons 'and trans)))
 					    trans))
 				smt-lib (+ the-time 2))))
-
-
-
 		  
 		  (format t "~%done processing formula~%")		  
 		(with-open-file (k "./output.smt.txt" :direction :output :if-exists :supersede)    ;write the smt file
@@ -1514,12 +1523,18 @@
 		(format k "~%(assert (= zot-in_loop (bvshl (bvnot (_ bv0 ~A)) i_loop)))~%" bvSize)
 		(if (or gen-symbolic-val (> over-clocks 0))
 			(progn
-				(format k "(declare-fun i-loop () Int)~%")
-				(format k "(assert (and (> i-loop 0) (< i-loop ~A)))~%" (1+ the-time))
+				(format k "
+(declare-fun i-loop () Int)")
+				(format k "
+(assert (and (> i-loop 0) (< i-loop ~A)))" (1+ the-time))
 				; (format k "~%(assert (= (bv2int i_loop) i-loop))")
-				(format k "(assert (= ((_ int2bv ~A) i-loop) i_loop))~%" bvSize))
-			(format k "(assert (and (bvuge i_loop (_ bv1 ~A)) (bvule i_loop (_ bv~A ~A))))~%" bvSize the-time bvSize))
-		(format k "(define-fun getbit ((x (_ BitVec ~A)) (index (_ BitVec ~A))) (_ BitVec 1) ((_ extract 0 0) (bvlshr x index)))~%" bvSize bvSize)
+				(format k "
+(assert (= ((_ int2bv ~A) i-loop) i_loop))" bvSize))
+			(format k "
+(assert (and (bvuge i_loop (_ bv1 ~A)) (bvule i_loop (_ bv~A ~A))))" bvSize the-time bvSize))
+		(format k "
+(define-fun getbit ((x (_ BitVec ~A)) (index (_ BitVec ~A))) (_ BitVec 1)
+	((_ extract 0 0) (bvlshr x index)))~%" bvSize bvSize)
 ; 		(format k "
 ; (define-fun loopConV ((x (_ BitVec ~A))) Bool
 ; 	(and" bvSize)
@@ -1528,33 +1543,74 @@
 ; 		(format k "
 ; 		(= (getbit (bvshl x (_ bv1 ~A)) i_loop) ((_ extract ~A ~A) x)))) ;; k ~~ i_loop-1
 ; " bvSize the-time the-time)
-		(format k "(define-fun loopConF ((x (_ BitVec ~A))) Bool " bvSize)
-		(format k "(= (getbit x i_loop) ((_ extract ~A ~A) x))) ;; k+1 ~~ i_loop~%" (+ the-time 1) (+ the-time 1))
-		(format k "(define-fun next ((fap (_ BitVec ~A)) (A (_ BitVec ~A))) Bool (and (= ((_ extract ~A 0) fap) ((_ extract ~A 1) A)) (loopConF fap)))~%" bvSize bvSize the-time (1+ the-time))
-		(format k "(define-fun yesterday ((fap (_ BitVec ~A)) (A (_ BitVec ~A))) Bool (= fap (bvshl A (_ bv1 ~A))))~%" bvSize bvSize bvSize)
-		(format k "(define-fun zeta ((fap (_ BitVec ~A)) (A (_ BitVec ~A))) Bool (= fap (bvor (bvshl A (_ bv1 ~A)) (_ bv1 ~A))))~%" bvSize bvSize bvSize bvSize)
-		(format k "(define-fun until ((fap (_ BitVec ~A)) (A (_ BitVec ~A)) (B (_ BitVec ~A))) Bool	(and " bvSize bvSize bvSize)
-		(format k "(= ((_ extract ~A 0) fap) (bvor ((_ extract ~A 0) B) (bvand ((_ extract ~A 0) A) ((_ extract ~A 1) fap)))) " the-time the-time the-time (1+ the-time))
+		(format k "
+(define-fun loopConF ((x (_ BitVec ~A))) Bool" bvSize)
+		(format k "
+	(= (getbit x i_loop) ((_ extract ~A ~A) x))) ;; k+1 ~~ i_loop
+" (+ the-time 1) (+ the-time 1))
+		(format k "
+(define-fun next ((fap (_ BitVec ~A)) (A (_ BitVec ~A))) Bool
+    (and
+    	(= ((_ extract ~A 0) fap) ((_ extract ~A 1) A))
+		(loopConF fap)))
+		" bvSize bvSize the-time (1+ the-time))
+		(format k "
+(define-fun yesterday ((fap (_ BitVec ~A)) (A (_ BitVec ~A))) Bool
+    (= fap (bvshl A (_ bv1 ~A))))
+		" bvSize bvSize bvSize)
+		(format k "
+(define-fun zeta ((fap (_ BitVec ~A)) (A (_ BitVec ~A))) Bool
+    (= fap (bvor (bvshl A (_ bv1 ~A)) (_ bv1 ~A))))~%" bvSize bvSize bvSize bvSize)
+		
+		(format k "
+(define-fun until ((fap (_ BitVec ~A)) (A (_ BitVec ~A)) (B (_ BitVec ~A))) Bool
+	(and" bvSize bvSize bvSize)
+		(format k "
+		(= ((_ extract ~A 0) fap) (bvor ((_ extract ~A 0) B) (bvand ((_ extract ~A 0) A) ((_ extract ~A 1) fap))))" the-time the-time the-time (1+ the-time))
 		(format k "
 		(= #b1 (bvor ((_ extract ~A ~A) A) ((_ extract ~A ~A) B) (bvnot ((_ extract ~A ~A) fap))))
 		(= #b1 (bvor (bvnot ((_ extract ~A ~A) B)) ((_ extract ~A ~A) fap)))
 		(loopConF fap)
 		(or (= #b0 ((_ extract ~A ~A) fap))
-			(= #b1 (bvredor (bvand ((_ extract ~A 1) B) ((_ extract ~A 1) zot-in_loop)))))))" (1+ the-time) (1+ the-time) (1+ the-time) (1+ the-time) (1+ the-time) (1+ the-time)  (1+ the-time) (1+ the-time) (1+ the-time) (1+ the-time) (1+ the-time) (1+ the-time) the-time the-time)
-		(format k "(define-fun release ((fap (_ BitVec ~A)) (A (_ BitVec ~A)) (B (_ BitVec ~A))) Bool (until (bvnot fap) (bvnot A) (bvnot B)))~%" bvSize bvSize bvSize)
-		(format k "(define-fun since ((fap (_ BitVec ~A)) (A (_ BitVec ~A)) (B (_ BitVec ~A))) Bool " bvSize bvSize bvSize)
-		(format k "(and	(= ((_ extract 0 0) fap) ((_ extract 0 0) B) )")
-		(format k "(= ((_ extract ~A 1) fap) (bvor ((_ extract ~A 1) B) (bvand ((_ extract ~A 1) A) ((_ extract ~A 0) fap))))))" (1+ the-time) (1+ the-time) (1+ the-time) the-time)
-		;(format k "))~%")
-		(format k "(define-fun trigger ((fap (_ BitVec ~A)) (A (_ BitVec ~A)) (B (_ BitVec ~A))) Bool (since (bvnot fap) (bvnot A) (bvnot B)))~%" bvSize bvSize bvSize)
-		(format k "(define-fun alw ((fap (_ BitVec ~A)) (A (_ BitVec ~A))) Bool (= fap ((_ repeat ~A) (bvredand A))))~%" bvSize bvSize bvSize)
-		(format k "(define-fun som ((fap (_ BitVec ~A)) (A (_ BitVec ~A))) Bool	(= fap ((_ repeat ~A) (bvredor A))))~%" bvSize bvSize bvSize)
-		(format k "(define-fun alwf ((fap (_ BitVec ~A)) (A (_ BitVec ~A))) Bool (until (bvnot fap) ~A (bvnot A)))~%" bvSize bvSize (bvTrue bvSize))
-		(format k "(define-fun alwp ((fap (_ BitVec ~A)) (A (_ BitVec ~A))) Bool (since (bvnot fap) ~A (bvnot A)))~%" bvSize bvSize (bvTrue bvSize))
-		(format k "(define-fun somp ((fap (_ BitVec ~A)) (A (_ BitVec ~A))) Bool (since fap ~A A))~%" bvSize bvSize (bvTrue bvSize))
-		(format k "(define-fun somf ((fap (_ BitVec ~A)) (A (_ BitVec ~A))) Bool (until fap ~A A))~%~%" bvSize bvSize (bvTrue bvSize))
-		(format k "(define-fun bviff ((A (_ BitVec ~A)) (B (_ BitVec ~A))) (_ BitVec ~A)~%~4T(bvxnor A B))~%" bvSize bvSize bvSize)
-		(format k "(define-fun bvimpl ((A (_ BitVec ~A)) (B (_ BitVec ~A))) (_ BitVec ~A)~%~4T(bvor (bvnot A) B))~%" bvSize bvSize bvSize)
+			(= #b1 (bvredor (bvand ((_ extract ~A 1) B) ((_ extract ~A 1) zot-in_loop)))))))
+" (1+ the-time) (1+ the-time) (1+ the-time) (1+ the-time) (1+ the-time) (1+ the-time)  (1+ the-time) (1+ the-time) (1+ the-time) (1+ the-time) (1+ the-time) (1+ the-time) the-time the-time)
+		(format k "
+(define-fun release ((fap (_ BitVec ~A)) (A (_ BitVec ~A)) (B (_ BitVec ~A))) Bool
+	(until (bvnot fap) (bvnot A) (bvnot B)))~%" bvSize bvSize bvSize)
+		
+		(format k "
+(define-fun since ((fap (_ BitVec ~A)) (A (_ BitVec ~A)) (B (_ BitVec ~A))) Bool" bvSize bvSize bvSize)
+		(format k "
+	(and
+		(= ((_ extract 0 0) fap) ((_ extract 0 0) B) )")
+		(format k "
+		(= ((_ extract ~A 1) fap) (bvor ((_ extract ~A 1) B) (bvand ((_ extract ~A 1) A) ((_ extract ~A 0) fap))))" (1+ the-time) (1+ the-time) (1+ the-time) the-time)
+		(format k "))~%")
+		(format k "
+(define-fun trigger ((fap (_ BitVec ~A)) (A (_ BitVec ~A)) (B (_ BitVec ~A))) Bool
+	(since (bvnot fap) (bvnot A) (bvnot B)))~%" bvSize bvSize bvSize)
+		(format k "
+(define-fun alw ((fap (_ BitVec ~A)) (A (_ BitVec ~A))) Bool
+	(= fap ((_ repeat ~A) (bvredand A))))~%" bvSize bvSize bvSize)
+		(format k "
+(define-fun som ((fap (_ BitVec ~A)) (A (_ BitVec ~A))) Bool
+	(= fap ((_ repeat ~A) (bvredor A))))~%" bvSize bvSize bvSize)
+		(format k "
+(define-fun alwf ((fap (_ BitVec ~A)) (A (_ BitVec ~A))) Bool
+	(until (bvnot fap) ~A (bvnot A)))~%" bvSize bvSize (bvTrue bvSize))
+		(format k "
+(define-fun alwp ((fap (_ BitVec ~A)) (A (_ BitVec ~A))) Bool
+    (since (bvnot fap) ~A (bvnot A)))~%" bvSize bvSize (bvTrue bvSize))
+		(format k "
+(define-fun somp ((fap (_ BitVec ~A)) (A (_ BitVec ~A))) Bool
+    (since fap ~A A))~%" bvSize bvSize (bvTrue bvSize))
+		(format k "
+(define-fun somf ((fap (_ BitVec ~A)) (A (_ BitVec ~A))) Bool
+	(until fap ~A A))~%" bvSize bvSize (bvTrue bvSize))
+		(format k "
+(define-fun bviff ((A (_ BitVec ~A)) (B (_ BitVec ~A))) (_ BitVec ~A)~%~4T(bvxnor A B))~%" bvSize bvSize bvSize)
+		(format k "
+(define-fun bvimpl ((A (_ BitVec ~A)) (B (_ BitVec ~A))) (_ BitVec ~A)~%~4T(bvor (bvnot A) B))~%" bvSize bvSize bvSize)
 		(format k ";;;;;;Used propositions:~%")
 
 
@@ -1706,6 +1762,7 @@
 				(progn (format k "(assert (= (getbit ")
 				(format k (string-downcase (format nil "~A" (bvf (collapse-atomic-formulae formula) bvSize (collapse-atomic-formulae formula)))))
 				(format k " (_ bv1 ~A)) #b1))~%" bvSize)))
+			(format k "(assert (= (bvnot (_ bv0 ~A)) ~a))~%" bvSize (to-bv *zot-item-constraints*))
 			(if (and (= (- (length (kripke-atomic-formulae *PROPS*)) (length (kripke-IPC-constraints *PROPS*))) 0) (not real-var) (= over-clocks 0))
 				;;<Special Config1>
 				(format k "(check-sat-using (then elim-uncnstr (! simplify  :blast_eq_value true :local_ctx true) solve-eqs (repeat bit-blast) (! qfauflia :bv.enable_int2bv true :arith.branch_cut_ratio 5 :case_split 0 :mbqi false :relevancy 0 :arith.propagate_eqs false :local_ctx true)) :print_model true)~%")
