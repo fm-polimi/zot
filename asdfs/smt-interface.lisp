@@ -192,15 +192,46 @@
     	 	do 
     	   	(format t  "------ time ~s ------~%" i)
     	   	(format ff "------ time ~s ------~%" i)
+	
     	   	(loop 
+					initially (setq *item-values* (make-hash-table :test 'equal)) ; define an hash table to store the item values while reading the i-th element of array "time"
 					for e in (aref time i)
 					for item = (car e)
 					for val = (string-right-trim "?" (cadr e))
+					for item-id = (string-right-trim "_" (string-right-trim "0123456789" item))
+					for item-bit = (if (gethash (string-upcase item-id) *items*) (subseq item (1+ (position #\_ item :from-end t)) (length item)))
 					do
+						;(format t "~a, ~a~%" (string-upcase (write-to-string item-id))  item)
+						;(print (type-of item-id) )
+						;(print (string-upcase item-id))
+						;(print (gethash (string-upcase item-id) *items*))
+						;(print e)
+						;(print item)
+						;(print item-id)
+						;(print item-bit)	
 						(cond 
 							((string= item "loopex") (format t "**LOOP**~%"))
+							((gethash (string-upcase item-id) *items*)	
+																(if (gethash item-id *item-values*)
+																	; then add the contribute 2^i to the current value
+																	(if (string= val "true")
+																		(setf (gethash item-id *item-values*) (+ (gethash item-id *item-values*) (expt 2 (parse-integer item-bit))) ) )
+																	; else set the item value to 2^i
+																	(if (string= val "true")																		
+																		(setf (gethash item-id *item-values*) (expt 2 (parse-integer item-bit))) 
+																		(setf (gethash item-id *item-values*) 0) ) ) )
+																
 							((numberp (read-from-string val)) (format t "~a = ~a~%" item val) (format ff "~a = ~a~%" item val))
-							((string= val "true") (format t "~a~%" (string-upcase item)) (format ff "~a~%" (string-upcase item) ) ) ) )  
+							((string= val "true") (format t "~a~%" (string-upcase item)) (format ff "~a~%" (string-upcase item))) )
+					
+					finally
+							; after being visited all the items in the i-th position of the array print the values of the items
+						(loop 
+							for key being the hash-keys of *item-values* 
+							for domain-values = (gethash (string-upcase key) *items*)						
+							do 
+								(format t "~a = ~a~%" key (elt domain-values (gethash key *item-values*)) )
+								(format ff "~a = ~a~%" key (elt domain-values (gethash key *item-values*) ) ) ) )
 
 			finally
     	   	(format t  "------ end ------~%")

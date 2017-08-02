@@ -1097,12 +1097,16 @@
 						 				(list 'not (-P- ,varname i))
 						 				(-P- ,varname i)))))
 
+				; define the helper function <item>
+				; the function builds constraints of the form (item_i <=> (next item_i)) to enforce equality of all the digits 
 				(defun ,_f_name_eq ()
 					t
 					(append '(and) 
 					 			(loop for i from 0 to (floor (log (1- (length ,domain)) 2)) collect
 									(list 'iff (-P- ,varname i) (list 'next (-P- ,varname i))))))
 
+				; define the helper function ^<item>
+				; the function builds constraints of the form ((not item_i) <=> (next item_i)) to enforce inequality of at least one digit 
 				(defun ,_f_name_neq ()
 					t
 					(append '(or) 
