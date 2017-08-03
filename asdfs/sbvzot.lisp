@@ -841,6 +841,18 @@
 		('< (case c2 ('> 'nand) ('= 'nand) ('>= 'neg) ('<= 'impliesR)))
 		('>= (case c2 ('> 'impliesL) ('= 'impliesL) ('< 'neg)))
 		('<= (case c2 ('> 'neg) ('= 'impliesL) ('< 'impliesL)))))
+
+(defun to-bv (f)
+	(cond 
+		((atom f) 
+			(cond
+				((eq f 'and) 'bvand)
+				((eq f 'or) 'bvor)
+				((eq f 'impl) 'bvimpl)
+				((eq f 'not) 'bvnot)
+				(t f)))
+		(t (cons (to-bv (car f)) (to-bv (cdr f))))))
+
 					; --- MAIN ---
 (defun zot (the-time spec 
 		     &key
@@ -902,9 +914,9 @@
 		    (setf (kripke-formula *PROPS*)
 			  (to-smt-dialect 
 				(nconc (list 'and)						 
-				      (when *zot-item-constraints*
-				      	    (manage-transitions (list *zot-item-constraints*) 
-				      		  (1+ the-time)))
+				      ; (when *zot-item-constraints*
+				      ; 	    (manage-transitions (list *zot-item-constraints*) 
+				      ; 		  (1+ the-time)))
 				      
 				      (trio-to-ltl (the-big-formula 
 							 (if (eq with-time t)
@@ -1005,8 +1017,12 @@
     (since fap ~A A))~%" bvSize bvSize (bvTrue bvSize))
 (format k "
 (define-fun somf ((fap (_ BitVec ~A)) (A (_ BitVec ~A))) Bool
-	(until fap ~A A))~%~%" bvSize bvSize (bvTrue bvSize))
-		(format k "(define-fun bviff ((A (_ BitVec ~A)) (B (_ BitVec ~A))) (_ BitVec ~A)~%~4T(bvxnor A B))~%" bvSize bvSize bvSize)
+	(until fap ~A A))~%" bvSize bvSize (bvTrue bvSize))
+		(format k "
+(define-fun bviff ((A (_ BitVec ~A)) (B (_ BitVec ~A))) (_ BitVec ~A)~%~4T(bvxnor A B))~%" bvSize bvSize bvSize)
+		(format k "
+(define-fun bvimpl ((A (_ BitVec ~A)) (B (_ BitVec ~A))) (_ BitVec ~A)~%~4T(bvor (bvnot A) B))~%" bvSize bvSize bvSize)
+
 		(format k ";;;;;;Used propositions:~%")
 					;write all the propositional items
 				    (maphash (lambda (key v)
@@ -1129,6 +1145,7 @@
 					(loop for fma in (kripke-allsubf *PROPS*) do
 					  	(format k "~%~4T(loopConF ~A)" (string-downcase fma)))
 						(format k "))~%")))
+			(format k ";;;;;; Item Constraints:~%~A" (string-downcase (format nil "(assert (= (bvnot (_ bv0 ~A)) ~a))~%" bvSize (to-bv *zot-item-constraints*))))
 			(format k "~%;;;;;;The main formula is asserted to be true at the time instant 1:~%")
 			(format k "(assert (= ((_ extract 1 1) zot-p1) #b1))~%")
 			(if loop-free
