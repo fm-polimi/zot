@@ -387,6 +387,30 @@
     ))
 
 ;;<bitvector>
+(defun string-to-list (s)
+   (with-input-from-string (stream1 s) (read stream1)))
+
+(defun prune-smt (f newf)
+	(setf newf '())
+	(loop for x from 0 to (- (list-length f) 1) do
+		(if (or 
+				(< (length (format nil "~A" (second (nth x f)))) 6) 
+				(not (string= (subseq (format nil "~A" (second (nth x f))) 0 4) "ZOT-")))
+			(setf newf (append newf (list (nth x f))))))
+	(values newf))
+
+(defun mvp-binary-from-decimal (n r)
+    (if (zerop n)
+    r
+    (multiple-value-bind (a b)
+        (floor n 2)
+        (mvp-binary-from-decimal a (cons b r)))))
+
+(defun dec2bin (n)
+    (if (and (numberp n) (plusp n))
+    (mvp-binary-from-decimal n '())
+    (if (eql n 0) '(0) nil)))
+
 (defun trim-split (string)
     (let ((strtrim (string-trim " " string)))
     	(loop for i = 0 then (1+ j)
@@ -411,6 +435,27 @@
 	(if (string= "#b" (subseq s 0 2))
 		(subseq s 3)
 		(subseq (format nil (concatenate 'string "~" (write-to-string (* (- (length (string-trim ")" s)) 2) 4)) ",'0B") (read-from-string (string-trim ")" s))) 1)))
+
+(defun get-bv-val (bv i)
+	(let ((bvl (dec2bin bv)))
+		(if	(> i (1- (length bvl))) 0 
+			(nth (- (length bvl) (1+ i)) bvl))))
+
+(defun get-item-value (item i)
+	(progn 
+		(setf value 0)
+		(loop for apkey being the hash-keys of ap-val do
+  			(when (and (eq (get-bv-val (gethash apkey ap-val) i) '1) (string= (format nil "~A" item) (string-right-trim "_" (string-right-trim "0123456789" apkey))))
+  	 			(setf value (+  value (expt 2 (parse-integer (subseq (format nil "~A" apkey) (1+ (position #\_ (format nil "~A" apkey) :from-end t)) (length (format nil "~A" apkey))))))))))
+(values value))
+
+(defun is-an-item (key)
+	(progn
+		(setf  value nil)
+		(loop for itkey being the hash-keys of *items* do
+			(when (string= (format nil "~A" itkey) (string-right-trim "_" (string-right-trim "0123456789" key)))
+		(setf value t))))
+(values value))
 
 (defun translate-bvsmt2-output (k)
 (setq var-bin  (make-hash-table :test #'equal))
@@ -440,46 +485,16 @@
 	   		(if (and (not (string= "T" (string-upcase var))) (or (< (length (string-upcase var)) 5) (not (string= "ZOT-" (subseq (string-upcase var) 0 4)))) (string= (subseq bin (- k i) (1+ (- k i))) "1"))
 	   			(progn
 	   					(format t "  ~a~%" (string-upcase var))
-	   					(format ff "  ~a~%" (string-upcase var))
-	   				)
-	   			)
+	   					(format ff "  ~a~%" (string-upcase var))))
 
 	   		) var-bin)
+
 	 	)
 	(format t  "------ end ------~%")
 
 	(format ff "------ end ------~%")))
 ;;</bitvector>
 ;;<arith-bitvector>
-(defun string-to-list (s)
-   (with-input-from-string (stream1 s) (read stream1)))
-
-(defun prune-smt (f newf)
-	(setf newf '())
-	(loop for x from 0 to (- (list-length f) 1) do
-		(if (or 
-				(< (length (format nil "~A" (second (nth x f)))) 6) 
-				(not (string= (subseq (format nil "~A" (second (nth x f))) 0 4) "ZOT-")))
-			(setf newf (append newf (list (nth x f))))))
-	(values newf))
-
-(defun mvp-binary-from-decimal (n r)
-    (if (zerop n)
-    r
-    (multiple-value-bind (a b)
-        (floor n 2)
-        (mvp-binary-from-decimal a (cons b r)))))
-
-(defun dec2bin (n)
-    (if (and (numberp n) (plusp n))
-    (mvp-binary-from-decimal n '())
-    (if (eql n 0) '(0) nil)))
-
-(defun get-bv-val (bv i)
-	(let ((bvl (dec2bin bv)))
-		(if	(> i (1- (length bvl))) 0 
-			(nth (- (length bvl) (1+ i)) bvl))))
-
 ;;<pp.decimal=true>
 (defun proc-val (f h)
 	(progn
@@ -546,7 +561,7 @@
          (if (string= line "sat")
                (do ((line1 (read-line stream nil) (read-line stream nil)))
                   ((null line1))
-                  (when (> (length line1) 5) (when (string= (subseq line1 0 6) "(model") (progn (setf nomodel nil) (return))))))))
+                  (when (> (length line1) 5) (when (string= (subseq line1 0 6) "(model") (progn (setf nomodel nil) (return)))))))
 (when nomodel (progn (format t "The plugin is used for completeness check, and by default no model is returned. Enable the flag getLFmodel in order to include the model.") (return-from translate-abvsmt2-output nil)))
                   	
 (setf *read-default-float-format* 'double-float)
@@ -579,6 +594,7 @@
 	(setq iloops (gethash 'ILOOPS ap-val))
 	(setq i_loop (gethash 'I_LOOP ap-val)))
 (remhash 'I_LOOP ap-val)
+
 (with-open-file (ff "output.hist.txt" 
     			:direction :output 
     			:if-exists :supersede 
@@ -593,11 +609,16 @@
 	   		(if (= i i_loop) (progn (format t "**LOOP**~%")(format ff "**LOOP**~%"))))
 
 	   	(maphash #'(lambda (ap bin) 
-	   		(if (and (eq (get-bv-val bin i) '1) (not (eq ap t)))
+	   		(if (and (eq (get-bv-val bin i) '1) (not (eq ap t)) (not (is-an-item ap)))
 	   			(progn
 	   					(format t "  ~a~%" (string-upcase ap))
 	   					(format ff "  ~a~%" (string-upcase ap))))
 	   		) ap-val)
+
+		(loop for itkey being the hash-keys of *items* do
+			(format t "~A = ~A~%" itkey (nth (get-item-value itkey i) (gethash itkey *items*)))
+			(format ff "~A = ~A~%" itkey (nth (get-item-value itkey i) (gethash itkey *items*))))
+
 	   	(maphash #'(lambda (ar val) 
    			(progn
    					(format t "  ~a = ~a~%" ar (get-ar-val ar i))
@@ -621,7 +642,7 @@
 	 	)
 	(format t  "------ end ------~%")
 	(format ff "------ end ------~%"))
-)
+))
 ;;</arith-bitvector>
 (defun pht (h) (maphash 'print-hash-entry h))
 

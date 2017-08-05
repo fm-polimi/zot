@@ -1155,7 +1155,9 @@
 			))
 
 			; (to-smt-and-back *PROPS* smt-solver :smt-lib :smt2 :arith-bitvector :t :loops :t)
-			(to-smt-and-back *PROPS* smt-solver :smt-lib :smt2 :bitvector :t)
+			; (to-smt-and-back *PROPS* smt-solver :smt-lib :smt2 :bitvector :t)
+			(to-smt-and-back *PROPS* smt-solver :smt-lib :smt2 :arith-bitvector :t)
+			
 		  
 		  )))))))
 
