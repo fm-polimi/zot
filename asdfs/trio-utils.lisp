@@ -1086,16 +1086,18 @@
 
       ; --- |domain| > 1 ---
       	(progn
-				; if *zot-item-constraints* is not defined then create an empty list 'and
-	 			(unless *zot-item-constraints* (setf *zot-item-constraints* '(and)))
-	 			
+				
 				; add to *zot-item-constraints* the contraints on the domain of the item by means of function item-constraints 
 				; Constraints are defined only for domains whose length is not a power of 2
 				(if (not (eql (length ,domain) (expt 2 (ceiling (log (length ,domain) 2)))))
-					(setf *zot-item-constraints*
-			    		(append *zot-item-constraints* 
-									(list (item-constraints ',varname (length ,domain) 
-										    						(floor (log (1- (length ,domain)) 2)))))))
+					(progn
+						; if *zot-item-constraints* is not defined then create an empty list 'and
+			 			(unless *zot-item-constraints* (setf *zot-item-constraints* '(and)))
+		
+						(setf *zot-item-constraints*
+				    		(append *zot-item-constraints* 
+								(list (item-constraints ',varname (length ,domain)
+									(floor (log (1- (length ,domain)) 2))))))))
 
 				; add the item name and its domain to variable *items*
 	 			(setf (gethash (symbol-name ',varname) *items*) ,domain)
