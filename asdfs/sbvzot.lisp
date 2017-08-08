@@ -1145,7 +1145,7 @@
 					(loop for fma in (kripke-allsubf *PROPS*) do
 					  	(format k "~%~4T(loopConF ~A)" (string-downcase fma)))
 						(format k "))~%")))
-			(format k ";;;;;; Item Constraints:~%~A" (string-downcase (format nil "(assert (= (bvnot (_ bv0 ~A)) ~a))~%" bvSize (to-bv *zot-item-constraints*))))
+			(when (> (length *zot-item-constraints*) 0) (format k ";;;;;; Item Constraints:~%~A" (string-downcase (format nil "(assert (= (bvnot (_ bv0 ~A)) ~a))~%" bvSize (to-bv *zot-item-constraints*)))))
 			(format k "~%;;;;;;The main formula is asserted to be true at the time instant 1:~%")
 			(format k "(assert (= ((_ extract 1 1) zot-p1) #b1))~%")
 			(if loop-free

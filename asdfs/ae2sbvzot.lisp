@@ -1762,7 +1762,7 @@
 				(progn (format k "(assert (= (getbit ")
 				(format k (string-downcase (format nil "~A" (bvf (collapse-atomic-formulae formula) bvSize (collapse-atomic-formulae formula)))))
 				(format k " (_ bv1 ~A)) #b1))~%" bvSize)))
-			(format k "(assert (= (bvnot (_ bv0 ~A)) ~a))~%" bvSize (to-bv *zot-item-constraints*))
+			(when (> (length *zot-item-constraints*) 0) (format k "(assert (= (bvnot (_ bv0 ~A)) ~a))~%" bvSize (to-bv *zot-item-constraints*)))
 			(if (and (= (- (length (kripke-atomic-formulae *PROPS*)) (length (kripke-IPC-constraints *PROPS*))) 0) (not real-var) (= over-clocks 0))
 				;;<Special Config1>
 				(format k "(check-sat-using (then elim-uncnstr (! simplify  :blast_eq_value true :local_ctx true) solve-eqs (repeat bit-blast) (! qfauflia :bv.enable_int2bv true :arith.branch_cut_ratio 5 :case_split 0 :mbqi false :relevancy 0 :arith.propagate_eqs false :local_ctx true)) :print_model true)~%")
