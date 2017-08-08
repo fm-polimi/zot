@@ -1027,24 +1027,36 @@
 ;;-----------------------------------------------------------------------
 
 (defun item-constraints (varname len cur)
-  (unless (< cur 0)
-    (let ((cur1 0)(cur2 0))
-      (-> (append '(and) 
-		(loop for i = cur then (1- i)
-		      until (or (eql (mod (floor (1- len) (expt 2 i)) 2) 0) (< i 0))
-		      do (setf cur1 i)
-		      collect
+	(unless (< cur 0)
+		(let ((cur1 0)(cur2 0))
 
-		      (pred varname i)
-		      ))
-	  (append '(and) 
-		  (loop for i = (1- cur1) then (1- i)
-			until (or (eql (mod (floor (1- len) (expt 2 i)) 2) 1) (< i 0)) collect
-			(progn
-			  (setf cur2 i)
-			  (list 'not (pred varname i))))
-		  (when (> cur2 0)
-		    (list (item-constraints varname len (1- cur2)))))))))
+			; if cur=0 
+			(if (= cur 0)
+
+				; then check immediately if |domain| is even or odd and set bit 0 accordingly
+				(if (eql (mod (1- len) 2) 1)
+					(pred varname 0)
+					(list 'not (pred varname 0)))
+
+				; otherwise go on and check the bits from cur until 0
+				(-> 
+					(append '(and) 
+						(loop 
+							for i = cur then (1- i)
+							until (or (eql (mod (floor (1- len) (expt 2 i)) 2) 0) (< i 0))
+							do (setf cur1 i)
+							collect (pred varname i)))
+
+					(append '(and) 
+						(loop 
+							for i = (1- cur1) then (1- i)
+							until (or (eql (mod (floor (1- len) (expt 2 i)) 2) 1) (< i 0)) 
+							collect
+								(progn
+									(setf cur2 i)
+									(list 'not (pred varname i))))
+			  			(when (> cur2 0)
+							(list (item-constraints varname len (1- cur2))))))))))
 
 
 ;;-----------------------------------------------------------------------
@@ -1078,10 +1090,12 @@
 	 			(unless *zot-item-constraints* (setf *zot-item-constraints* '(and)))
 	 			
 				; add to *zot-item-constraints* the contraints on the domain of the item by means of function item-constraints 
-				(setf *zot-item-constraints*
-	       		(append *zot-item-constraints* 
-								(list (item-constraints ',varname (length ,domain) 
-								       						(floor (log (1- (length ,domain)) 2))))))
+				; Constraints are defined only for domains whose length is not a power of 2
+				(if (not (eql (length ,domain) (expt 2 (ceiling (log (length ,domain) 2)))))
+					(setf *zot-item-constraints*
+			    		(append *zot-item-constraints* 
+									(list (item-constraints ',varname (length ,domain) 
+										    						(floor (log (1- (length ,domain)) 2)))))))
 
 				; add the item name and its domain to variable *items*
 	 			(setf (gethash (symbol-name ',varname) *items*) ,domain)
