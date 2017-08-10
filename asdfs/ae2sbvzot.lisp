@@ -1392,6 +1392,7 @@
 	(cond 
 		((atom f) 
 			(cond
+				((eq f t) (bvTrue bvSize))
 				((eq f 'and) 'bvand)
 				((eq f 'or) 'bvor)
 				((eq f 'impl) 'bvimpl)
