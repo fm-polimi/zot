@@ -1035,7 +1035,7 @@
 
 				; then check immediately if |domain| is even or odd and set bit 0 accordingly
 				(if (eql (mod (1- len) 2) 1)
-					(pred varname 0)
+					't
 					(list 'not (pred varname 0)))
 
 				; otherwise go on and check the bits from cur until 0
