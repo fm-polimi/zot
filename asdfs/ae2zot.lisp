@@ -844,7 +844,7 @@
 
 (defun gen-bool ()
       (format t "define LTL boolean connectives~%")(force-output)
-      (loop for i from 0 to (kripke-k *PROPS*) append
+      (loop for i from 0 to (1+ (kripke-k *PROPS*)) append
 	    (loop for fma in (kripke-bool *PROPS*) collect
 		  (list 'iff  
 			(call *PROPS* fma i)  
