@@ -56,6 +56,7 @@
 	   :cvc3
 	   :mathsat
 	   :z3
+		:dReal
 	   :QF_UFIDL
 	   :QF_UFRDL
 	   :QF_UFLIA
@@ -1233,7 +1234,7 @@
 
 (defun build-smt-file (formula-structure smt-assumptions parametric-regions discrete-regions over-clocks ipc-constraints discrete-counters signals logic smt-dialect flows)
 
-  (with-open-file (k "./output.smt.txt" :direction :output :if-exists :supersede)  
+  (with-open-file (k "./output.smt2" :direction :output :if-exists :supersede)  
 	(with-open-file (dict "./output.dict.txt" :direction :output :if-exists :supersede)
 
 	(format k "(set-logic QF_NRA_ODE)~%")
@@ -1362,8 +1363,8 @@
 			  		((nil) (case smt-dialect 
 								((:smt) (format k ":extrafuns (( delta Real Real ))~%"))
 								((:smt2) (loop for i from 0 to (kripke-k *PROPS*) do
-											(format k "(declare-fun now_~s ( ) Real )~%" i)
-					   						(format k "(declare-fun delta_~s ( ) Real )~%" i)))))))
+											;(format k "(declare-fun now_~s ( ) Real )~%" i)
+					   					(format k "(declare-fun delta_~s ( ) Real )~%" i)))))))
 
 			 (if (not (null smt-assumptions))
 				(format k (concatenate 'string "(assert " smt-assumptions ")~%")))
@@ -1409,7 +1410,7 @@
 		     (transitions nil)
 		     (negate-transitions nil)
 		     (declarations nil)
-		     (smt-solver :z3)
+		     (smt-solver :dReal)
 		     (logic :QF_UFIDL)
 		     (smt-assumptions nil)
 		     (no-loop nil)
