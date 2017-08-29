@@ -59,7 +59,7 @@
 	  (ecase smt-solver
 		(:dReal 
 	     (format t "dReal...~% ")(force-output)
-	     (sb-ext:run-program "dReal" '("output.smt2" "--proof")
+	     (sb-ext:run-program "dReal" '("output.smt2" "--proof" "--model")
 				 :input t :output "output.1.txt" :error t :search t :if-output-exists :supersede))	
 
 	    (:z3 
@@ -117,10 +117,9 @@
     ;; --- dump the output of the SMT ---
     #-(or :sbcl :clisp) (funcall call-shell "cat output.1.txt"))
 
-
   ;; --- parse the output of the SMT ---
   (let ((val (with-open-file (ff "output.1.txt" :direction :input)
-	       (not (eq 'unsat (read ff))))))
+	       (not (eq 'unsat (read-line ff))))))
     (format t (if val "---SAT---~%" "---UNSAT---~%"))
     (force-output)
     (when (and val (eq smt-solver :z3))
@@ -130,8 +129,8 @@
 			((eq smt-lib :smt2) (translate-smt2-output (kripke-k the-kripke)))
 			((eq smt-lib :smt) (translate-smt-output (kripke-k the-kripke)))
 			(t (translate-smt-output (kripke-k the-kripke)))
-      	))
-    val)
+      	)) 	
+    val) 
   )
 
 (defun cut-name (l)
