@@ -868,13 +868,12 @@
   (format t "define interpreted relations: <,>,=,<=,>= ~%")(force-output)
   (loop for i from 0 to (kripke-k *PROPS*) append
 	(loop for fma in (kripke-atomic-formulae *PROPS*) 
-	      when (arith-cop fma)
+			when (arith-cop fma)
 	      collect
 	      (list 'iff  
 		    (call *PROPS* fma i)  		    
-		    (cons (car fma) (mapcar #'(lambda (x)
-						(call *PROPS* x i))
-					    (cdr fma)))))))
+		    (cons (car fma) (mapcar #'(lambda (x) (call *PROPS* x i))
+					    						(cdr fma)))))))
 
 
 
@@ -1432,8 +1431,7 @@
 					;(setf *periodic-arith-vars* periodic-vars)
   (setf *smt-metric-futr-operators* nil)
   (setf *smt-metric-past-operators* nil)
-  (if (or (eq logic :QF_UFRDL)(eq logic :QF_UFLRA))
-  (setf *real-constants* t))
+  (setf *real-constants* 't)
   (setf *metric-operators* nil)
   (setf *format-smt* t)
   
@@ -1454,7 +1452,7 @@
 				 formula)))
 
     (format t "This is SMT-Arithmetic-eeZot~%")    
-
+	
 
     (let ((undeclared (set-difference (kripke-atomic-formulae *PROPS*) declarations)))
       (if (and declarations undeclared)
