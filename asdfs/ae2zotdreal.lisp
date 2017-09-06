@@ -906,7 +906,7 @@
 										     
 
 (defun gen-regions (bound discrete-regions parametric-regions discrete-counters signals)
-	(format t "Define regions")(force-output)
+	(format t "define regions and behavior of clocks~%")(force-output)
 
   (if (> bound 0)
 	; ------------------------------------------------------------------------------
@@ -1145,16 +1145,87 @@
 	(format t "define universal quantification on MTL signals ~%")(force-output)
 	(loop for i from 0 to (1- (kripke-k *PROPS*)) append    
 		(loop for interval-description in mtl-intervals 	    
-		collect
+		append
 			(let ( (interval (first interval-description)) 
 					 (signal (second interval-description))
 					 (relation (third interval-description))
-					 (constant (fourth interval-description))				 
+					 (constant (float (fourth interval-description)))
 					 (a (intern (format nil "NOW_~a" i))) 
 					 (b (intern (format nil "NOW_~a" (1+ i))))
 				  )
-			`(impl ,(call *PROPS* interval i) (forall_t 1 \[ ,a ,b \] (,relation ,(intern (format nil "~a_~a_t" signal i)) ,constant))))))
-)
+			
+				(nconc
+					; formula is (x < c)
+					(if (eq relation '<) 
+						(list
+							`(impl
+								(not ,(call *PROPS* interval i))
+								(forall_t 1 \[ ,a ,b \] (not (< ,(intern (format nil "~a_~a_t" signal i)) ,constant))))
+		
+							`(impl
+								(and 
+									(< ,(call *PROPS* signal i) ,constant)
+									,(call *PROPS* interval i)
+									(< ,(call *PROPS* signal (1+ i)) ,constant))
+								(forall_t 1 \[ ,a ,b \] (< ,(intern (format nil "~a_~a_t" signal i)) ,constant)))
+
+							`(impl
+								(and 
+									(< ,(call *PROPS* signal i) ,constant)
+									,(call *PROPS* interval i)
+									(= ,(call *PROPS* signal (1+ i)) ,constant))
+								(forall_t 1 \[ ,a ,b \] (<= ,(intern (format nil "~a_~a_t" signal i)) ,constant)))
+
+							`(impl
+								(and 
+									(= ,(call *PROPS* signal i) ,constant)
+									,(call *PROPS* interval i)
+									(< ,(call *PROPS* signal (1+ i)) ,constant))
+								(forall_t 1 \[ ,a ,b \] (<= ,(intern (format nil "~a_~a_t" signal i)) ,constant))))
+						nil)
+	
+					; formula is (x > c)
+					(if (eq relation '>) 
+						(list
+							`(impl
+								(not ,(call *PROPS* interval i))
+								(forall_t 1 \[ ,a ,b \] (not (> ,(intern (format nil "~a_~a_t" signal i)) ,constant))))
+		
+							`(impl
+								(and 
+									(> ,(call *PROPS* signal i) ,constant)
+									,(call *PROPS* interval i)
+									(> ,(call *PROPS* signal (1+ i)) ,constant))
+								(forall_t 1 \[ ,a ,b \] (> ,(intern (format nil "~a_~a_t" signal i)) ,constant)))
+
+							`(impl
+								(and 
+									(> ,(call *PROPS* signal i) ,constant)
+									,(call *PROPS* interval i)
+									(= ,(call *PROPS* signal (1+ i)) ,constant))
+								(forall_t 1 \[ ,a ,b \] (>= ,(intern (format nil "~a_~a_t" signal i)) ,constant)))
+
+							`(impl
+								(and 
+									(= ,(call *PROPS* signal i) ,constant)
+									,(call *PROPS* interval i)
+									(> ,(call *PROPS* signal (1+ i)) ,constant))
+								(forall_t 1 \[ ,a ,b \] (>= ,(intern (format nil "~a_~a_t" signal i)) ,constant))))
+						nil)
+
+					; formula is (x = c)
+					(if (eq relation '=) 
+						(list
+							`(impl
+								(and 
+									(= ,(call *PROPS* signal i) ,constant)
+									,(call *PROPS* interval i)
+									(= ,(call *PROPS* signal (1+ i)) ,constant))
+								(forall_t 1 \[ ,a ,b \] (= ,(intern (format nil "~a_~a_t" signal i)) ,constant))))
+						nil) 
+
+) ) ) ) )
+
 
 
 (defun gen-interval-constraints-on-signals (mtl-intervals)
@@ -1352,7 +1423,7 @@
 			(gen-past2)	   
 			(gen-i-atomic-formulae)
 			(gen-regions bound discrete-regions parametric-regions discrete-counters signals)
-			(gen-universal-constraints-on-signals mtl-intervals)
+			;(gen-universal-constraints-on-signals mtl-intervals)
 			(gen-interval-constraints-on-signals mtl-intervals)
 			(gen-integral-constraints-on-signals init-signals signals nil)	
 			(gen-integrity-constraints-on-signals mtl-intervals)
