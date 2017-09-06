@@ -1156,6 +1156,151 @@
 			`(impl ,(call *PROPS* interval i) (forall_t 1 \[ ,a ,b \] (,relation ,(intern (format nil "~a_~a_t" signal i)) ,constant))))))
 )
 
+
+(defun gen-interval-constraints-on-signals (mtl-intervals)
+;
+; mtl-intervals must be a list of pairs (H_j fmla) where fmla is an atomic CLTLoc formula on a signal such as x>0
+;
+	(format t "define interval quantification on MTL signals ~%")(force-output)
+	(loop for i from 0 to (1- (kripke-k *PROPS*)) append    
+		(loop for interval-description in mtl-intervals 	    
+		append
+			(let ( (interval (first interval-description)) 
+					 (signal (second interval-description))
+					 (relation (third interval-description))
+					 (constant (float (fourth interval-description)))
+				  )
+			(nconc
+				; formula is (x < c)
+				(if (eq relation '<) 
+					(list
+						; x>c /\ X(x>c) => not H_(x<c)
+						`(impl 
+							(and
+								(> ,(call *PROPS* signal i) ,constant)
+								(> ,(call *PROPS* signal (1+ i)) ,constant))
+							(not ,(call *PROPS* interval i)))
+						; x>c /\ X(x=c) => not H_(x<c)
+						`(impl 
+							(and
+								(> ,(call *PROPS* signal i) ,constant)
+								(= ,(call *PROPS* signal (1+ i)) ,constant))
+							(not ,(call *PROPS* interval i))) 
+						; x<c /\ X(x<c) => H_(x<c)
+						`(impl 
+							(and
+								(< ,(call *PROPS* signal i) ,constant)
+								(< ,(call *PROPS* signal (1+ i)) ,constant))
+							,(call *PROPS* interval i))
+						; x<c /\ X(x=c) => H_(x<c)
+						`(impl 
+							(and
+								(< ,(call *PROPS* signal i) ,constant)
+								(= ,(call *PROPS* signal (1+ i)) ,constant))
+							,(call *PROPS* interval i))
+						; x=c /\ X(x>c) => not H_(x<c)
+						`(impl 
+							(and
+								(= ,(call *PROPS* signal i) ,constant)
+								(> ,(call *PROPS* signal (1+ i)) ,constant))
+							(not ,(call *PROPS* interval i))) 
+						; x=c /\ X(x<c) => H_(x<c)
+						`(impl 
+							(and
+								(= ,(call *PROPS* signal i) ,constant)
+								(< ,(call *PROPS* signal (1+ i)) ,constant))
+							,(call *PROPS* interval i))
+						; x=c /\ X(x=c) => not H_(x<c)
+						`(impl 
+							(and
+								(= ,(call *PROPS* signal i) ,constant)
+								(= ,(call *PROPS* signal (1+ i)) ,constant))
+							(not ,(call *PROPS* interval i)))) 
+					nil )
+
+				; formula is (x > c)
+				(if (eq relation '>) 
+					(list
+						; x>c /\ X(x>c) => H_(x>c)
+						`(impl 
+							(and
+								(> ,(call *PROPS* signal i) ,constant)
+								(> ,(call *PROPS* signal (1+ i)) ,constant))
+							,(call *PROPS* interval i))
+						; x>c /\ X(x=c) => H_(x>c)
+						`(impl 
+							(and
+								(> ,(call *PROPS* signal i) ,constant)
+								(= ,(call *PROPS* signal (1+ i)) ,constant))
+							,(call *PROPS* interval i))
+						; x<c /\ X(x<c) => not H_(x>c)
+						`(impl 
+							(and
+								(< ,(call *PROPS* signal i) ,constant)
+								(< ,(call *PROPS* signal (1+ i)) ,constant))
+							(not ,(call *PROPS* interval i)))
+						; x<c /\ X(x=c) => not H_(x>c)
+						`(impl 
+							(and
+								(< ,(call *PROPS* signal i) ,constant)
+								(= ,(call *PROPS* signal (1+ i)) ,constant))
+							(not ,(call *PROPS* interval i)))
+						; x=c /\ X(x>c) => H_(x>c)
+						`(impl 
+							(and
+								(= ,(call *PROPS* signal i) ,constant)
+								(> ,(call *PROPS* signal (1+ i)) ,constant))
+							,(call *PROPS* interval i)) 
+						; x=c /\ X(x<c) => not H_(x>c)
+						`(impl 
+							(and
+								(= ,(call *PROPS* signal i) ,constant)
+								(< ,(call *PROPS* signal (1+ i)) ,constant))
+							(not ,(call *PROPS* interval i)))
+						; x=c /\ X(x=c) => not H_(x>c)
+						`(impl 
+							(and
+								(= ,(call *PROPS* signal i) ,constant)
+								(= ,(call *PROPS* signal (1+ i)) ,constant))
+							(not ,(call *PROPS* interval i)))) 
+				nil )
+
+				; formula is (x = c)
+				(if (eq relation '=)
+					(list 
+						`(iff (= ,(call *PROPS* signal i) ,constant) ,(call *PROPS* (intern (concatenate 'string "P" (string-left-trim "H" (symbol-name interval)))) i)))
+					nil)
+
+			))))
+)
+
+
+(defun gen-integrity-constraints-on-signals (mtl-intervals)
+;
+; mtl-intervals must be a list of pairs (H_j fmla) where fmla is an atomic CLTLoc formula on a signal such as x>0
+;
+	(format t "define signal integrity on intervals ~%")(force-output)
+	(loop for i from 0 to (1- (kripke-k *PROPS*)) append    
+		(loop for interval-description in mtl-intervals 	    
+		append
+			(let ( ;(interval (first interval-description)) 
+					 (signal (second interval-description))
+					 ;(relation (third interval-description))
+					 (constant (float (fourth interval-description)))
+				  )
+			(list
+				`(not 
+					(and 
+						(> ,(call *PROPS* signal i) ,constant)
+						(< ,(call *PROPS* signal (1+ i)) ,constant)))
+				`(not 
+					(and 
+						(< ,(call *PROPS* signal i) ,constant)
+						(> ,(call *PROPS* signal (1+ i)) ,constant))) ) ) ) ) )
+
+
+
+
 (defun gen-integral-constraints-on-signals (init-signals signals flows)
 ;
 ; init-signals must be a list of pairs (signal_name value) 
@@ -1177,6 +1322,9 @@
 		collect
 			`(= ,(intern (format nil "[~a_~a_t]" signal-name i)) (integral 0.0 ,(intern (format nil "now_~a" (1+ i))) ,(intern (format nil "[~a_0]" signal-name)) flow\_1)))))
 )
+
+
+
 
 (defun the-big-formula (fma loop-free no-loop periodic-arith-terms gen-symbolic-val ipc-constraints bound discrete-regions parametric-regions discrete-counters signals mtl-intervals init-signals)      
   (cons
@@ -1205,7 +1353,9 @@
 			(gen-i-atomic-formulae)
 			(gen-regions bound discrete-regions parametric-regions discrete-counters signals)
 			(gen-universal-constraints-on-signals mtl-intervals)
+			(gen-interval-constraints-on-signals mtl-intervals)
 			(gen-integral-constraints-on-signals init-signals signals nil)	
+			(gen-integrity-constraints-on-signals mtl-intervals)
 		)))
 
 
