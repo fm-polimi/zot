@@ -680,11 +680,16 @@
 					; the object han not been recognized...rise error!
 					;*************************************************
 			      ((and (null p) (null q)) 
-				    (if (eq (get-item-sort (arith-itemp obj)) 'timed) 
-					;if the item is a timed arithmetic term, so rise up an error!
-					  (error "During Call process, item ~s not found in formula~%~%HINT: maybe you are using some predicates in the 'transitions:' which is not used in the 'formula' section. To fix this problem let initialize these predicates with a fake value (maybe in the instant 0...)~%" obj))
-					;otherwise it is a non-timed term, so give it back!
-				    obj)
+				    (if (eq (get-item-sort (arith-itemp obj)) 'timed)
+							(if (not (member obj (car other)))  
+								;if the item is a timed arithmetic term, so rise up an error!
+							  (error "During Call process, item ~s not found in formula~%~%HINT: maybe you are using some predicates in the 'transitions:' which is not used in the 'formula' section. To fix this problem let initialize these predicates with a fake value (maybe in the instant 0...)~%" obj)
+
+								;if the item is in other than treat it as a unary term
+								(intern (format nil "~a_~a" obj (floor the-time))) ) 
+
+						;otherwise it is a non-timed term, so give it back!
+				    	obj) )
 					;************************
 					; if the object is a term
 					;************************
@@ -1138,7 +1143,7 @@
 ))
 
 
-(defun gen-universal-constraints-on-signals (mtl-intervals)
+(defun gen-universal-constraints-on-signals (mtl-intervals signals)
 ;
 ; mtl-intervals must be a list of pairs (H_j fmla) where fmla is an atomic CLTLoc formula on a signal such as x>0
 ;
@@ -1164,23 +1169,23 @@
 		
 							`(impl
 								(and 
-									(< ,(call *PROPS* signal i) ,constant)
+									(< ,(call *PROPS* signal i signals) ,constant)
 									,(call *PROPS* interval i)
-									(< ,(call *PROPS* signal (1+ i)) ,constant))
+									(< ,(call *PROPS* signal (1+ i) signals) ,constant))
 								(forall_t 1 \[ ,a ,b \] (< ,(intern (format nil "~a_~a_t" signal i)) ,constant)))
 
 							`(impl
 								(and 
-									(< ,(call *PROPS* signal i) ,constant)
+									(< ,(call *PROPS* signal i signals) ,constant)
 									,(call *PROPS* interval i)
-									(= ,(call *PROPS* signal (1+ i)) ,constant))
+									(= ,(call *PROPS* signal (1+ i) signals) ,constant))
 								(forall_t 1 \[ ,a ,b \] (<= ,(intern (format nil "~a_~a_t" signal i)) ,constant)))
 
 							`(impl
 								(and 
-									(= ,(call *PROPS* signal i) ,constant)
+									(= ,(call *PROPS* signal i signals) ,constant)
 									,(call *PROPS* interval i)
-									(< ,(call *PROPS* signal (1+ i)) ,constant))
+									(< ,(call *PROPS* signal (1+ i) signals) ,constant))
 								(forall_t 1 \[ ,a ,b \] (<= ,(intern (format nil "~a_~a_t" signal i)) ,constant))))
 						nil)
 	
@@ -1193,23 +1198,23 @@
 		
 							`(impl
 								(and 
-									(> ,(call *PROPS* signal i) ,constant)
+									(> ,(call *PROPS* signal i signals) ,constant)
 									,(call *PROPS* interval i)
-									(> ,(call *PROPS* signal (1+ i)) ,constant))
+									(> ,(call *PROPS* signal (1+ i) signals) ,constant))
 								(forall_t 1 \[ ,a ,b \] (> ,(intern (format nil "~a_~a_t" signal i)) ,constant)))
 
 							`(impl
 								(and 
-									(> ,(call *PROPS* signal i) ,constant)
+									(> ,(call *PROPS* signal i signals) ,constant)
 									,(call *PROPS* interval i)
-									(= ,(call *PROPS* signal (1+ i)) ,constant))
+									(= ,(call *PROPS* signal (1+ i) signals) ,constant))
 								(forall_t 1 \[ ,a ,b \] (>= ,(intern (format nil "~a_~a_t" signal i)) ,constant)))
 
 							`(impl
 								(and 
-									(= ,(call *PROPS* signal i) ,constant)
+									(= ,(call *PROPS* signal i signals) ,constant)
 									,(call *PROPS* interval i)
-									(> ,(call *PROPS* signal (1+ i)) ,constant))
+									(> ,(call *PROPS* signal (1+ i) signals) ,constant))
 								(forall_t 1 \[ ,a ,b \] (>= ,(intern (format nil "~a_~a_t" signal i)) ,constant))))
 						nil)
 
@@ -1218,9 +1223,9 @@
 						(list
 							`(impl
 								(and 
-									(= ,(call *PROPS* signal i) ,constant)
+									(= ,(call *PROPS* signal i signals) ,constant)
 									,(call *PROPS* interval i)
-									(= ,(call *PROPS* signal (1+ i)) ,constant))
+									(= ,(call *PROPS* signal (1+ i) signals) ,constant))
 								(forall_t 1 \[ ,a ,b \] (= ,(intern (format nil "~a_~a_t" signal i)) ,constant))))
 						nil) 
 
@@ -1228,7 +1233,7 @@
 
 
 
-(defun gen-interval-constraints-on-signals (mtl-intervals)
+(defun gen-interval-constraints-on-signals (mtl-intervals signals)
 ;
 ; mtl-intervals must be a list of pairs (H_j fmla) where fmla is an atomic CLTLoc formula on a signal such as x>0
 ;
@@ -1248,44 +1253,44 @@
 						; x>c /\ X(x>c) => not H_(x<c)
 						`(impl 
 							(and
-								(> ,(call *PROPS* signal i) ,constant)
-								(> ,(call *PROPS* signal (1+ i)) ,constant))
+								(> ,(call *PROPS* signal i signals) ,constant)
+								(> ,(call *PROPS* signal (1+ i) signals) ,constant))
 							(not ,(call *PROPS* interval i)))
 						; x>c /\ X(x=c) => not H_(x<c)
 						`(impl 
 							(and
-								(> ,(call *PROPS* signal i) ,constant)
-								(= ,(call *PROPS* signal (1+ i)) ,constant))
+								(> ,(call *PROPS* signal i signals) ,constant)
+								(= ,(call *PROPS* signal (1+ i) signals) ,constant))
 							(not ,(call *PROPS* interval i))) 
 						; x<c /\ X(x<c) => H_(x<c)
 						`(impl 
 							(and
-								(< ,(call *PROPS* signal i) ,constant)
-								(< ,(call *PROPS* signal (1+ i)) ,constant))
+								(< ,(call *PROPS* signal i signals) ,constant)
+								(< ,(call *PROPS* signal (1+ i) signals) ,constant))
 							,(call *PROPS* interval i))
 						; x<c /\ X(x=c) => H_(x<c)
 						`(impl 
 							(and
-								(< ,(call *PROPS* signal i) ,constant)
-								(= ,(call *PROPS* signal (1+ i)) ,constant))
+								(< ,(call *PROPS* signal i signals) ,constant)
+								(= ,(call *PROPS* signal (1+ i) signals) ,constant))
 							,(call *PROPS* interval i))
 						; x=c /\ X(x>c) => not H_(x<c)
 						`(impl 
 							(and
-								(= ,(call *PROPS* signal i) ,constant)
-								(> ,(call *PROPS* signal (1+ i)) ,constant))
+								(= ,(call *PROPS* signal i signals) ,constant)
+								(> ,(call *PROPS* signal (1+ i) signals) ,constant))
 							(not ,(call *PROPS* interval i))) 
 						; x=c /\ X(x<c) => H_(x<c)
 						`(impl 
 							(and
-								(= ,(call *PROPS* signal i) ,constant)
-								(< ,(call *PROPS* signal (1+ i)) ,constant))
+								(= ,(call *PROPS* signal i signals) ,constant)
+								(< ,(call *PROPS* signal (1+ i) signals) ,constant))
 							,(call *PROPS* interval i))
 						; x=c /\ X(x=c) => not H_(x<c)
 						`(impl 
 							(and
-								(= ,(call *PROPS* signal i) ,constant)
-								(= ,(call *PROPS* signal (1+ i)) ,constant))
+								(= ,(call *PROPS* signal i signals) ,constant)
+								(= ,(call *PROPS* signal (1+ i) signals) ,constant))
 							(not ,(call *PROPS* interval i)))) 
 					nil )
 
@@ -1295,58 +1300,58 @@
 						; x>c /\ X(x>c) => H_(x>c)
 						`(impl 
 							(and
-								(> ,(call *PROPS* signal i) ,constant)
-								(> ,(call *PROPS* signal (1+ i)) ,constant))
+								(> ,(call *PROPS* signal i signals) ,constant)
+								(> ,(call *PROPS* signal (1+ i) signals) ,constant))
 							,(call *PROPS* interval i))
 						; x>c /\ X(x=c) => H_(x>c)
 						`(impl 
 							(and
-								(> ,(call *PROPS* signal i) ,constant)
-								(= ,(call *PROPS* signal (1+ i)) ,constant))
+								(> ,(call *PROPS* signal i signals) ,constant)
+								(= ,(call *PROPS* signal (1+ i) signals) ,constant))
 							,(call *PROPS* interval i))
 						; x<c /\ X(x<c) => not H_(x>c)
 						`(impl 
 							(and
-								(< ,(call *PROPS* signal i) ,constant)
-								(< ,(call *PROPS* signal (1+ i)) ,constant))
+								(< ,(call *PROPS* signal i signals) ,constant)
+								(< ,(call *PROPS* signal (1+ i) signals) ,constant))
 							(not ,(call *PROPS* interval i)))
 						; x<c /\ X(x=c) => not H_(x>c)
 						`(impl 
 							(and
-								(< ,(call *PROPS* signal i) ,constant)
-								(= ,(call *PROPS* signal (1+ i)) ,constant))
+								(< ,(call *PROPS* signal i signals) ,constant)
+								(= ,(call *PROPS* signal (1+ i) signals) ,constant))
 							(not ,(call *PROPS* interval i)))
 						; x=c /\ X(x>c) => H_(x>c)
 						`(impl 
 							(and
-								(= ,(call *PROPS* signal i) ,constant)
-								(> ,(call *PROPS* signal (1+ i)) ,constant))
+								(= ,(call *PROPS* signal i signals) ,constant)
+								(> ,(call *PROPS* signal (1+ i) signals) ,constant))
 							,(call *PROPS* interval i)) 
 						; x=c /\ X(x<c) => not H_(x>c)
 						`(impl 
 							(and
-								(= ,(call *PROPS* signal i) ,constant)
-								(< ,(call *PROPS* signal (1+ i)) ,constant))
+								(= ,(call *PROPS* signal i signals) ,constant)
+								(< ,(call *PROPS* signal (1+ i) signals) ,constant))
 							(not ,(call *PROPS* interval i)))
 						; x=c /\ X(x=c) => not H_(x>c)
 						`(impl 
 							(and
-								(= ,(call *PROPS* signal i) ,constant)
-								(= ,(call *PROPS* signal (1+ i)) ,constant))
+								(= ,(call *PROPS* signal i signals) ,constant)
+								(= ,(call *PROPS* signal (1+ i) signals) ,constant))
 							(not ,(call *PROPS* interval i)))) 
 				nil )
 
 				; formula is (x = c)
 				(if (eq relation '=)
 					(list 
-						`(iff (= ,(call *PROPS* signal i) ,constant) ,(call *PROPS* (intern (concatenate 'string "P" (string-left-trim "H" (symbol-name interval)))) i)))
+						`(iff (= ,(call *PROPS* signal i signals) ,constant) ,(call *PROPS* (intern (concatenate 'string "P" (string-left-trim "H" (symbol-name interval)))) i)))
 					nil)
 
 			))))
 )
 
 
-(defun gen-integrity-constraints-on-signals (mtl-intervals)
+(defun gen-integrity-constraints-on-signals (mtl-intervals signals)
 ;
 ; mtl-intervals must be a list of pairs (H_j fmla) where fmla is an atomic CLTLoc formula on a signal such as x>0
 ;
@@ -1362,12 +1367,12 @@
 			(list
 				`(not 
 					(and 
-						(> ,(call *PROPS* signal i) ,constant)
-						(< ,(call *PROPS* signal (1+ i)) ,constant)))
+						(> ,(call *PROPS* signal i signals) ,constant)
+						(< ,(call *PROPS* signal (1+ i) signals) ,constant)))
 				`(not 
 					(and 
-						(< ,(call *PROPS* signal i) ,constant)
-						(> ,(call *PROPS* signal (1+ i)) ,constant))) ) ) ) ) )
+						(< ,(call *PROPS* signal i signals) ,constant)
+						(> ,(call *PROPS* signal (1+ i) signals) ,constant))) ) ) ) ) )
 
 
 
@@ -1423,10 +1428,10 @@
 			(gen-past2)	   
 			(gen-i-atomic-formulae)
 			(gen-regions bound discrete-regions parametric-regions discrete-counters signals)
-			;(gen-universal-constraints-on-signals mtl-intervals)
-			(gen-interval-constraints-on-signals mtl-intervals)
+			(gen-universal-constraints-on-signals mtl-intervals signals)
+			(gen-interval-constraints-on-signals mtl-intervals signals)
 			(gen-integral-constraints-on-signals init-signals signals nil)	
-			(gen-integrity-constraints-on-signals mtl-intervals)
+			(gen-integrity-constraints-on-signals mtl-intervals signals)
 		)))
 
 
