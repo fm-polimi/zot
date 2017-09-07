@@ -119,7 +119,7 @@
 
   ;; --- parse the output of the SMT ---
   (let ((val (with-open-file (ff "output.1.txt" :direction :input)
-	       (not (eq 'unsat (read-line ff))))))
+	       (not (string= "unsat" (read-line ff))))))
     (format t (if val "---SAT---~%" "---UNSAT---~%"))
     (force-output)
     (when (and val (eq smt-solver :z3))
