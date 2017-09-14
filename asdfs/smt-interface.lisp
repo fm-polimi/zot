@@ -59,7 +59,7 @@
 	  (ecase smt-solver
 		(:dReal 
 	     (format t "dReal...~% ")(force-output)
-	     (sb-ext:run-program "dReal" '("output.smt2" "--proof" "--model")
+	     (sb-ext:run-program "dReal" '("output.smt2" "--proof" "--model" "--multiheuristic")
 				 :input t :output "output.1.txt" :error t :search t :if-output-exists :supersede))	
 
 	    (:z3 
