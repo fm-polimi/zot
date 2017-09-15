@@ -1241,7 +1241,8 @@
 	(loop for i from 0 to (1- (kripke-k *PROPS*)) append    
 		(loop for interval-description in mtl-intervals 	    
 		append
-			(let ( (interval (first interval-description)) 
+			(let* ( (interval (first interval-description)) 
+					 (point (intern (concatenate 'string "P" (string-left-trim "H" (symbol-name interval)))))
 					 (signal (second interval-description))
 					 (relation (third interval-description))
 					 (constant (float (fourth interval-description)))
@@ -1250,6 +1251,10 @@
 				; formula is (x < c)
 				(if (eq relation '<) 
 					(list
+						; x<c <=> P_(x<c)
+						`(iff 
+							(< ,(call *PROPS* signal i signals) ,constant)
+							,(call *PROPS* point i))
 						; x>c /\ X(x>c) => not H_(x<c)
 						`(impl 
 							(and
@@ -1297,6 +1302,10 @@
 				; formula is (x > c)
 				(if (eq relation '>) 
 					(list
+						; x>c <=> P_(x>c)
+						`(iff 
+							(> ,(call *PROPS* signal i signals) ,constant)
+							,(call *PROPS* point i))
 						; x>c /\ X(x>c) => H_(x>c)
 						`(impl 
 							(and
@@ -1344,7 +1353,11 @@
 				; formula is (x = c)
 				(if (eq relation '=)
 					(list 
-						`(iff (= ,(call *PROPS* signal i signals) ,constant) ,(call *PROPS* (intern (concatenate 'string "P" (string-left-trim "H" (symbol-name interval)))) i)))
+						; x=c <=> P_(x=c)
+						`(iff 
+							(= ,(call *PROPS* signal i signals) ,constant)
+							,(call *PROPS* point i))
+						`(iff (= ,(call *PROPS* signal i signals) ,constant) ,(call *PROPS* point i)))
 					nil)
 
 			))))
