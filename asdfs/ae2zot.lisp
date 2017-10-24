@@ -1489,7 +1489,7 @@
 
 
 
-(defun gen-regions (bound discrete-regions parametric-regions discrete-counters signals)
+(defun gen-regions (bound discrete-regions parametric-regions discrete-counters signals no-periodic-regions)
 	(format t "Define regions")(force-output)
 
   (if (> bound 0)
@@ -1525,212 +1525,214 @@
 			   (loop for i from 1 to (1+ (kripke-k *PROPS*)) collect
 				 `(> (delta ,i) 0))) 
 
-		; no discrete regions
-		(if parametric-regions	
-		  (append	
-			 (loop 
-				with evaluated-clocks-list = (list)
-				for clock-x being the hash-keys of *arith-items*	
-			
-				when (not (member clock-x discrete-counters))
-				when (not (member clock-x signals))
-				do (setf evaluated-clocks-list (append evaluated-clocks-list (list clock-x)))
-
-				when (not (member clock-x discrete-counters))
-				when (not (member clock-x signals))
-				append
-					(let ((v (intern (format nil "(to_real zot-c_~S)" clock-x)))
-						   (v1 (intern (format nil "(+ (to_real zot-c_~S) 1.0)" clock-x))))
-				
-					(list 
-						`(or
-							(and
-								(or
-									(and (= ,(call *PROPS* clock-x (the-iloop)) ,v) (= ,(call *PROPS* clock-x (float (1+ (kripke-k *PROPS*)))) ,v))
-									(and
-											(< ,v ,(call *PROPS* clock-x (the-iloop)))
-											(< ,(call *PROPS* clock-x (the-iloop)) ,v1)
-
-											(< ,v ,(call *PROPS* clock-x (float (1+ (kripke-k *PROPS*)))))
-											(< ,(call *PROPS* clock-x (float (1+ (kripke-k *PROPS*)))) ,v1)))
-
-								(<= ,(float 0) ,v) 
-								(< ,v ,(float bound)))
-
-							(and (= ,(call *PROPS* clock-x (the-iloop)) ,(float bound)) (= ,(call *PROPS* clock-x (float (1+ (kripke-k *PROPS*)))) ,(float bound)))
-							(and 
-								(< ,(float bound) ,(call *PROPS* clock-x (the-iloop)))
-								(< ,(float bound) ,(call *PROPS* clock-x (float (1+ (kripke-k *PROPS*)))))))
-					
-						;define diagonal constraints
-						(cons 'and (cons 't
-							(loop
-								for clock-y being the hash-keys of *arith-items*
-								when (not (eq clock-y clock-x))
-								when (not (member clock-y evaluated-clocks-list))
-								when (not (member clock-y discrete-counters))
-								when (not (member clock-y signals))
-								collect
-									(let ( (h (intern (format nil "(to_real zot-c_~S)" clock-y))) )					  		
-
-											`(impl
-												(and (< ,(call *PROPS* clock-x (float (1+ (kripke-k *PROPS*)))) ,(float bound)) (< ,(call *PROPS* clock-y (float (1+ (kripke-k *PROPS*)))) ,(float bound)))
-												(or
-													(and 
-														(=
-															(- ,(call *PROPS* clock-x (the-iloop)) ,v) 
-															(- ,(call *PROPS* clock-y (the-iloop)) ,h))
-														(= 
-															(- ,(call *PROPS* clock-x (float (1+ (kripke-k *PROPS*)))) ,v)
-															(- ,(call *PROPS* clock-y (float (1+ (kripke-k *PROPS*)))) ,h)))
-
-													(and 
-														(< 
-															(- ,(call *PROPS* clock-x (the-iloop)) ,v) 
-															(- ,(call *PROPS* clock-y (the-iloop)) ,h))
-														(< 
-															(- ,(call *PROPS* clock-x (float (1+ (kripke-k *PROPS*)))) ,v)
-															(- ,(call *PROPS* clock-y (float (1+ (kripke-k *PROPS*)))) ,h)))
-
-													(and 
-														(< 
-															(- ,(call *PROPS* clock-y (the-iloop)) ,h) 
-															(- ,(call *PROPS* clock-x (the-iloop)) ,v))
-														(< 
-															(- ,(call *PROPS* clock-y (float (1+ (kripke-k *PROPS*)))) ,v)
-															(- ,(call *PROPS* clock-x (float (1+ (kripke-k *PROPS*)))) ,h))))))))) 
-
-
-
-					;define clocks behaviour
-					(cons 'and
-						; clock(i+1) = clock(i) + delta(i) forall i in [0,k]
-						(loop for i from 0 to (kripke-k *PROPS*) collect
-							`(or
-							   (= ,(call *PROPS* clock-x (float (1+ i))) ,(float 0))
-							   (= ,(call *PROPS* clock-x (float (1+ i))) (+ ,(call *PROPS* clock-x (float i)) (delta ,(float i)))))))))
-
-					)
-
-					; zot-delta is always positive
-			 		(loop for i from 0 to (1+ (kripke-k *PROPS*)) collect
-						`(> (delta ,(float i)) ,(float 0)))) 
- 
-
-			  
-			  		
-
-			; no parametric regions
+		
+		; else there are no discrete clocks
+		(if no-periodic-regions
+		; if no-parametric-regions then create only increment constraints and no periodicity formulae on regions 
 			(append
-			  (loop for clock-x being the hash-keys of *arith-items*
+				(loop for clock-x being the hash-keys of *arith-items*
 				using (hash-value value)
 				when (not (member clock-x discrete-counters))
 				when (not (member clock-x signals))
 				append
-				(nconc 
+					(nconc
+					  ; define clocks behaviour
+						(loop for i from 1 to (kripke-k *PROPS*) collect
+							`(or
+								(= ,(call *PROPS* clock-x (float (1+ i))) ,(float 0))
+								(= ,(call *PROPS* clock-x (float (1+ i))) (+ ,(call *PROPS* clock-x (float i)) (delta ,(float i))))))
+							  
+						; zot-delta is always positive
+						(loop for i from 0 to (1+ (kripke-k *PROPS*)) collect
+							`(> (delta ,(float i)) ,(float 0))))))
+		; else
+			; if regions are parametric then create regions based on an existentially quantified constant
+			(if parametric-regions	
+			  (append	
+				 (loop 
+					with evaluated-clocks-list = (list)
+					for clock-x being the hash-keys of *arith-items*	
+			
+					when (not (member clock-x discrete-counters))
+					when (not (member clock-x signals))
+					do (setf evaluated-clocks-list (append evaluated-clocks-list (list clock-x)))
 
-				  ; Build tyhe periodicity of regions between (i_loop - 1) and K
-
-					(list `(iff (= ,(call *PROPS* clock-x `(- ,(the-iloop) ,(float 1))) ,(float 0)) (= ,(call *PROPS* clock-x (float (kripke-k *PROPS*))) ,(float 0))))
-					(list `(iff (< ,(call *PROPS* clock-x `(- ,(the-iloop) ,(float 1))) ,(float 0)) (< ,(call *PROPS* clock-x (float (kripke-k *PROPS*))) ,(float 0))))
-
-				  (loop for i from 1 to bound append
-					`(
-						(iff (= ,(call *PROPS* clock-x `(- ,(the-iloop) ,(float 1))) ,(float i)) (= ,(call *PROPS* clock-x (float (kripke-k *PROPS*))) ,(float i)))
-					   	(iff (< ,(call *PROPS* clock-x `(- ,(the-iloop) ,(float 1))) ,(float i)) (< ,(call *PROPS* clock-x (float (kripke-k *PROPS*))) ,(float i)))
-						(iff (< ,(float i) ,(call *PROPS* clock-x `(- ,(the-iloop) ,(float 1)))) (< ,(float i) ,(call *PROPS* clock-x (float (kripke-k *PROPS*)))))))
-					  
-
-					(loop for clock-y being the hash-keys of *arith-items*
-					using (hash-value value)
+					when (not (member clock-x discrete-counters))
+					when (not (member clock-x signals))
 					append
-						(loop for d from 0 to bound append
-							`(
-						   (iff 
-										(= ,(call *PROPS* clock-x `(- ,(the-iloop) ,(float 1))) (+ ,(call *PROPS* clock-y `(- ,(the-iloop) ,(float 1))) ,(float d))) 
-										(= ,(call *PROPS* clock-x (float (kripke-k *PROPS*))) (+ ,(call *PROPS* clock-y (float (kripke-k *PROPS*))) ,(float d))))
-						   (iff 
-										(= ,(call *PROPS* clock-y `(- ,(the-iloop) ,(float 1))) (+ ,(call *PROPS* clock-x `(- ,(the-iloop) ,(float 1))) ,(float d))) 
-										(= ,(call *PROPS* clock-y (float (kripke-k *PROPS*))) (+ ,(call *PROPS* clock-x (float (kripke-k *PROPS*))) ,(float d))))
-						   (iff 
-										(< ,(call *PROPS* clock-x `(- ,(the-iloop) ,(float 1))) (+ ,(call *PROPS* clock-y `(- ,(the-iloop) ,(float 1))) ,(float d))) 
-										(< ,(call *PROPS* clock-x (float (kripke-k *PROPS*))) (+ ,(call *PROPS* clock-y (float (kripke-k *PROPS*))) ,(float d))))
-						   (iff 
-										(< ,(call *PROPS* clock-y `(- ,(the-iloop) ,(float 1))) (+ ,(call *PROPS* clock-x `(- ,(the-iloop) ,(float 1))) ,(float d))) 
-										(< ,(call *PROPS* clock-y (float (kripke-k *PROPS*))) (+ ,(call *PROPS* clock-x (float (kripke-k *PROPS*))) ,(float d)))))))
+						(let ((v (intern (format nil "(to_real zot-c_~S)" clock-x)))
+								(v1 (intern (format nil "(+ (to_real zot-c_~S) 1.0)" clock-x))))
+				
+						(list 
+							`(or
+								(and
+									(or
+										(and (= ,(call *PROPS* clock-x (the-iloop)) ,v) (= ,(call *PROPS* clock-x (float (1+ (kripke-k *PROPS*)))) ,v))
+										(and
+												(< ,v ,(call *PROPS* clock-x (the-iloop)))
+												(< ,(call *PROPS* clock-x (the-iloop)) ,v1)
+
+												(< ,v ,(call *PROPS* clock-x (float (1+ (kripke-k *PROPS*)))))
+												(< ,(call *PROPS* clock-x (float (1+ (kripke-k *PROPS*)))) ,v1)))
+
+									(<= ,(float 0) ,v) 
+									(< ,v ,(float bound)))
+
+								(and (= ,(call *PROPS* clock-x (the-iloop)) ,(float bound)) (= ,(call *PROPS* clock-x (float (1+ (kripke-k *PROPS*)))) ,(float bound)))
+								(and 
+									(< ,(float bound) ,(call *PROPS* clock-x (the-iloop)))
+									(< ,(float bound) ,(call *PROPS* clock-x (float (1+ (kripke-k *PROPS*)))))))
+					
+							;define diagonal constraints
+							(cons 'and (cons 't
+								(loop
+									for clock-y being the hash-keys of *arith-items*
+									when (not (eq clock-y clock-x))
+									when (not (member clock-y evaluated-clocks-list))
+									when (not (member clock-y discrete-counters))
+									when (not (member clock-y signals))
+									collect
+										(let ( (h (intern (format nil "(to_real zot-c_~S)" clock-y))) )					  		
+
+												`(impl
+													(and (< ,(call *PROPS* clock-x (float (1+ (kripke-k *PROPS*)))) ,(float bound)) (< ,(call *PROPS* clock-y (float (1+ (kripke-k *PROPS*)))) ,(float bound)))
+													(or
+														(and 
+															(=
+																(- ,(call *PROPS* clock-x (the-iloop)) ,v) 
+																(- ,(call *PROPS* clock-y (the-iloop)) ,h))
+															(= 
+																(- ,(call *PROPS* clock-x (float (1+ (kripke-k *PROPS*)))) ,v)
+																(- ,(call *PROPS* clock-y (float (1+ (kripke-k *PROPS*)))) ,h)))
+
+														(and 
+															(< 
+																(- ,(call *PROPS* clock-x (the-iloop)) ,v) 
+																(- ,(call *PROPS* clock-y (the-iloop)) ,h))
+															(< 
+																(- ,(call *PROPS* clock-x (float (1+ (kripke-k *PROPS*)))) ,v)
+																(- ,(call *PROPS* clock-y (float (1+ (kripke-k *PROPS*)))) ,h)))
+
+														(and 
+															(< 
+																(- ,(call *PROPS* clock-y (the-iloop)) ,h) 
+																(- ,(call *PROPS* clock-x (the-iloop)) ,v))
+															(< 
+																(- ,(call *PROPS* clock-y (float (1+ (kripke-k *PROPS*)))) ,v)
+																(- ,(call *PROPS* clock-x (float (1+ (kripke-k *PROPS*)))) ,h))))))))) 
 
 
 
-				  ; Build tyhe periodicity of regions between i_loop and K+1
+						;define clocks behaviour
+						(cons 'and
+							; clock(i+1) = clock(i) + delta(i) forall i in [0,k]
+							(loop for i from 0 to (kripke-k *PROPS*) collect
+								`(or
+									(= ,(call *PROPS* clock-x (float (1+ i))) ,(float 0))
+									(= ,(call *PROPS* clock-x (float (1+ i))) (+ ,(call *PROPS* clock-x (float i)) (delta ,(float i)))))))))
 
-				#|	(list `(iff (= ,(call *PROPS* clock-x (the-iloop)) ,(float 0)) (= ,(call *PROPS* clock-x (float (1+ (kripke-k *PROPS*)))) ,(float 0))))
-					(list `(iff (< ,(call *PROPS* clock-x (the-iloop)) ,(float 0)) (< ,(call *PROPS* clock-x (float (1+ (kripke-k *PROPS*)))) ,(float 0))))
+						)
 
-				  (loop for i from 1 to bound append
-					`(
-							(iff (= ,(call *PROPS* clock-x (the-iloop)) ,(float i)) (= ,(call *PROPS* clock-x (float (1+ (kripke-k *PROPS*)))) ,(float i)))
-					   	(iff (< ,(call *PROPS* clock-x (the-iloop)) ,(float i)) (< ,(call *PROPS* clock-x (float (1+ (kripke-k *PROPS*)))) ,(float i)))
-							(iff (< ,(float i) ,(call *PROPS* clock-x (the-iloop))) (< ,(float i) ,(call *PROPS* clock-x (float (1+ (kripke-k *PROPS*))))))))  
+						; zot-delta is always positive
+				 		(loop for i from 0 to (1+ (kripke-k *PROPS*)) collect
+							`(> (delta ,(float i)) ,(float 0)))) 
+	 
 
-					(loop for clock-y being the hash-keys of *arith-items*
+				; else no parametric regions
+				(append
+				  (loop for clock-x being the hash-keys of *arith-items*
 					using (hash-value value)
-					when (not (member clock-y discrete-counters))
-					when (not (member clock-y signals))					
+					when (not (member clock-x discrete-counters))
+					when (not (member clock-x signals))
 					append
-						(loop for d from 0 to bound append
-							`(
-						   (iff 
-										(= ,(call *PROPS* clock-x (the-iloop)) (+ ,(call *PROPS* clock-y (the-iloop)) ,(float d))) 
-										(= ,(call *PROPS* clock-x (float (1+ (kripke-k *PROPS*)))) (+ ,(call *PROPS* clock-y (float (1+ (kripke-k *PROPS*)))) ,(float d))))
-						   (iff 
-										(= ,(call *PROPS* clock-y (the-iloop)) (+ ,(call *PROPS* clock-x (the-iloop)) ,(float d))) 
-										(= ,(call *PROPS* clock-y (float (1+ (kripke-k *PROPS*)))) (+ ,(call *PROPS* clock-x (float (1+ (kripke-k *PROPS*)))) ,(float d))))
-						   (iff 
-										(< ,(call *PROPS* clock-x (the-iloop)) (+ ,(call *PROPS* clock-y (the-iloop)) ,(float d))) 
-										(< ,(call *PROPS* clock-x (float (1+ (kripke-k *PROPS*)))) (+ ,(call *PROPS* clock-y (float (1+ (kripke-k *PROPS*)))) ,(float d))))
-						   (iff 
-										(< ,(call *PROPS* clock-y (the-iloop)) (+ ,(call *PROPS* clock-x (the-iloop)) ,(float d))) 
-										(< ,(call *PROPS* clock-y (float (1+ (kripke-k *PROPS*)))) (+ ,(call *PROPS* clock-x (float (1+ (kripke-k *PROPS*)))) ,(float d)))))))
+					(nconc 
 
-					|#
+					  ; Build tyhe periodicity of regions between (i_loop - 1) and K
+
+						(list `(iff (= ,(call *PROPS* clock-x `(- ,(the-iloop) ,(float 1))) ,(float 0)) (= ,(call *PROPS* clock-x (float (kripke-k *PROPS*))) ,(float 0))))
+						(list `(iff (< ,(call *PROPS* clock-x `(- ,(the-iloop) ,(float 1))) ,(float 0)) (< ,(call *PROPS* clock-x (float (kripke-k *PROPS*))) ,(float 0))))
+
+					  (loop for i from 1 to bound append
+						`(
+							(iff (= ,(call *PROPS* clock-x `(- ,(the-iloop) ,(float 1))) ,(float i)) (= ,(call *PROPS* clock-x (float (kripke-k *PROPS*))) ,(float i)))
+								(iff (< ,(call *PROPS* clock-x `(- ,(the-iloop) ,(float 1))) ,(float i)) (< ,(call *PROPS* clock-x (float (kripke-k *PROPS*))) ,(float i)))
+							(iff (< ,(float i) ,(call *PROPS* clock-x `(- ,(the-iloop) ,(float 1)))) (< ,(float i) ,(call *PROPS* clock-x (float (kripke-k *PROPS*)))))))
+						  
+
+						(loop for clock-y being the hash-keys of *arith-items*
+						using (hash-value value)
+						append
+							(loop for d from 0 to bound append
+								`(
+								(iff 
+											(= ,(call *PROPS* clock-x `(- ,(the-iloop) ,(float 1))) (+ ,(call *PROPS* clock-y `(- ,(the-iloop) ,(float 1))) ,(float d))) 
+											(= ,(call *PROPS* clock-x (float (kripke-k *PROPS*))) (+ ,(call *PROPS* clock-y (float (kripke-k *PROPS*))) ,(float d))))
+								(iff 
+											(= ,(call *PROPS* clock-y `(- ,(the-iloop) ,(float 1))) (+ ,(call *PROPS* clock-x `(- ,(the-iloop) ,(float 1))) ,(float d))) 
+											(= ,(call *PROPS* clock-y (float (kripke-k *PROPS*))) (+ ,(call *PROPS* clock-x (float (kripke-k *PROPS*))) ,(float d))))
+								(iff 
+											(< ,(call *PROPS* clock-x `(- ,(the-iloop) ,(float 1))) (+ ,(call *PROPS* clock-y `(- ,(the-iloop) ,(float 1))) ,(float d))) 
+											(< ,(call *PROPS* clock-x (float (kripke-k *PROPS*))) (+ ,(call *PROPS* clock-y (float (kripke-k *PROPS*))) ,(float d))))
+								(iff 
+											(< ,(call *PROPS* clock-y `(- ,(the-iloop) ,(float 1))) (+ ,(call *PROPS* clock-x `(- ,(the-iloop) ,(float 1))) ,(float d))) 
+											(< ,(call *PROPS* clock-y (float (kripke-k *PROPS*))) (+ ,(call *PROPS* clock-x (float (kripke-k *PROPS*))) ,(float d)))))))
+
+
+
+					  ; Build tyhe periodicity of regions between i_loop and K+1
+
+					#|	(list `(iff (= ,(call *PROPS* clock-x (the-iloop)) ,(float 0)) (= ,(call *PROPS* clock-x (float (1+ (kripke-k *PROPS*)))) ,(float 0))))
+						(list `(iff (< ,(call *PROPS* clock-x (the-iloop)) ,(float 0)) (< ,(call *PROPS* clock-x (float (1+ (kripke-k *PROPS*)))) ,(float 0))))
+
+					  (loop for i from 1 to bound append
+						`(
+								(iff (= ,(call *PROPS* clock-x (the-iloop)) ,(float i)) (= ,(call *PROPS* clock-x (float (1+ (kripke-k *PROPS*)))) ,(float i)))
+								(iff (< ,(call *PROPS* clock-x (the-iloop)) ,(float i)) (< ,(call *PROPS* clock-x (float (1+ (kripke-k *PROPS*)))) ,(float i)))
+								(iff (< ,(float i) ,(call *PROPS* clock-x (the-iloop))) (< ,(float i) ,(call *PROPS* clock-x (float (1+ (kripke-k *PROPS*))))))))  
+
+						(loop for clock-y being the hash-keys of *arith-items*
+						using (hash-value value)
+						when (not (member clock-y discrete-counters))
+						when (not (member clock-y signals))					
+						append
+							(loop for d from 0 to bound append
+								`(
+								(iff 
+											(= ,(call *PROPS* clock-x (the-iloop)) (+ ,(call *PROPS* clock-y (the-iloop)) ,(float d))) 
+											(= ,(call *PROPS* clock-x (float (1+ (kripke-k *PROPS*)))) (+ ,(call *PROPS* clock-y (float (1+ (kripke-k *PROPS*)))) ,(float d))))
+								(iff 
+											(= ,(call *PROPS* clock-y (the-iloop)) (+ ,(call *PROPS* clock-x (the-iloop)) ,(float d))) 
+											(= ,(call *PROPS* clock-y (float (1+ (kripke-k *PROPS*)))) (+ ,(call *PROPS* clock-x (float (1+ (kripke-k *PROPS*)))) ,(float d))))
+								(iff 
+											(< ,(call *PROPS* clock-x (the-iloop)) (+ ,(call *PROPS* clock-y (the-iloop)) ,(float d))) 
+											(< ,(call *PROPS* clock-x (float (1+ (kripke-k *PROPS*)))) (+ ,(call *PROPS* clock-y (float (1+ (kripke-k *PROPS*)))) ,(float d))))
+								(iff 
+											(< ,(call *PROPS* clock-y (the-iloop)) (+ ,(call *PROPS* clock-x (the-iloop)) ,(float d))) 
+											(< ,(call *PROPS* clock-y (float (1+ (kripke-k *PROPS*)))) (+ ,(call *PROPS* clock-x (float (1+ (kripke-k *PROPS*)))) ,(float d)))))))
+
+						|#
 				
 		
 
-				  ; define clocks behaviour
-				  (loop for i from 1 to (kripke-k *PROPS*) collect
-					`(or
-						   (= ,(call *PROPS* clock-x (float (1+ i))) ,(float 0))
-						   (= ,(call *PROPS* clock-x (float (1+ i))) (+ ,(call *PROPS* clock-x (float i)) (delta ,(float i))))))))
-			  
-			 	 ; zot-delta is always positive
-			 	 (loop for i from 1 to (1+ (kripke-k *PROPS*)) collect
-					`(> (delta ,(float i)) ,(float 0))))))
-
-	(if (= bound 0)
-		; if bound == 0 then create only increment constraints and no periodicity formulae on regions 
-		(append
-			(loop for clock-x being the hash-keys of *arith-items*
-			using (hash-value value)
-			when (not (member clock-x discrete-counters))
-			when (not (member clock-x signals))
-			append
-				(nconc
-				  ; define clocks behaviour
-					(loop for i from 1 to (kripke-k *PROPS*) collect
+					  ; define clocks behaviour
+					  (loop for i from 1 to (kripke-k *PROPS*) collect
 						`(or
-							(= ,(call *PROPS* clock-x (float (1+ i))) ,(float 0))
-							(= ,(call *PROPS* clock-x (float (1+ i))) (+ ,(call *PROPS* clock-x (float i)) (delta ,(float i))))))
-						  
-					; zot-delta is always positive
-					(loop for i from 0 to (1+ (kripke-k *PROPS*)) collect
-						`(> (delta ,(float i)) ,(float 0)))))))
+								(= ,(call *PROPS* clock-x (float (1+ i))) ,(float 0))
+								(= ,(call *PROPS* clock-x (float (1+ i))) (+ ,(call *PROPS* clock-x (float i)) (delta ,(float i))))))))
+				  
+				 	 ; zot-delta is always positive
+				 	 (loop for i from 1 to (1+ (kripke-k *PROPS*)) collect
+						`(> (delta ,(float i)) ,(float 0)))) ) )
 
-))
+		; else bound <= 0 then all arithmetical items are considered as discrete or dense counters
+		)
+	)
+)
 
 
 
 
-(defun the-big-formula (fma loop-free no-loop periodic-arith-terms gen-symbolic-val ipc-constraints bound discrete-regions parametric-regions discrete-counters signals)      
+(defun the-big-formula (fma loop-free no-loop periodic-arith-terms gen-symbolic-val ipc-constraints bound discrete-regions parametric-regions discrete-counters signals no-periodic-regions)      
   (cons
    (if (temp-fmlap fma)
        (call *PROPS* (cadr fma) 1)
@@ -1773,7 +1775,7 @@
 			(gen-existence-condition ipc-constraints)
 			(gen-periodic-arith-terms periodic-arith-terms)
 			(stabilize-constants) 
-			(gen-regions bound discrete-regions parametric-regions discrete-counters signals)))))
+			(gen-regions bound discrete-regions parametric-regions discrete-counters signals no-periodic-regions)))))
 
 
 
@@ -1799,7 +1801,7 @@
 
 
 
-(defun build-smt-file (formula-structure smt-assumptions parametric-regions discrete-regions over-clocks ipc-constraints discrete-counters signals logic smt-dialect)
+(defun build-smt-file (formula-structure smt-assumptions parametric-regions discrete-regions over-clocks ipc-constraints discrete-counters signals logic smt-dialect no-periodic-regions)
 
   (with-open-file (k "./output.smt.txt" :direction :output :if-exists :supersede)  
 		(with-open-file (dict "./output.dict.txt" :direction :output :if-exists :supersede)
@@ -1927,7 +1929,7 @@
 					 (format k ":extrapreds (( zot-tilde-lb_~s Int ))~%" term1))))
 			 
 		
-			 (if (>= over-clocks 0)
+			 (if (> over-clocks 0)
 				(case discrete-regions
 					((t) (case smt-dialect 
 								((:smt) (format k ":extrafuns (( delta Int Int ))~%"))
@@ -1978,6 +1980,7 @@
 			  (discrete-counters nil)
 			  (signals nil)
 			  (debug nil)
+			  (no-periodic-regions nil)
 		     )
 
 					;(setf *periodic-arith-vars* periodic-vars)
@@ -2041,7 +2044,8 @@
 							 discrete-regions
 							 parametric-regions
 							 discrete-counters
-							 signals))
+							 signals
+							 no-periodic-regions))
 				      (if (and trans negate-transitions)
 					    (deneg (list (list 'not (cons 'and trans))))
 					    (deneg trans)))
@@ -2055,7 +2059,7 @@
     	  			(format t "~%Formula:~%~a"  (kripke-formula *PROPS*))
 		  			(format t "~%Input Formula:~%~a" formula)))
 		  
-		  (build-smt-file *PROPS* smt-assumptions parametric-regions discrete-regions over-clocks ipc-constraints discrete-counters signals logic smt-lib)
+		  (build-smt-file *PROPS* smt-assumptions parametric-regions discrete-regions over-clocks ipc-constraints discrete-counters signals logic smt-lib no-periodic-regions)
 				    
 		  (to-smt-and-back *PROPS* smt-solver :smt-lib smt-lib))))))))
 
