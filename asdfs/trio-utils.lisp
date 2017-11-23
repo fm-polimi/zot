@@ -1030,33 +1030,38 @@
 	(unless (< cur 0)
 		(let ((cur1 0)(cur2 0))
 
-			; if cur=0 
+			; if cur = 0 
 			(if (= cur 0)
 
-				; then check immediately if |domain| is even or odd and set bit 0 accordingly
+				; then check immediately if |domain|-1 (the last element in the set) is even or odd and set bit 0 accordingly
 				(if (eql (mod (1- len) 2) 1)
 					't
 					(list 'not (pred varname 0)))
+				
+				; else cur > 0
+				(if (and (eql (mod (1- (+ (1- len) (expt 2 (1+ cur)))) 2) 0) (< (expt 2 (1+ cur)) (1- len)) )
+					; check 
+					't
 
-				; otherwise go on and check the bits from cur until 0
-				(-> 
-					(append '(and) 
-						(loop 
-							for i = cur then (1- i)
-							until (or (eql (mod (floor (1- len) (expt 2 i)) 2) 0) (< i 0))
-							do (setf cur1 i)
-							collect (pred varname i)))
+					; otherwise go on and check the bits from cur until 0
+					(-> 
+						(append '(and) 
+							(loop 
+								for i = cur then (1- i)
+								until (or (eql (mod (floor (1- len) (expt 2 i)) 2) 0) (< i 0))
+								do (setf cur1 i)
+								collect (pred varname i)))
 
-					(append '(and) 
-						(loop 
-							for i = (1- cur1) then (1- i)
-							until (or (eql (mod (floor (1- len) (expt 2 i)) 2) 1) (< i 0)) 
-							collect
-								(progn
-									(setf cur2 i)
-									(list 'not (pred varname i))))
-			  			(when (> cur2 0)
-							(list (item-constraints varname len (1- cur2))))))))))
+						(append '(and) 
+							(loop 
+								for i = (1- cur1) then (1- i)
+								until (or (eql (mod (floor (1- len) (expt 2 i)) 2) 1) (< i 0)) 
+								collect
+									(progn
+										(setf cur2 i)
+										(list 'not (pred varname i))))
+				  			(when (> cur2 0)
+								(list (item-constraints varname len (1- cur2)))))))))))
 
 
 ;;-----------------------------------------------------------------------

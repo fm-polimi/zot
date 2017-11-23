@@ -1953,7 +1953,67 @@
 				((:smt2)
 					(progn
 						(format k ")") 
-			 			(format k "(check-sat) (get-model)") ) ) ) ) ) )
+			 			(format k "(check-sat-using (then elim-uncnstr													  
+																	(using-params qflra 
+																			 :arith.branch_cut_ratio 10				; ***
+																			 :arith.dump_lemmas false
+																			 :arith.euclidean_solver true				; ***
+																			 :arith.greatest_error_pivot true		; ***
+																			 :arith.ignore_int false					
+																			 :arith.int_eq_branch true					; ***
+																			 :arith.nl false								; ***
+																			 :arith.nl.branching true
+																			 :arith.nl.gb true
+																			 :arith.nl.rounds 1024
+																			 :arith.propagate_eqs false				; ***
+																			 :arith.propagation_mode 2
+																			 :arith.random_initial_value false
+																			 :arith.solver 2
+																			 :array.extensional false					; ***
+																			 :array.weak false
+																			 :auto_config false							; ***
+																			 :bv.enable_int2bv false					; ***
+																			 :bv.reflect false							; ***
+																			 :candidate_models false
+																			 :case_split 0									; ***
+																			 :dack 1											; ***
+																			 :dack.eq false
+																			 :dack.factor 0.1
+																			 :dack.gc 2000
+																			 :dack.gc_inv_decay 0.8
+																			 :dack.threshold 10
+																			 :delay_units false
+																			 :delay_units_threshold 32
+																			 :ematching false								; ***
+																			 :fail_if_inconclusive true
+																			 :macro_finder false
+																			 :mbqi false									; ***
+																			 :mbqi.force_template 10
+																			 :mbqi.max_cexs 1
+																			 :mbqi.max_cexs_incr 0
+																			 :mbqi.max_iterations 1000
+																			 :mbqi.trace false
+																			 :pb.conflict_frequency 1000
+																			 :pb.enable_compilation true
+																			 :pb.enable_simplex true					; ***
+																			 :pb.learn_complements true
+																			 :phase_selection 3							
+																			 :pull_nested_quantifiers false
+																			 :qi.eager_threshold 10.0
+																			 :qi.lazy_threshold 20.0
+																			 :qi.max_instances 4294967295
+																			 :qi.max_multi_patterns 0
+																			 :qi.profile false
+																			 :qi.profile_freq 4294967295
+																			 :random_seed 0
+																			 :refine_inj_axioms true
+																			 :relevancy 2
+																			 :restart_factor 1.1
+																			 :restart_strategy 1
+																			 :timeout 0
+																		)
+
+										) ) (get-model)") ) ) ) ) ) )
 
 
 
