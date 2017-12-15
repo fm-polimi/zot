@@ -2050,6 +2050,7 @@
   (setf *real-constants* t))
   (setf *metric-operators* nil)
   (setf *format-smt* t)
+  (setf *smt-native-impl* t)
   
   ;***************************************
   ;set the global list of dicrete counters - use when over-clocks flag is active
