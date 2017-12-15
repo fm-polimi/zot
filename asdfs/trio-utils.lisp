@@ -144,6 +144,7 @@
     :*items*
     :*arith-items*
     :*format-smt*
+    :*smt-native-impl*
     ; -- SOLOIST operators --
     :until-sol
     :next-sol
@@ -178,6 +179,7 @@
 (defvar *smt-metric-past-operators* nil)
 (defvar *format-smt* nil)
 (defvar *bitvector* nil)
+(defvar *smt-native-impl* nil)
 
 
 ; *zot-item-constraints* will contain exclusive constraints for defined items
@@ -470,7 +472,7 @@
     (t
       (case (car f)
 	((impl)
-	 (if *format-smt*
+	 (if *smt-native-impl*
 		(let ((x (trio-to-ltl (second f))) (y (trio-to-ltl (third f))))
 			`(impl ,x ,y))
 	 	`(or ,(trio-to-ltl `(not ,(second f))) ,(trio-to-ltl (third f)))))
@@ -1117,6 +1119,10 @@
 							 		(if (eql (mod (floor (position ,the-val ,domain) (expt 2 i)) 2) 0)
 						 				(list 'not (-P- ,varname i))
 						 				(-P- ,varname i)))))
+
+				; ------------------------------------------------------------------------------------------
+				; REMARK: the following two functions are available only for plugins managing iff operator ;
+				; ------------------------------------------------------------------------------------------
 
 				; define the helper function <item>
 				; the function builds constraints of the form (item_i <=> (next item_i)) to enforce equality of all the digits 
