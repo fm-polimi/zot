@@ -145,10 +145,6 @@
 	    (the-arith-arith-ops :accessor kripke-timed-terms :type list)
 	    (the-atomic-formulae :accessor kripke-atomic-formulae :type list)
 	    (the-arith-constants :accessor kripke-constants :type list)
-	    (the-arith-IPC-vars :accessor kripke-IPC-vars :type list)    
-	    (the-arith-IPC-constraints :accessor kripke-IPC-constraints :type list)	
-	    (the-arith-related-IPC-terms :accessor kripke-related-IPC-terms :type list)
-	    (the-arith-related-IPC-vars :accessor kripke-related-IPC-vars :type list)
 	    (the-max-X :accessor kripke-max-X :type number)
 	    (the-max-Y :accessor kripke-max-Y :type number)
 	    (the-additional-timed-arith-terms :accessor kripke-additional-timed-arith-terms :type list)
@@ -180,10 +176,6 @@
 		  (kripke-arith-futr a-kripke)   nil
 		  (kripke-arith-past a-kripke)   nil
 		  (kripke-constants a-kripke)  nil
-		  (kripke-related-IPC-terms a-kripke) nil 
-		  (kripke-related-IPC-vars a-kripke) nil 
-		  (kripke-IPC-vars a-kripke) nil
-		  (kripke-IPC-constraints a-kripke) nil
 		  (kripke-max-X a-kripke) 0
 		  (kripke-max-Y a-kripke) 0
 		  (kripke-additional-timed-arith-terms a-kripke) nil
@@ -199,7 +191,6 @@
 					; *** processing LTL atomic formulae *** 
 		      (manage-atomic-LTL-subfmla (fm) 
 
-					; put in kripke-IPC-vars (timed and untimed) all the arithmetical variables involved
 			    (when (eq (get-item-sort (arith-itemp fm)) 'uf)
 			     	   (setf (gethash fm (kripke-untimed-arith a-kripke)) fm))
 
@@ -317,10 +308,6 @@
 			      (case (car fm)
 				    ((and or not iff) 
 					  (push fm (kripke-bool a-kripke)))
-				    ((< = > >= <=) ; if fm is a interpreted RELATION 
-					  (progn
-						(push fm (kripke-atomic-formulae a-kripke))
-						(push fm (kripke-IPC-constraints a-kripke))))
 				    ((next until release futr lasts withinf alw alwf som somf) 
 					  (push fm (kripke-futr a-kripke)))
 				    ((yesterday zeta since trigger past Zpast lasted Zlasted withinp Zwithinp alw alwp som somp)
@@ -368,147 +355,11 @@
 				    ;; 	  (push fm (kripke-arith-futr a-kripke)))
 				    ;; ((yesterday past Zpast lasted Zlasted withinp Zwithinp)
 				    ;; 	  (push fm (kripke-arith-past a-kripke)))
-				    ((+ - * / mod)
-					  (push fm (kripke-untimed-arith-terms a-kripke)))
+				    
 				    (t
 					  (error "arithmetic subformulae: unknown op ~S~%" fm))))) 
 	      (kripke-untimed-arith a-kripke))
-	    
-					; *** obtain the partition of terms induced by IPC relations in the formula ***
-					
-	    (labels (
-		      (is-within (var term) 
-			    (if (consp term)
-				  (is-within var (cadr term))
-				  (eq var term)))
-		      
-		      (var-of-term (term) 
-			    (if (consp term)
-				  (var-of-term (cadr term))
-				  term))
-		      
-		      (is-within-IPC-constr (tm term)
-			    (or (equal tm (second term)) (equal tm (third term))))
-
-		      (set-intersection (a b)
-			    (remove nil (mapcan #'(lambda(x) 
-							(remove nil (loop for el in b collect
-									   (if (equal x el) x))))
-					      a)))
-		      )
-	
-					; now set some useful sets
-	      (let* ( (IPC-terms 
-			    (remove-duplicates (loop for el in (kripke-IPC-constraints a-kripke) append (cdr el))				      
-			    :test #'equal))		      				
-				 ; IPC-terms does not contain the starting variable
-			 (IPC-constraints (kripke-IPC-constraints a-kripke))
-			 (cur-partition nil)
-			 (cur-term nil))
-	
-		    (format t "IPC-terms: ~s~%" IPC-terms)
-		    (format t "IPC-constraints: ~s~%" IPC-constraints)
-		    (loop 
-			  while IPC-terms do
-					; chose a new variable from IPC-terms to start a new partition
-			  (push (first IPC-terms) cur-partition)			  
-			  (setf cur-term (first IPC-terms))
-			  (loop 
-					; chose a new variable from the current partition
-				while cur-term do
-					; update IPC-constraints (visited constr are removed)
-				(setf IPC-constraints
-				      (remove-if #'(lambda(x) (is-within-IPC-constr cur-term x))
-					    (mapc #'(lambda(x)
-							  (let ( (A (second x))
-								   (B (third x)))
-								(cond 
-								      ((equal cur-term A) (push B cur-partition))
-								      ((equal cur-term B) (push A cur-partition)))))
-						  IPC-constraints)))
-
-					; remove the current variable from set IPC-terms
-				(setf IPC-terms (remove cur-term IPC-terms))			       
-				(setf cur-term (first (set-intersection IPC-terms cur-partition))))
-
-					; put the partition into the set of partitions
-			  (if cur-partition
-				(push cur-partition (kripke-related-IPC-terms a-kripke)))
-					; reset the current partition to nil...start a new discovery
-			  (setf cur-partition nil))
-
-					; ** get the partition of the set of variables **
-					; from the set of related terms visit all partition and get for each term the variable
-					; remove also singleton - i.e., terms not directly connected to any other term
-		    (setf (kripke-related-IPC-vars a-kripke)
-				(mapcar #'(lambda(x)
-						(remove-duplicates (mapcar #'var-of-term x)))
-				      (kripke-related-IPC-terms a-kripke)))
-			  )
-	      ; *** complete arithmetical data structures by adding all terms (Xy/Yx) which are not defined in the formula. This is done to define correctly LoopConstraints.
-	      (labels(       
-			  (max-term-deep (term)
-				      (if (consp term)
-					    (+ 1 (max-term-deep (cadr term)))
-					    0))  
-			   (get-X-term (term i)
-				 (if (> i 0)
-				       (list 'next (get-X-term term (1- i)))
-				       term))
-
-			   (get-Y-term (term i)
-				 (if (> i 0)
-				       (list 'yesterday (get-Y-term term (1- i)))
-				       term))
-			   )
-
-		    (let (
-			       (list-deep-futr (mapcar #'max-term-deep (kripke-arith-futr a-kripke)))
-			       (list-deep-past (mapcar #'max-term-deep (kripke-arith-past a-kripke)))
-			       )
-
-
-			  		; compute the maximum nesting of X/Y over terms
-			  (setf (kripke-max-X a-kripke) (reduce #'max (if list-deep-futr
-						     list-deep-futr '(0))))
-			  (setf (kripke-max-Y a-kripke) (reduce #'max (if list-deep-past
-						     list-deep-past '(0))))
-
-					; for all variables z complete the set of terms Xz/Yz
-			  (loop for term in (kripke-timed-arith-terms a-kripke) do
-				(loop for i from 1 to (kripke-max-X a-kripke)
-				      do
-				      (let ((tm (get-X-term term i))) 
-					; if the new term has not been already included, then put it!
-					    (if (null (gethash tm (kripke-timed-arith a-kripke)))
-						  (progn 
-							(setf (gethash tm (kripke-timed-arith a-kripke)) 
-							      (intern (format nil "ZOT-A~s" (incf (kripke-numvar a-kripke)))))
-					; store the term fm in the list of additional terms
-							(push tm (kripke-additional-timed-arith-terms a-kripke))
-							(push tm (kripke-arith-futr a-kripke))))))
-					    
-				
-				(loop for i from 1 to (kripke-max-Y a-kripke)
-				      do
-				      (let ((tm (get-Y-term term i)))
-					; if the new term has not been already included, then put it!
-					    (if (null (gethash tm (kripke-timed-arith a-kripke)))
-						  (progn
-							(setf (gethash tm (kripke-timed-arith a-kripke)) 
-							      (intern (format nil "ZOT-A~s" (incf (kripke-numvar a-kripke)))))
-						  ; store the term fm in the list of additional terms
-							(push tm (kripke-additional-timed-arith-terms a-kripke))
-							(push tm (kripke-arith-past a-kripke)))))))))
-			   
-	    )a-kripke
-		; (setf (kripke-allsubf a-kripke) ());(kripke-allsubf a-kripke)))
-				;*****
-		
-)
-		
-
-)
+	    a-kripke))
 
 (defmethod call ((kk sbvzot-kripke) obj the-time &rest other)
       (cond 
@@ -753,18 +604,6 @@
 	    ((trigger)
 			(list 'trigger (first (call *PROPS* fma 0)) (first (call *PROPS* (second fma) 0)) (first (call *PROPS* (third fma) 0)))))))
 
-(defun the-big-formula (fma periodic-arith-terms ipc-constraints bound)
-  (append
-   (nconc	   
-	(gen-arith-futr) ;e.g. [X(i1)]0 <-> [i1]1 
-	(gen-arith-past)
-	(gen-arith-constraints)
-	(gen-futr) ;defines behavior of future temporal operators. 
-	(gen-bool)
-	(gen-past2)
-	(gen-regions bound)
-	)))
-
 (defun manage-transitions (trans the-k)
   (labels ((call-recur (f i)
 		       (cond
@@ -868,7 +707,6 @@
 		     (smt-declarations nil)
 		     (with-time t)
 		     (periodic-terms nil)	
-		     (ipc-constraints nil)
 		     (smt-lib :smt2)
 		     (over-clocks 0)
 		     (smt-metric-futr nil)
@@ -902,39 +740,15 @@
 	(progn 
 	  (format t "~%1. processing formula")
 	  (time (progn
-		  (format t "~%Used boolean propositions: ~%~S~%" (kripke-atomic-formulae *PROPS*))
-		  (format t "~%Used arithmetic terms: ~%~S~%" (kripke-IPC-vars *PROPS*))
-		  (format t "~%Used timed arithmetic terms: ~%~S~%" (kripke-timed-arith-terms *PROPS*))
-		  (format t "~%Graph dependency over terms ~%~s~%" (kripke-related-IPC-terms *PROPS*))
-		  (format t "~%Related variables ~%~s~%" (kripke-related-IPC-vars *PROPS*))
+		  ; (format t "~%Used boolean propositions: ~%~S~%" (kripke-atomic-formulae *PROPS*))
 		  (format t "~%Time bound: ~S~%" the-time)
-		  (format t "~%Number of atomic propositions: ~%~S~%"(- (length (kripke-atomic-formulae *PROPS*)) (length (kripke-IPC-constraints *PROPS*))))
 		  (let ((trans (if transitions 
 				   (manage-transitions transitions the-time) 
-				 '(true))))
-		    (setf (kripke-formula *PROPS*)
-			  (to-smt-dialect 
-				(nconc (list 'and)						 
-				      ; (when *zot-item-constraints*
-				      ; 	    (manage-transitions (list *zot-item-constraints*) 
-				      ; 		  (1+ the-time)))
-				      
-				      (trio-to-ltl (the-big-formula 
-							 (if (eq with-time t)
-							       (with-time formula) 
-							       formula) 
-							 periodic-terms
-							 ipc-constraints
-							 over-clocks
-							 ))
-				      (if (and trans negate-transitions)
-					    (list (list 'not (cons 'and trans)))
-					    trans))
-				smt-lib (+ the-time 2))))
+				 '(true)))))
 		  
 		  (format t "~%done processing formula~%")		  
 		  (with-open-file (k "./output.smt.txt" :direction :output :if-exists :supersede)    ;write the smt file
-			(with-open-file (dict "./output.dict.txt" :direction :output :if-exists :supersede)
+			; (with-open-file (dict "./output.dict.txt" :direction :output :if-exists :supersede)
 				  (let (  (*print-case* :downcase)
 					     (*print-pretty* nil)
 					  (time-domain (if (or (eq logic :QF_UFRDL) (eq logic :QF_UFLRA))
@@ -942,7 +756,7 @@
 							 *int*)))
 				  (setq bvSize (+ the-time 2))
 
-		(format k "(set-logic QF_BV)")
+		(format k "(set-logic QF_UFBV)")
 		(when (not loop-free) 
 			(format k "~%(declare-fun i_loop () (_ BitVec ~A))" bvSize)
 			(format k "~%(declare-fun zot-in_loop () (_ BitVec ~A))" bvSize)
@@ -1027,7 +841,7 @@
 		(format k ";;;;;;Used propositions:~%")
 					;write all the propositional items
 				    (maphash (lambda (key v)
-						   (format dict "~s -> ~s~%" v key)
+						   ; (format dict "~s -> ~s~%" v key)
 					       (if (consp key) 
 						   (case (car key)
 							(t
@@ -1098,17 +912,17 @@
 					(format k (concatenate 'string ":assumption " smt-assumptions "~%"))))
 				
 				
-			    (when (> (length (gen-futr)) 0)
+			    (when (> (length (kripke-futr *PROPS*)) 0)
 			    	(format k "(assert ")
 				    (let ((*print-pretty* nil))
 					  (write (append '(and) (gen-futr)) :stream k :escape nil :case :downcase))
 				    (format k ")~%"))
-			    (when (> (length (gen-past2)) 0)
+			    (when (> (length (kripke-past *PROPS*)) 0)
 			    	(format k "(assert ")
 				    (let ((*print-pretty* nil))
 					  (write (append '(and) (gen-past2)) :stream k :escape nil :case :downcase))
 				    (format k ")~%"))
-			    (when (> (length (gen-bool)) 0)
+			    (when (> (length (kripke-bool *PROPS*)) 0)
 			    	(format k "(assert ")
 				    (let ((*print-pretty* nil))
 					  (write (append '(and) (gen-bool)) :stream k :escape nil :case :downcase))
@@ -1153,7 +967,8 @@
 				(format k "(check-sat-using (then elim-uncnstr ufbv-rewriter dt2bv simplify solve-eqs (! propagate-values :bv_le_extra true :blast_eq_value true :blast_eq_value true) (repeat bit-blast) (! sat :asymm_branch false :elim_blocked_clauses true :resolution false :scc false)) :print_model ~A)~%" (if getLFmodel "true" "false"))
 				(format k "(check-sat-using (then elim-uncnstr ufbv-rewriter dt2bv simplify solve-eqs (! propagate-values :bv_le_extra true :blast_eq_value true :blast_eq_value true) (repeat bit-blast) (! sat :asymm_branch false :elim_blocked_clauses true :resolution false :scc false)) :print_model true)~%"))
 
-			))
+			)
+;)
 
 			; (to-smt-and-back *PROPS* smt-solver :smt-lib :smt2 :arith-bitvector :t :loops :t)
 			; (to-smt-and-back *PROPS* smt-solver :smt-lib :smt2 :bitvector :t)
