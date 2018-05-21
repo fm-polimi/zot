@@ -1507,11 +1507,15 @@
 (defun gen-regions (bound discrete-regions parametric-regions discrete-counters signals no-periodic-regions)
 	(format t "Define regions")(force-output)
 
-  (if (> bound 0)
-	; ------------------------------------------------------------------------------
-	;TODO:for discrete regions there is no check for discrete-counters and signals |
-	; ------------------------------------------------------------------------------	
+  (if (>= bound 0)
+  
 	(if discrete-regions
+		; ------------------------------------------------------------------------------
+		;TODO: no check for discrete-counters and signals                              |
+		; ------------------------------------------------------------------------------	
+		; ------------------------------------------------------------------------------
+		;TODO: no delta=0 case                                                         |
+		; ------------------------------------------------------------------------------	
 		; discrete regions
 		(append
 			(loop for clock-x being the hash-keys of *arith-items*
@@ -1542,24 +1546,23 @@
 
 		
 		; else there are no discrete clocks
-		(if no-periodic-regions
-		; if no-parametric-regions then create only increment constraints and no periodicity formulae on regions 
+		(if (or no-periodic-regions (eq bound 0))
+		; if no-parametric-regions OR bound is null, then create only increment constraints and no periodicity formulae on regions 
 			(append
 				(loop for clock-x being the hash-keys of *arith-items*
 				using (hash-value value)
 				when (not (member clock-x discrete-counters))
 				when (not (member clock-x signals))
 				append
-					(nconc
 					  ; define clocks behaviour
 						(loop for i from 1 to (kripke-k *PROPS*) collect
 							`(or
 								(= ,(call *PROPS* clock-x (float (1+ i))) ,(float 0))
-								(= ,(call *PROPS* clock-x (float (1+ i))) (+ ,(call *PROPS* clock-x (float i)) (delta ,(float i))))))
+								(= ,(call *PROPS* clock-x (float (1+ i))) (+ ,(call *PROPS* clock-x (float i)) (delta ,(float i)))))))
 							  
-						; zot-delta is always positive
-						(loop for i from 0 to (1+ (kripke-k *PROPS*)) collect
-							`(> (delta ,(float i)) ,(float 0))))))
+				; zot-delta is always positive
+				(loop for i from 0 to (1+ (kripke-k *PROPS*)) collect
+					`(> (delta ,(float i)) ,(float 0))))
 		; else
 			; if regions are parametric then create regions based on an existentially quantified constant
 			(if parametric-regions	
@@ -1747,7 +1750,7 @@
 				 	 (loop for i from 1 to (1+ (kripke-k *PROPS*)) collect
 						`(> (delta ,(float i)) ,(float 0)))) ) )
 
-		; else bound <= 0 then all arithmetical items are considered as discrete or dense counters
+		; else bound < 0 then all arithmetical items are considered as discrete or dense counters
 		)
 	)
 )
@@ -1952,7 +1955,7 @@
 					 (format k ":extrapreds (( zot-tilde-lb_~s Int ))~%" term1))))
 			 
 		
-			 (if (> over-clocks 0)
+			 (if (>= over-clocks 0)
 				(case discrete-regions
 					((t) (case smt-dialect 
 								((:smt) (format k ":extrafuns (( delta Int Int ))~%"))
