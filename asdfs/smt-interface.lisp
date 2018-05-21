@@ -206,8 +206,12 @@
 						;(print (string-upcase item-id))
 						;(print (gethash (string-upcase item-id) *items*))
 						;(print e)
+						;(print val)
+						;(print (read-from-string val))
 						;(print item)
 						;(print item-id)
+						;(print (gethash (string-upcase item-id) *items*))
+						;(print (numberp (read-from-string val)))
 						;(print item-bit)	
 						(cond 
 							((string= item "loopex") (format t "**LOOP**~%"))
@@ -222,6 +226,7 @@
 																		(setf (gethash item-id *item-values*) 0) ) ) )
 																
 							((numberp (read-from-string val)) (format t "~a = ~a~%" item val) (format ff "~a = ~a~%" item val))
+							((and (consp (read-from-string val)) (numberp (cadr (read-from-string val)))) (format t "~a = ~a~%" item val) (format ff "~a = ~a~%" item val))
 							((string= val "true") (format t "~a~%" (string-upcase item)) (format ff "~a~%" (string-upcase item))) )
 					
 					finally
