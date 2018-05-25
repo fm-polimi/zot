@@ -1029,8 +1029,9 @@
 		    (if (not (member (second fma) discrete-counters))
 		    
 				; the argument of the formula is a clock
-					(if (or (eq i 0) (and (eq (first fma) '=) (eq (third fma) 0)))
-						; in the origin or for resets x=0, just output x_i ~ c
+					(if (or (eq i 0) ;(and (eq (first fma) '=) 
+							  (eq (third fma) 0)) ;)
+						; in the origin or for x ~ 0, just output x_i ~ c
 						(cons (car fma) (mapcar #'(lambda (x) (call *PROPS* x i))
 					   						(cdr fma)))
 					   ; otherwise, output x_(i-1) + delta_(i-1) ~ c
