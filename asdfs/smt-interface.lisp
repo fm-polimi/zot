@@ -214,7 +214,7 @@
 						;(print (numberp (read-from-string val)))
 						;(print item-bit)	
 						(cond 
-							((string= item "loopex") (format t "**LOOP**~%"))
+							((string= item "loopex") (format t "**LOOP**~%") (format ff "**LOOP**~%"))
 							((gethash (string-upcase item-id) *items*)	
 																(if (gethash item-id *item-values*)
 																	; then add the contribute 2^i to the current value
