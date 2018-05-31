@@ -1,0 +1,7 @@
+*.lisp~
+.gitignore
+
+/bin/start.lisp
+/bin/zot
+
+*~
