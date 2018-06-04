@@ -163,7 +163,7 @@
 						(t 
 							(let ( (varname (cut-name line) ) (defined-positions (list)) ) 
 								(loop
-									for i from 0 to (1+ k)  
+									for i from 0 to (1+ (1+ k))
 									for line = (read-line ff nil)
 									for elem = (if (search "ite" line) (get-values line) `(,(format nil "~a" -1) ,(string-trim " )" line))) 
 									for index = (floor (read-from-string (car elem)))
