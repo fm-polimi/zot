@@ -674,18 +674,40 @@
 		      ((zeta yesterday)
 		       (call *PROPS* (second fma) (1- i))))))))
 
-(defun gen-i-atomic-formulae (GSMT)
+(defun gen-i-atomic-formulae (GSMT discrete-counters)
+; assumption - formulae are of the form x ~ c or x ~ ...
+
   (format t "define for interpreted relations: <,>,=,<=,>= ~%")(force-output)
   (loop for i from 0 to (1+ (kripke-k *PROPS*)) append
 	(loop for fma in (kripke-atomic-formulae *PROPS*) 
 	      when (and (arith-cop fma) (not (and GSMT (member fma GSMT-reduction))))
 	      collect
 	      (list 'iff
-	    	(list '= (cons (list '_ 'extract i i) (call *PROPS* fma i)) (list '_ 'bv1 '1))
-		    (cons (car fma)	(list
-		    	(if (and (eq '(int) (int-or-real (second fma))) (eq '(real) (int-or-real (third fma)))) (list 'to_real (call *PROPS* (second fma) i)) (call *PROPS* (second fma) i))
-		    	(if (and (eq '(int) (int-or-real (third fma))) (eq '(real) (int-or-real (second fma)))) (list 'to_real (call *PROPS* (third fma) i)) (call *PROPS* (third fma) i))
-		    	))))))
+	    		(list '= (cons (list '_ 'extract i i) (call *PROPS* fma i)) (list '_ 'bv1 '1))
+		   
+				(if (not (member (second fma) discrete-counters))
+				 
+					; the argument of the formula is a clock
+						(if (or (eq i 0) ;(and (eq (first fma) '=) 
+								  (eq (third fma) 0)) ;)
+							; in the origin or for x ~ 0, just output x_i ~ c
+							(cons (car fma)	
+									(list
+						 				(if (and (eq '(int) (int-or-real (second fma))) (eq '(real) (int-or-real (third fma)))) (list 'to_real (call *PROPS* (second fma) i)) (call *PROPS* (second fma) i))
+						 				(if (and (eq '(int) (int-or-real (third fma))) (eq '(real) (int-or-real (second fma)))) (list 'to_real (call *PROPS* (third fma) i)) (call *PROPS* (third fma) i))))
+							; otherwise, output x_(i-1) + delta_(i-1) ~ c
+							(cons (car fma)	
+									(list
+						 				(if (and (eq '(int) (int-or-real (second fma))) (eq '(real) (int-or-real (third fma)))) (list 'to_real (call *PROPS* (second fma) i)) `(+ ,(call *PROPS* (second fma) (1- i)) (delta ,(1- i))))
+						 				(if (and (eq '(int) (int-or-real (third fma))) (eq '(real) (int-or-real (second fma)))) (list 'to_real (call *PROPS* (third fma) i)) (call *PROPS* (third fma) i)))))
+
+					; the argument is a generic counter					
+					(cons (car fma)	
+							(list
+				 				(if (and (eq '(int) (int-or-real (second fma))) (eq '(real) (int-or-real (third fma)))) (list 'to_real (call *PROPS* (second fma) i)) (call *PROPS* (second fma) i))
+				 				(if (and (eq '(int) (int-or-real (third fma))) (eq '(real) (int-or-real (second fma)))) (list 'to_real (call *PROPS* (third fma) i)) (call *PROPS* (third fma) i))
+				 	)))))))
+
 
 (defun gen-arith-constraints ()
   (format t "define FO terms for +,-,*,/,mod ~%")(force-output)
@@ -1340,7 +1362,7 @@
    (nconc
 	(gen-arith-futr) ;e.g. [X(i1)]0 <-> [i1]1
 	(gen-arith-past)
-	(gen-i-atomic-formulae GSMT) ;defines behavior of AP assigned to arithmetic operators.
+	(gen-i-atomic-formulae GSMT discrete-counters) ;defines behavior of AP assigned to arithmetic operators.
 	(gen-arith-constraints)
     (gen-periodic-arith-terms l-monotonic l-strictly-monotonic) ; ##NEW
 	(LoopConstraints gen-symbolic-val) ; ##NEW

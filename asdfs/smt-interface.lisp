@@ -57,6 +57,11 @@
 
   #+sbcl (time 
 	  (ecase smt-solver
+		(:dReal 
+	     (format t "dReal...~% ")(force-output)
+	     (sb-ext:run-program "dReal" '("output.smt2" "--proof" "--model")
+				 :input t :output "output.1.txt" :error t :search t :if-output-exists :supersede))	
+
 	    (:z3 
 	     (format t "z3...~% ")(force-output)
 	     (sb-ext:run-program "z3"
