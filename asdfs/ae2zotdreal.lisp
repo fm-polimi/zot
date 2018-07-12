@@ -56,7 +56,6 @@
 	   :cvc3
 	   :mathsat
 	   :z3
-		:dReal
 	   :QF_UFIDL
 	   :QF_UFRDL
 	   :QF_UFLIA
@@ -137,7 +136,7 @@
 
 
 (defun bool-fmlap (f) 
-  (and (consp f) (in (car f) '(not and or impl iff))))
+  (and (consp f) (in (car f) '(not and or))))
 
 
 (declaim (inline bool-itemp))
@@ -243,10 +242,7 @@
 				    ((:smt)
 					  `(iff ,(to-smt-dialect (second f) smt) ,(to-smt-dialect (third f) smt)))
 				    ((:smt2)
-					  ;`(= ,(to-smt-dialect (second f) smt) ,(to-smt-dialect (third f) smt)))
-						`(and
-							(=> ,(to-smt-dialect (second f) smt) ,(to-smt-dialect (third f) smt))
-							(=> ,(to-smt-dialect (third f) smt) ,(to-smt-dialect (second f) smt))) )
+					  `(= ,(to-smt-dialect (second f) smt) ,(to-smt-dialect (third f) smt)))
 				     (t
 					  `(and 
 						 (or ,(to-smt-dialect `(not ,(second f)) smt) ,(to-smt-dialect (third f) smt))
@@ -683,16 +679,11 @@
 					; the object han not been recognized...rise error!
 					;*************************************************
 			      ((and (null p) (null q)) 
-				    (if (eq (get-item-sort (arith-itemp obj)) 'timed)
-							(if (not (member obj (car other)))  
-								;if the item is a timed arithmetic term, so rise up an error!
-							  (error "During Call process, item ~s not found in formula~%~%HINT: maybe you are using some predicates in the 'transitions:' which is not used in the 'formula' section. To fix this problem let initialize these predicates with a fake value (maybe in the instant 0...)~%" obj)
-
-								;if the item is in other than treat it as a unary term
-								(intern (format nil "~a_~a" obj (floor the-time))) ) 
-
-						;otherwise it is a non-timed term, so give it back!
-				    	obj) )
+				    (if (eq (get-item-sort (arith-itemp obj)) 'timed) 
+					;if the item is a timed arithmetic term, so rise up an error!
+					  (error "During Call process, item ~s not found in formula~%~%HINT: maybe you are using some predicates in the 'transitions:' which is not used in the 'formula' section. To fix this problem let initialize these predicates with a fake value (maybe in the instant 0...)~%" obj))
+					;otherwise it is a non-timed term, so give it back!
+				    obj)
 					;************************
 					; if the object is a term
 					;************************
@@ -876,12 +867,13 @@
   (format t "define interpreted relations: <,>,=,<=,>= ~%")(force-output)
   (loop for i from 0 to (kripke-k *PROPS*) append
 	(loop for fma in (kripke-atomic-formulae *PROPS*) 
-			when (arith-cop fma)
+	      when (arith-cop fma)
 	      collect
 	      (list 'iff  
 		    (call *PROPS* fma i)  		    
-		    (cons (car fma) (mapcar #'(lambda (x) (call *PROPS* x i))
-					    						(cdr fma)))))))
+		    (cons (car fma) (mapcar #'(lambda (x)
+						(call *PROPS* x i))
+					    (cdr fma)))))))
 
 
 
@@ -914,7 +906,7 @@
 										     
 
 (defun gen-regions (bound discrete-regions parametric-regions discrete-counters signals)
-	(format t "define regions and behavior of clocks~%")(force-output)
+	(format t "Define regions")(force-output)
 
   (if (> bound 0)
 	; ------------------------------------------------------------------------------
@@ -1119,33 +1111,33 @@
 
 
 	; if bound == 0 then create only increment constraints and no periodicity formulae on regions 
-	(nconc
+	(append
 		(loop for clock-x being the hash-keys of *arith-items*
 		using (hash-value value)
 		when (not (member clock-x discrete-counters))
 		when (not (member clock-x signals))
 		append
+			(nconc
 			  ; define clocks behaviour
 				(loop for i from 0 to (1- (kripke-k *PROPS*))
 					collect
 					`(or
 						(= ,(call *PROPS* clock-x (float (1+ i))) ,(float 0))
-						(= ,(call *PROPS* clock-x (float (1+ i))) (+ ,(call *PROPS* clock-x (float i)) ,(intern (format nil "DELTA_~a" i)) )))))
+						(= ,(call *PROPS* clock-x (float (1+ i))) (+ ,(call *PROPS* clock-x (float i)) ,(intern (format nil "DELTA_~a" i)) ))))
 					  
 				; zot-delta is always positive
-		(loop for i from 0 to (kripke-k *PROPS*) collect
-			`(> ,(intern (format nil "DELTA_~a" i)) ,(float 0)))
-
-				;define NOW from the origin
-		(loop for i from 0 to (kripke-k *PROPS*) collect
-				`(= ,(intern (format nil "NOW_~a" i))
-					,(if (eq i 0)
-						(float 0) 
-					 	`(+ ,(intern (format nil "NOW_~a" (1- i))) ,(intern (format nil "DELTA_~a" (1- i))))))) )
+				(loop for i from 0 to (kripke-k *PROPS*) collect
+					`(> ,(intern (format nil "DELTA_~a" i)) ,(float 0))))))
 
 ))
 
+; NOT USED ANYMORE
 
+<<<<<<< Updated upstream
+
+
+(defun the-big-formula (fma loop-free no-loop periodic-arith-terms gen-symbolic-val ipc-constraints bound discrete-regions parametric-regions discrete-counters signals)      
+=======
 (defun gen-universal-constraints-on-signals (mtl-intervals signals)
 ;
 ; mtl-intervals must be a list of pairs (H_j fmla) where fmla is an atomic CLTLoc formula on a signal such as x>0
@@ -1236,7 +1228,7 @@
 
 
 
-(defun gen-interval-constraints-on-signals (mtl-intervals signals)
+(defun OLD_gen-interval-constraints-on-signals_OLD (mtl-intervals signals)
 ;
 ; mtl-intervals must be a list of pairs (H_j fmla) where fmla is an atomic CLTLoc formula on a signal such as x>0
 ;
@@ -1396,19 +1388,81 @@
 			))))
 )
 
-(defun gen-punctual-constraints-on-signals (mtl-intervals signals)
+
+(defun visit (f i signals)
+		(if (member f signals)
+			(intern (format nil " ~a_~a " f i))
+			(if (or (member f '(+ - * / ^)) (numberp f))
+				f
+				(mapcar #'(lambda(x) (visit x i signals)) (cdr f)) ) ) )
+				
+
+(defun gen-interval-constraints-on-signals (mtl-derivatives signals)
+;
+; mtl-intervals must be a list of pairs (H_j ~ f0 f1 ... fn) where 
+; - fi is the i-th derivative of the function associated with H_j
+; - ~ is the relation <, <= or = associated with H_j
+;
+; every function fi is a infix representation of a poly (+ (- (* 2 (^ x 2)) (- x)) 1)
+;
+	(format t "define designators -rest- on MTL signals ~%")(force-output)
+	(loop for i from 0 to (1- (kripke-k *PROPS*)) append    
+		(loop for interval-description in mtl-derivatives 	    
+		collect
+			(let* ( (interval (first interval-description))
+					  (relation (second interval-description))
+					  (function (third interval-description))
+					  (derivatives (cdddr interval-description))
+				   )
+			;(nconc
+				
+				(if (eq relation '<)
+					`(iff 
+							,(call *PROPS* interval i)
+							(and
+								(or 
+									(and (= ,(visit function i signals) 0) (> ,(visit (first derivatives) i signals) 0))  
+									(< ,(visit function i signals) 0))
+								(or 
+									(and (= ,(visit function (1+ i) signals) 0) (< ,(visit (first derivatives) (1+ i) signals) 0))  
+									(< ,(visit function (1+ i) signals) 0))
+								,(cons 'and
+									(loop for f in derivatives
+									collect 
+										`(or 
+											(and (>= ,(visit f i signals) 0) (>= ,(visit f (1+ i) signals) 0))
+											(and (<= ,(visit f i signals) 0) (<= ,(visit f (1+ i) signals) 0))) ) ) ) ) 
+											
+				(if (eq relation '=)
+					'true
+				
+				(if (eq relation '>)
+					'true
+					
+				(if (eq relation '<=)
+					'true
+					
+				(if (eq relation '>=)
+					'true							
+			
+		 ) ) ) )	) ) ) ) ) ;)
+								
+		
+			
+			
+
+(defun gen-punctual-constraints-on-signals (mtl-derivatives signals)
 ;
 ; mtl-intervals must be a list of pairs (H_j fmla) where fmla is an atomic CLTLoc formula on a signal such as x>0
 ;
 	(format t "define designators -first- on MTL signals ~%")(force-output)
 	(loop for i from 0 to (kripke-k *PROPS*) append    
-		(loop for interval-description in mtl-intervals 	    
+		(loop for interval-description in mtl-derivatives    
 		append
 			(let* ( (interval (first interval-description)) 
-					 (point (intern (concatenate 'string "P" (string-left-trim "H" (symbol-name interval)))))
-					 (signal (second interval-description))
-					 (relation (third interval-description))
-					 (constant (float (fourth interval-description)))
+					  (point (intern (concatenate 'string "P" (string-left-trim "H" (symbol-name interval)))))
+					  (signal (visit (third interval-description) i signals))
+					  (relation (second interval-description))
 				  )
 			(nconc
 
@@ -1416,21 +1470,21 @@
 				(if (eq relation '<)
 					(list 
 						; x<c <=> P_(x<c)
-						`(iff (< ,(call *PROPS* signal i signals) ,constant) ,(call *PROPS* point i)))
+						`(iff (< ,signal ,(float 0)) ,(call *PROPS* point i)))
 					nil)
 
 				; formula is (x > c)
 				(if (eq relation '>)
 					(list 
 						; x>c <=> P_(x>c)
-						`(iff (> ,(call *PROPS* signal i signals) ,constant) ,(call *PROPS* point i)))
+						`(iff (> ,signal ,(float 0)) ,(call *PROPS* point i)))
 					nil)
 
 				; formula is (x = c)
 				(if (eq relation '=)
 					(list 
 						; x=c <=> P_(x=c)
-						`(iff (= ,(call *PROPS* signal i signals) ,constant) ,(call *PROPS* point i)))
+						`(iff (= ,signal ,(float 0)) ,(call *PROPS* point i)))
 					nil)
 
 			))))
@@ -1462,6 +1516,13 @@
 						(> ,(call *PROPS* signal (1+ i) signals) ,constant))) ) ) ) ) )
 
 
+(defun list-of-signals-to-string (lst i)
+  (when lst
+    (concatenate 'string 
+		
+		(concatenate 'string (write-to-string (car lst)) (format nil "_~a " i)) 
+		
+		(list-of-signals-to-string (cdr lst) i))))
 
 
 (defun gen-integral-constraints-on-signals (init-signals signals flows)
@@ -1469,27 +1530,26 @@
 ; init-signals must be a list of pairs (signal_name value) 
 ;
 	(format t "define integrals on MTL signals ~%")(force-output)
-(nconc 
-	(loop for i from 0 to (kripke-k *PROPS*) append    
+	(nconc 
+		;(loop for i from 0 to (kripke-k *PROPS*) append    
 		(loop for init-descriptor in init-signals 	    
 		collect
 			(let ( (signal (first init-descriptor))
-				(init-value (second init-descriptor)) )
-				
-				(if (eq i 0)
-					`(= ,(intern (format nil "~a_~a" signal i)) ,init-value)
-					`(= ,(intern (format nil "~a_~a" signal i)) ,(intern (format nil "~a_~a_t" signal (1- i))) ) )))) 
+					 (init-value (second init-descriptor)) )
+			
+					`(= ,(intern (format nil "~a_~a" signal 0)) ,init-value) ) )
+					
 
-	(loop for i from 0 to (1- (kripke-k *PROPS*)) append    
-		(loop for signal-name in signals 	    
-		collect
-			`(= ,(intern (format nil "[~a_~a_t]" signal-name i)) (integral 0.0 ,(intern (format nil "now_~a" (1+ i))) ,(intern (format nil "[~a_0]" signal-name)) flow\_1)))))
-)
+		(loop for i from 0 to (1- (kripke-k *PROPS*))     
+			collect
+				`(= ,(intern (format nil "[~a]" (list-of-signals-to-string signals i))) 
+					 (integral 0.0 ,(intern (format nil "now_~a" (1+ i))) ,(intern (format nil "[~a]" (list-of-signals-to-string signals 0))) flow\_1)))))
 
 
 
 
-(defun the-big-formula (fma loop-free no-loop periodic-arith-terms gen-symbolic-val ipc-constraints bound discrete-regions parametric-regions discrete-counters signals mtl-intervals init-signals)      
+(defun the-big-formula (fma loop-free no-loop periodic-arith-terms gen-symbolic-val ipc-constraints bound discrete-regions parametric-regions discrete-counters signals mtl-intervals mtl-derivatives init-signals)      
+>>>>>>> Stashed changes
   (cons
    (if (temp-fmlap fma)
        (call *PROPS* (cadr fma) 1)
@@ -1514,13 +1574,17 @@
 			(gen-past1)
 			(gen-past2)	   
 			(gen-i-atomic-formulae)
+<<<<<<< Updated upstream
+			(gen-regions bound discrete-regions parametric-regions discrete-counters signals))))
+=======
 			(gen-regions bound discrete-regions parametric-regions discrete-counters signals)
-			(gen-universal-constraints-on-signals mtl-intervals signals)
-			(gen-interval-constraints-on-signals mtl-intervals signals)
-			(gen-punctual-constraints-on-signals mtl-intervals signals)
+			;(gen-universal-constraints-on-signals mtl-intervals signals)
+			(gen-punctual-constraints-on-signals mtl-derivatives signals)
 			(gen-integral-constraints-on-signals init-signals signals nil)	
-			(gen-integrity-constraints-on-signals mtl-intervals signals)
+			;(gen-integrity-constraints-on-signals mtl-intervals signals)
+			(gen-interval-constraints-on-signals mtl-derivatives signals)	
 		)))
+>>>>>>> Stashed changes
 
 
 (defun manage-transitions (trans the-k)
@@ -1545,12 +1609,30 @@
 
 
 
-(defun build-smt-file (formula-structure smt-assumptions parametric-regions discrete-regions over-clocks ipc-constraints discrete-counters signals logic smt-dialect flows)
+<<<<<<< Updated upstream
+(defun build-smt-file (formula-structure smt-assumptions parametric-regions discrete-regions over-clocks ipc-constraints discrete-counters signals logic smt-dialect)
 
-  (with-open-file (k "./output.smt2" :direction :output :if-exists :supersede)  
-	(with-open-file (dict "./output.dict.txt" :direction :output :if-exists :supersede)
+  (with-open-file (k "./output.smt.txt" :direction :output :if-exists :supersede)  
+		(with-open-file (dict "./output.dict.txt" :direction :output :if-exists :supersede)
+=======
+(defun build-smt-file (formula-structure smt-assumptions parametric-regions discrete-regions over-clocks ipc-constraints discrete-counters signals logic smt-dialect flows signals-bounds)
+>>>>>>> Stashed changes
 
-	(format k "(set-logic QF_NRA_ODE)~%")
+			(case smt-dialect
+			  	((:smt) (format k "(benchmark b~%"))
+				((:smt2) 't))		  
+			
+
+			(let ( (l (case logic
+			 				((:QF_UFIDL) "QF_IDL")
+			 				((:QF_UFRDL) "QF_RDL")
+			 				((:QF_UFLIA) "QF_LIA")
+			 				((:QF_LRA) "QF_LRA")
+			  				((:QF_AUFLIA) "QF_AUFLIA"))))
+
+			(case smt-dialect
+			  	((:smt) (format k ":logic ~a~%" l))
+				((:smt2) (format k "(set-logic ~a)~%" l))) )
 
 
 		  (let (  (*print-case* :downcase)
@@ -1585,12 +1667,12 @@
 							((:smt2) (loop for i from 0 to (kripke-k *PROPS*) do
 					   					(format k "(declare-fun ~s_~s ( ) Bool )~%" v i time-domain))))
 					(case key
-					  ((**LOOPEX**)) ;(case smt-dialect 
-					 		;				((:smt) (format k ":extrapreds (( ~s ))~%" v))
-					 		;				((:smt2) (format k "(declare-fun ~s () Bool )~%" v))))
-					  ((**I_LOOP**)) ;(case smt-dialect 
-					 		;				((:smt) (format k ":extrafuns (( ~s ~a ))~%" v time-domain))
-					 		;				((:smt2) (format k "(declare-fun ~s () ~a )~%" v time-domain))))
+					 ; ((**LOOPEX**) (case smt-dialect 
+					 ;						((:smt) (format k ":extrapreds (( ~s ))~%" v))
+					 ;						((:smt2) (format k "(declare-fun ~s () Bool )~%" v))))
+					 ; ((**I_LOOP**) (case smt-dialect 
+					 ;						((:smt) (format k ":extrafuns (( ~s ~a ))~%" v time-domain))
+					 ;						((:smt2) (format k "(declare-fun ~s () ~a )~%" v time-domain))))
 					  (t (case smt-dialect
 								((:smt) (format k ":extrapreds (( ~s ~a ))~%" v time-domain))
 								((:smt2) (loop for i from 0 to (kripke-k *PROPS*) do
@@ -1609,11 +1691,19 @@
 					 		((:smt)
 					 				(format k ":extrafuns (( ~s ~A ~A  ))~%" key time-d (string-trim "()" (format nil "~a" sig))))
 					 		((:smt2) 
+<<<<<<< Updated upstream
 									(loop for i from 0 to (kripke-k *PROPS*) do
+					 					(format k "(declare-fun ~s_~s ( ) ~A )~%" key i (string-trim "()" (format nil "~a" sig)))))))))
+=======
+									(loop for i from 0 to (kripke-k *PROPS*) 
+										when (not (member key signals))
+										do
 					 					(format k "(declare-fun ~s_~s ( ) ~A )~%" key i (string-trim "()" (format nil "~a" sig)))
-										(if (member key signals)
-											(format k "(declare-fun ~s_~s_t ( ) ~A )~%" key i (string-trim "()" (format nil "~a" sig))))))))))
+										;(if (member key signals)
+										;	(format k "(declare-fun ~s_~s_t ( ) ~A )~%" key i (string-trim "()" (format nil "~a" sig))))
+										))))))
 
+>>>>>>> Stashed changes
 				  *arith-items*)
 
 			#|
@@ -1676,11 +1766,27 @@
 			  		((nil) (case smt-dialect 
 								((:smt) (format k ":extrafuns (( delta Real Real ))~%"))
 								((:smt2) (loop for i from 0 to (kripke-k *PROPS*) do
-											;(format k "(declare-fun now_~s ( ) Real )~%" i)
-					   					(format k "(declare-fun delta_~s ( ) Real )~%" i)))))))
+					   						(format k "(declare-fun delta_~s ( ) Real )~%" i)))))))
 
 			 (if (not (null smt-assumptions))
+<<<<<<< Updated upstream
+				(format k (concatenate 'string ":assumption " smt-assumptions "~%")))
+		  
+=======
 				(format k (concatenate 'string "(assert " smt-assumptions ")~%")))
+
+
+
+			; ***********************
+			; print the signals     |
+			; ***********************
+			(if (and (not (null signals-bounds)) (not (null signals) ) )
+				(loop for s in signals 
+						for bounds in signals-bounds
+					do (format k "(declare-fun ~a ( ) Real [ ~a, ~a ])~%" s (float (first bounds)) (float (second bounds)) )
+					(loop for i from 0 to (kripke-k *PROPS*) 
+						;do (format k "(declare-fun ~s_~s_t ( ) Real [ ~a, ~a ] )~%" s i (float (first bounds)) (float (second bounds)) )
+						do (format k "(declare-fun ~s_~s ( ) Real [ ~a, ~a ] )~%" s i (float (first bounds)) (float (second bounds)) ) ) ) )
 
 
 			; ***********************
@@ -1689,14 +1795,12 @@
 			(if (not (null flows))
 				(loop for fl in flows do
 					(let ( (flow-name (first fl))
-						(flow-def (second fl)) 
-						(flow-varname (third fl)) )
-
-					(format k "(declare-fun ~a ( ) Real)~%" flow-varname )
-					(format k "(define-ode ~a ( ~a ) )~%" flow-name flow-def))))
+							 (flow-def (cdr fl)) 
+						  )
+					(format k "(define-ode ~a ~a)~%" flow-name flow-def))))
 	
-					
 
+>>>>>>> Stashed changes
 			; *******************
 			; print the formula |
 			; *******************
@@ -1708,8 +1812,8 @@
 				((:smt) (format k ")"))
 				((:smt2)
 					(progn
-						(format k ")~%") 
-			 			(format k "(check-sat)~%(exit)") ) ) ) ) ) )
+						(format k ")") 
+			 			(format k "(check-sat) (get-model)") ) ) ) ) ) )
 
      
 
@@ -1723,7 +1827,7 @@
 		     (transitions nil)
 		     (negate-transitions nil)
 		     (declarations nil)
-		     (smt-solver :dReal)
+		     (smt-solver :z3)
 		     (logic :QF_UFIDL)
 		     (smt-assumptions nil)
 		     (no-loop nil)
@@ -1737,15 +1841,21 @@
 			  (parametric-regions nil)
 			  (discrete-counters nil)
 			  (signals nil)
+<<<<<<< Updated upstream
+=======
+			  (signals-bounds nil)
 			  (mtl-intervals nil)
+			  (mtl-derivatives nil)
 			(init-signals nil)
 			(flows nil)
+>>>>>>> Stashed changes
 		     )
 
 					;(setf *periodic-arith-vars* periodic-vars)
   (setf *smt-metric-futr-operators* nil)
   (setf *smt-metric-past-operators* nil)
-  (setf *real-constants* 't)
+  (if (or (eq logic :QF_UFRDL)(eq logic :QF_UFLRA))
+  (setf *real-constants* t))
   (setf *metric-operators* nil)
   (setf *format-smt* t)
   
@@ -1766,7 +1876,7 @@
 				 formula)))
 
     (format t "This is SMT-Arithmetic-eeZot~%")    
-	
+
 
     (let ((undeclared (set-difference (kripke-atomic-formulae *PROPS*) declarations)))
       (if (and declarations undeclared)
@@ -1792,9 +1902,8 @@
 				      	    (manage-transitions (list *zot-item-constraints*) 
 				      		  (1+ the-time)))
 				      
-				      (trio-to-ltl 
-							(the-big-formula 
-							 	(if (eq with-time t)
+				      (trio-to-ltl (the-big-formula 
+							 (if (eq with-time t)
 							       (with-time formula) 
 							       formula) 
 							 loop-free 
@@ -1806,10 +1915,15 @@
 							 discrete-regions
 							 parametric-regions
 							 discrete-counters
+<<<<<<< Updated upstream
+							 signals))
+=======
 							 signals
 							 mtl-intervals
+							 mtl-derivatives
 							 init-signals
 						))
+>>>>>>> Stashed changes
 				      (if (and trans negate-transitions)
 					    (deneg (list (list 'not (cons 'and trans))))
 					    (deneg trans)))
@@ -1829,15 +1943,24 @@
 							 discrete-regions
 							 parametric-regions
 							 discrete-counters
+<<<<<<< Updated upstream
+							 signals)))))
+=======
 							 signals
 							 mtl-intervals
+							 mtl-derivatives
 							 init-signals
 				)))))
+>>>>>>> Stashed changes
      			
 		  
 		  (format t "~%done processing formula~%")		  
 		  
-		  (build-smt-file *PROPS* smt-assumptions parametric-regions discrete-regions over-clocks ipc-constraints discrete-counters signals logic smt-lib flows)
+<<<<<<< Updated upstream
+		  (build-smt-file *PROPS* smt-assumptions parametric-regions discrete-regions over-clocks ipc-constraints discrete-counters signals logic smt-lib)
+=======
+		  (build-smt-file *PROPS* smt-assumptions parametric-regions discrete-regions over-clocks ipc-constraints discrete-counters signals logic smt-lib flows signals-bounds)
+>>>>>>> Stashed changes
 				    
 		  (to-smt-and-back *PROPS* smt-solver :smt-lib smt-lib))))))))
 
