@@ -1,3 +1,8 @@
 #!/bin/bash
-sbcl --disable-debugger --load /usr/local/zot/bin/start.lisp --load $1 --eval '(quit)'
+ZOTDIR=${ZOTDIR:-/usr/local/zot}
+if [ $# -ne 1 ]; then
+    echo "Need to specify exactly one input file to process with zot.";
+    exit 1;
+fi
+sbcl --disable-debugger --load ${ZOTDIR}/bin/start.lisp --load $1 --eval '(quit)'
 
