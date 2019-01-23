@@ -242,7 +242,10 @@
 				    ((:smt)
 					  `(iff ,(to-smt-dialect (second f) smt) ,(to-smt-dialect (third f) smt)))
 				    ((:smt2)
-					  `(= ,(to-smt-dialect (second f) smt) ,(to-smt-dialect (third f) smt)))
+					  ;`(= ,(to-smt-dialect (second f) smt) ,(to-smt-dialect (third f) smt)))
+					  `(and 
+						 (=> ,(to-smt-dialect (second f) smt) ,(to-smt-dialect (third f) smt))
+						 (=> ,(to-smt-dialect (third f) smt) ,(to-smt-dialect (second f) smt))))
 				     (t
 					  `(and 
 						 (or ,(to-smt-dialect `(not ,(second f)) smt) ,(to-smt-dialect (third f) smt))
@@ -1133,11 +1136,6 @@
 
 ; NOT USED ANYMORE
 
-<<<<<<< Updated upstream
-
-
-(defun the-big-formula (fma loop-free no-loop periodic-arith-terms gen-symbolic-val ipc-constraints bound discrete-regions parametric-regions discrete-counters signals)      
-=======
 (defun gen-universal-constraints-on-signals (mtl-intervals signals)
 ;
 ; mtl-intervals must be a list of pairs (H_j fmla) where fmla is an atomic CLTLoc formula on a signal such as x>0
@@ -1549,7 +1547,6 @@
 
 
 (defun the-big-formula (fma loop-free no-loop periodic-arith-terms gen-symbolic-val ipc-constraints bound discrete-regions parametric-regions discrete-counters signals mtl-intervals mtl-derivatives init-signals)      
->>>>>>> Stashed changes
   (cons
    (if (temp-fmlap fma)
        (call *PROPS* (cadr fma) 1)
@@ -1574,9 +1571,6 @@
 			(gen-past1)
 			(gen-past2)	   
 			(gen-i-atomic-formulae)
-<<<<<<< Updated upstream
-			(gen-regions bound discrete-regions parametric-regions discrete-counters signals))))
-=======
 			(gen-regions bound discrete-regions parametric-regions discrete-counters signals)
 			;(gen-universal-constraints-on-signals mtl-intervals signals)
 			(gen-punctual-constraints-on-signals mtl-derivatives signals)
@@ -1584,7 +1578,6 @@
 			;(gen-integrity-constraints-on-signals mtl-intervals signals)
 			(gen-interval-constraints-on-signals mtl-derivatives signals)	
 		)))
->>>>>>> Stashed changes
 
 
 (defun manage-transitions (trans the-k)
@@ -1609,15 +1602,12 @@
 
 
 
-<<<<<<< Updated upstream
-(defun build-smt-file (formula-structure smt-assumptions parametric-regions discrete-regions over-clocks ipc-constraints discrete-counters signals logic smt-dialect)
 
-  (with-open-file (k "./output.smt.txt" :direction :output :if-exists :supersede)  
-		(with-open-file (dict "./output.dict.txt" :direction :output :if-exists :supersede)
-=======
 (defun build-smt-file (formula-structure smt-assumptions parametric-regions discrete-regions over-clocks ipc-constraints discrete-counters signals logic smt-dialect flows signals-bounds)
->>>>>>> Stashed changes
 
+  (with-open-file (k "./output.smt2" :direction :output :if-exists :supersede)  
+		(with-open-file (dict "./output.dict.txt" :direction :output :if-exists :supersede)
+		
 			(case smt-dialect
 			  	((:smt) (format k "(benchmark b~%"))
 				((:smt2) 't))		  
@@ -1691,10 +1681,6 @@
 					 		((:smt)
 					 				(format k ":extrafuns (( ~s ~A ~A  ))~%" key time-d (string-trim "()" (format nil "~a" sig))))
 					 		((:smt2) 
-<<<<<<< Updated upstream
-									(loop for i from 0 to (kripke-k *PROPS*) do
-					 					(format k "(declare-fun ~s_~s ( ) ~A )~%" key i (string-trim "()" (format nil "~a" sig)))))))))
-=======
 									(loop for i from 0 to (kripke-k *PROPS*) 
 										when (not (member key signals))
 										do
@@ -1703,7 +1689,6 @@
 										;	(format k "(declare-fun ~s_~s_t ( ) ~A )~%" key i (string-trim "()" (format nil "~a" sig))))
 										))))))
 
->>>>>>> Stashed changes
 				  *arith-items*)
 
 			#|
@@ -1769,10 +1754,6 @@
 					   						(format k "(declare-fun delta_~s ( ) Real )~%" i)))))))
 
 			 (if (not (null smt-assumptions))
-<<<<<<< Updated upstream
-				(format k (concatenate 'string ":assumption " smt-assumptions "~%")))
-		  
-=======
 				(format k (concatenate 'string "(assert " smt-assumptions ")~%")))
 
 
@@ -1800,7 +1781,6 @@
 					(format k "(define-ode ~a ~a)~%" flow-name flow-def))))
 	
 
->>>>>>> Stashed changes
 			; *******************
 			; print the formula |
 			; *******************
@@ -1841,14 +1821,11 @@
 			  (parametric-regions nil)
 			  (discrete-counters nil)
 			  (signals nil)
-<<<<<<< Updated upstream
-=======
 			  (signals-bounds nil)
 			  (mtl-intervals nil)
 			  (mtl-derivatives nil)
 			(init-signals nil)
 			(flows nil)
->>>>>>> Stashed changes
 		     )
 
 					;(setf *periodic-arith-vars* periodic-vars)
@@ -1915,15 +1892,12 @@
 							 discrete-regions
 							 parametric-regions
 							 discrete-counters
-<<<<<<< Updated upstream
-							 signals))
-=======
 							 signals
 							 mtl-intervals
 							 mtl-derivatives
 							 init-signals
 						))
->>>>>>> Stashed changes
+
 				      (if (and trans negate-transitions)
 					    (deneg (list (list 'not (cons 'and trans))))
 					    (deneg trans)))
@@ -1943,24 +1917,18 @@
 							 discrete-regions
 							 parametric-regions
 							 discrete-counters
-<<<<<<< Updated upstream
-							 signals)))))
-=======
 							 signals
 							 mtl-intervals
 							 mtl-derivatives
 							 init-signals
 				)))))
->>>>>>> Stashed changes
+
      			
 		  
 		  (format t "~%done processing formula~%")		  
 		  
-<<<<<<< Updated upstream
-		  (build-smt-file *PROPS* smt-assumptions parametric-regions discrete-regions over-clocks ipc-constraints discrete-counters signals logic smt-lib)
-=======
 		  (build-smt-file *PROPS* smt-assumptions parametric-regions discrete-regions over-clocks ipc-constraints discrete-counters signals logic smt-lib flows signals-bounds)
->>>>>>> Stashed changes
 				    
-		  (to-smt-and-back *PROPS* smt-solver :smt-lib smt-lib))))))))
+		  (to-smt-and-back *PROPS* smt-solver :smt-lib smt-lib)
+		  )))))))
 
