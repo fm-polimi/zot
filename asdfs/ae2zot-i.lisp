@@ -522,6 +522,7 @@
 
 	(with-open-file (k "./output.smt.txt" :direction :output :if-exists :supersede)  
 		(with-open-file (dict "./output.dict.txt" :direction :output :if-exists :supersede)
+		(with-open-file (sem "./ltl.semantics.txt" :direction :output :if-exists :supersede)
 		
 		(format k "(set-option :produce-interpolants true)~%~%")
 		(format k "(set-option :produce-models true)~%~%")
@@ -574,7 +575,15 @@
 						 		(call *PROPS* x i))))))
 			(format k "(get-interpolant (g1))")
 			
-))))
+			; write ltl semantics into a file
+			;  booleans at position 0 and 1
+			(format sem "(assert ~s )~%" (to-smt-dialect (cons 'and (aref (kripke-assertions-bool formula-structure) 0)) :smt2 ))
+			(format sem "(assert ~s )~%" (to-smt-dialect (cons 'and (aref (kripke-assertions-bool formula-structure) 0)) :smt2 ))
+			;  future constraints
+			(format sem "(assert ~s )~%" (to-smt-dialect (cons 'and (aref (kripke-assertions-futr formula-structure) 0)) :smt2 ))
+			; eventuality
+			(format sem "(assert ~s )~%" (to-smt-dialect (cons 'and (aref (kripke-assertions-evt formula-structure) 0)) :smt2 ))
+)))))
 
 
 
