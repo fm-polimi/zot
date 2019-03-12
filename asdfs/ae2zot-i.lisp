@@ -576,9 +576,16 @@
 			(format k "(get-interpolant (g1))")
 			
 			; write ltl semantics into a file
+			
+			(maphash (lambda (key v)					
+								(loop for i from 0 to 1 do
+									(if (or (eq key '**LOOP**) (eq key '**INLOOP**))
+										(when (<= i (kripke-k formula-structure)) (format sem "(declare-fun ~s_~a ( ) Bool )~%" v i))
+										(format sem "(declare-fun ~s_~a ( ) Bool )~%" v i))))
+			  			(kripke-list formula-structure))
 			;  booleans at position 0 and 1
 			(format sem "(assert ~s )~%" (to-smt-dialect (cons 'and (aref (kripke-assertions-bool formula-structure) 0)) :smt2 ))
-			(format sem "(assert ~s )~%" (to-smt-dialect (cons 'and (aref (kripke-assertions-bool formula-structure) 0)) :smt2 ))
+			(format sem "(assert ~s )~%" (to-smt-dialect (cons 'and (aref (kripke-assertions-bool formula-structure) 1)) :smt2 ))
 			;  future constraints
 			(format sem "(assert ~s )~%" (to-smt-dialect (cons 'and (aref (kripke-assertions-futr formula-structure) 0)) :smt2 ))
 			; eventuality
