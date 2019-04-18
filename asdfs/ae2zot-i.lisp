@@ -94,7 +94,7 @@
       (kripke-past a-kripke)   nil
       (kripke-assertions-bool a-kripke) (make-array (+ k 2) :initial-element (list))
       (kripke-assertions-futr a-kripke) (make-array (1+ k) :initial-element (list))
-      (kripke-assertions-past a-kripke) (make-array (1+ k) :initial-element (list))
+      (kripke-assertions-past a-kripke) (make-array (+ k 2) :initial-element (list))
       (kripke-assertions-evt a-kripke) (make-array (1+ k) :initial-element (list))
       (kripke-assertions-last a-kripke) (make-array (1+ k) :initial-element (list)) 
       (kripke-assertions-init a-kripke) (list))
@@ -417,36 +417,50 @@
 										,(call *PROPS* (third fm) i))))))))))))))
 
 
-(defun gen-past1 (v)
+(defun gen-past1 ()
   (format t "gen-past1...")(force-output)
   (loop for fm in (kripke-past *PROPS*) collect
 	(case (car fm)
 	  ((since trigger)
-	   `(iff ,(call *PROPS* fm 0)
-		 ,(call *PROPS* (third fm) 0)))
+	   (setf (aref (kripke-assertions-past *PROPS*) 0) 
+	  		(concatenate 'list
+	  			(aref (kripke-assertions-past *PROPS*) 0)	(list `(iff ,(call *PROPS* fm 0) ,(call *PROPS* (third fm) 0))))))
 	  ((yesterday)
-	   `(not ,(call *PROPS* fm 0)))
+	   (setf (aref (kripke-assertions-past *PROPS*) 0) 
+	  		(concatenate 'list
+	  			(aref (kripke-assertions-past *PROPS*) 0)	(list `(not ,(call *PROPS* fm 0))))))
 	  ((zeta)
-	   (call *PROPS* fm 0)))))
+	   (setf (aref (kripke-assertions-past *PROPS*) 0) 
+	  		(concatenate 'list
+	  			(aref (kripke-assertions-past *PROPS*) 0)	 (list (call *PROPS* fm 0))))))))
 
-(defun gen-past2 (v)
-  (format t "gen-past2...")(force-output)
+(defun gen-past2 ()
+  (format t "gen-past2...~%")(force-output)
   (loop for i from 1 to (1+ (kripke-k *PROPS*)) append
 	(loop for fm in (kripke-past *PROPS*) collect
-	      (case (car fm)
+	 (case (car fm)
 		((since)
-		 `(iff ,(call *PROPS* fm i)
-		       (or ,(call *PROPS* (third fm) i)
-			   (and ,(call *PROPS* (second fm) i)
-				,(call *PROPS* fm (1- i))))))
+		 (setf (aref (kripke-assertions-past *PROPS*) i) 
+	  		(concatenate 'list
+	  			(aref (kripke-assertions-past *PROPS*) i)	
+	  			(list `(iff ,(call *PROPS* fm i)
+		       	(or ,(call *PROPS* (third fm) i)
+			   	(and ,(call *PROPS* (second fm) i)
+					,(call *PROPS* fm (1- i)))))))))
 		((trigger)
-		 `(iff ,(call *PROPS* fm i)
-		       (and ,(call *PROPS* (third fm) i)
-			    (or ,(call *PROPS* (second fm) i)
-				,(call *PROPS* fm (1- i))))))
+		 (setf (aref (kripke-assertions-past *PROPS*) i) 
+	  		(concatenate 'list
+	  			(aref (kripke-assertions-past *PROPS*) i)	
+	  			(list `(iff ,(call *PROPS* fm i)
+		       	(and ,(call *PROPS* (third fm) i)
+			    	(or ,(call *PROPS* (second fm) i)
+					,(call *PROPS* fm (1- i)))))))))
 		((zeta yesterday)
-		 `(iff ,(call *PROPS* fm i)
-		       ,(call *PROPS* (second fm) (1- i))))))))
+		 (setf (aref (kripke-assertions-past *PROPS*) i) 
+	  		(concatenate 'list
+	  			(aref (kripke-assertions-past *PROPS*) i)	 
+	  				(list `(iff ,(call *PROPS* fm i)
+		       	,(call *PROPS* (second fm) (1- i)))))))))))
 
 
 
@@ -463,8 +477,8 @@
 	(gen-futr)
 	(LastStateFormula)
 	(gen-evt-futr)
-;	(gen-past1 vector-assert)
-;	(gen-past2 vector-assert)
+	(gen-past1)
+	(gen-past2)
 )
 
 
@@ -552,6 +566,13 @@
 				(if (eq i 0)
 					(format k "(assert (! ~s :interpolation-group g1))~%" (to-smt-dialect (cons 'and (aref (kripke-assertions-futr formula-structure) 0)) :smt2 ))
 					(format k "(assert (! ~s :interpolation-group g2))~%" (to-smt-dialect (cons 'and (aref (kripke-assertions-futr formula-structure) i)) :smt2 ))))
+
+			(format k "~%; past constraints ~%")
+			(loop for i from 0 to (1+ (kripke-k formula-structure)) do
+				(if (or (eq i 0) (eq i 1))
+					(format k "(assert (! ~s :interpolation-group g1))~%" (to-smt-dialect (cons 'and (aref (kripke-assertions-past formula-structure) i)) :smt2 ))
+					(format k "(assert (! ~s :interpolation-group g2))~%" (to-smt-dialect (cons 'and (aref (kripke-assertions-past formula-structure) i)) :smt2 ))))
+
 					
 			(format k "~%; periodicity constraints ~%")
 			(loop for x being the elements of (kripke-assertions-last formula-structure) do
@@ -588,6 +609,9 @@
 			(format sem "(assert ~s )~%" (to-smt-dialect (cons 'and (aref (kripke-assertions-bool formula-structure) 1)) :smt2 ))
 			;  future constraints
 			(format sem "(assert ~s )~%" (to-smt-dialect (cons 'and (aref (kripke-assertions-futr formula-structure) 0)) :smt2 ))
+			;  past constraints
+			(format sem "(assert ~s )~%" (to-smt-dialect (cons 'and (aref (kripke-assertions-past formula-structure) 0)) :smt2 ))
+			(format sem "(assert ~s )~%" (to-smt-dialect (cons 'and (aref (kripke-assertions-past formula-structure) 1)) :smt2 ))
 			; eventuality
 			(format sem "(assert ~s )~%" (to-smt-dialect (cons 'and (aref (kripke-assertions-evt formula-structure) 0)) :smt2 ))
 )))))
