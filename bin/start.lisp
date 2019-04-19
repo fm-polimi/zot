@@ -1,4 +1,4 @@
 #-:asdf (require :asdf)
-(pushnew "/usr/local/zot/asdfs/" asdf:*central-registry* :test #'equal)
+(pushnew "~/Tools/zot/asdfs/" asdf:*central-registry* :test #'equal)
 
 

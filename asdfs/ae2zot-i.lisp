@@ -418,7 +418,7 @@
 
 
 (defun gen-past1 ()
-  (format t "gen-past1...")(force-output)
+  (format t "gen-past1...~%")(force-output)
   (loop for fm in (kripke-past *PROPS*) collect
 	(case (car fm)
 	  ((since trigger)
@@ -562,24 +562,26 @@
 					(format k "(assert (! ~s :interpolation-group g2))~%" (to-smt-dialect (cons 'and (aref (kripke-assertions-bool formula-structure) i)) :smt2 ))))
 					
 			(format k "~%; future constraints ~%")
-			(loop for i from 0 to (kripke-k formula-structure) do
-				(if (eq i 0)
-					(format k "(assert (! ~s :interpolation-group g1))~%" (to-smt-dialect (cons 'and (aref (kripke-assertions-futr formula-structure) 0)) :smt2 ))
-					(format k "(assert (! ~s :interpolation-group g2))~%" (to-smt-dialect (cons 'and (aref (kripke-assertions-futr formula-structure) i)) :smt2 ))))
+			(if (not (eq (kripke-futr formula-structure) nil))
+				(loop for i from 0 to (kripke-k formula-structure) do
+					(if (eq i 0)
+						(format k "(assert (! ~s :interpolation-group g1))~%" (to-smt-dialect (cons 'and (aref (kripke-assertions-futr formula-structure) 0)) :smt2 ))
+						(format k "(assert (! ~s :interpolation-group g2))~%" (to-smt-dialect (cons 'and (aref (kripke-assertions-futr formula-structure) i)) :smt2 )))))
 
 			(format k "~%; past constraints ~%")
-			(loop for i from 0 to (1+ (kripke-k formula-structure)) do
-				(if (or (eq i 0) (eq i 1))
-					(format k "(assert (! ~s :interpolation-group g1))~%" (to-smt-dialect (cons 'and (aref (kripke-assertions-past formula-structure) i)) :smt2 ))
-					(format k "(assert (! ~s :interpolation-group g2))~%" (to-smt-dialect (cons 'and (aref (kripke-assertions-past formula-structure) i)) :smt2 ))))
-
+			(if (not (eq (kripke-past formula-structure) nil))
+				(loop for i from 0 to (1+ (kripke-k formula-structure)) do
+					(if (or (eq i 0) (eq i 1))
+						(format k "(assert (! ~s :interpolation-group g1))~%" (to-smt-dialect (cons 'and (aref (kripke-assertions-past formula-structure) i)) :smt2 ))
+						(format k "(assert (! ~s :interpolation-group g2))~%" (to-smt-dialect (cons 'and (aref (kripke-assertions-past formula-structure) i)) :smt2 )))))
 					
-			(format k "~%; periodicity constraints ~%")
+		   (format k "~%; periodicity constraints ~%")
 			(loop for x being the elements of (kripke-assertions-last formula-structure) do
 				(if (not (eq x 'nil))
 					(format k "(assert (! ~s :interpolation-group g2))~%" (to-smt-dialect (cons 'and x) :smt2)) ))
 			 
 			(format k "~%; eventuality constraints ~%")
+			(not (eq (kripke-futr formula-structure) nil))
 			(loop for i from 0 to (kripke-k formula-structure) do
 				(if (or (eq i 0) (eq i 1))
 					(format k "(assert (! ~s :interpolation-group g1))~%" (to-smt-dialect (cons 'and (aref (kripke-assertions-evt formula-structure) i)) :smt2 ))
