@@ -584,11 +584,11 @@
 					(format k "(assert (! ~s :interpolation-group g2))~%" (to-smt-dialect (cons 'and x) :smt2)) ))
 			 
 			(format k "~%; eventuality constraints ~%")
-			(not (eq (kripke-futr formula-structure) nil))
-			(loop for i from 0 to (kripke-k formula-structure) do
-				(if (or (eq i 0) (eq i 1))
-					(format k "(assert (! ~s :interpolation-group g1))~%" (to-smt-dialect (cons 'and (aref (kripke-assertions-evt formula-structure) i)) :smt2 ))
-					(format k "(assert (! ~s :interpolation-group g2))~%" (to-smt-dialect (cons 'and (aref (kripke-assertions-evt formula-structure) i)) :smt2 ))))
+			(if (not (eq (kripke-futr formula-structure) nil))
+				(loop for i from 0 to (kripke-k formula-structure) do
+					(if (or (eq i 0) (eq i 1))
+						(format k "(assert (! ~s :interpolation-group g1))~%" (to-smt-dialect (cons 'and (aref (kripke-assertions-evt formula-structure) i)) :smt2 ))
+						(format k "(assert (! ~s :interpolation-group g2))~%" (to-smt-dialect (cons 'and (aref (kripke-assertions-evt formula-structure) i)) :smt2 )))))
 					
 			(format k "~%(check-sat) ~%")
 			(format k "(get-value ~a ) ~%" 
@@ -613,10 +613,12 @@
 			(format sem "(assert ~s )~%" (to-smt-dialect (cons 'and (aref (kripke-assertions-bool formula-structure) 0)) :smt2 ))
 			(format sem "(assert ~s )~%" (to-smt-dialect (cons 'and (aref (kripke-assertions-bool formula-structure) 1)) :smt2 ))
 			;  future constraints
-			(format sem "(assert ~s )~%" (to-smt-dialect (cons 'and (aref (kripke-assertions-futr formula-structure) 0)) :smt2 ))
+			(if (not (kripke-assertions-futr formula-structure))
+				(format sem "(assert ~s )~%" (to-smt-dialect (cons 'and (aref (kripke-assertions-futr formula-structure) 0)) :smt2 )))
 			;  past constraints
 			;(format sem "(assert ~s )~%" (to-smt-dialect (cons 'and (aref (kripke-assertions-past formula-structure) 0)) :smt2 ))
-			(format sem "(assert ~s )~%" (to-smt-dialect (cons 'and (aref (kripke-assertions-past formula-structure) 1)) :smt2 ))
+			(if (not (kripke-assertions-past formula-structure))
+				(format sem "(assert ~s )~%" (to-smt-dialect (cons 'and (aref (kripke-assertions-past formula-structure) 1)) :smt2 )))
 			; eventuality
 			(format sem "(assert ~s )~%" (to-smt-dialect (cons 'and (aref (kripke-assertions-evt formula-structure) 0)) :smt2 ))
 )))))
