@@ -613,11 +613,11 @@
 			(format sem "(assert ~s )~%" (to-smt-dialect (cons 'and (aref (kripke-assertions-bool formula-structure) 0)) :smt2 ))
 			(format sem "(assert ~s )~%" (to-smt-dialect (cons 'and (aref (kripke-assertions-bool formula-structure) 1)) :smt2 ))
 			;  future constraints
-			(if (not (kripke-assertions-futr formula-structure))
+			(if (not (eq (kripke-futr formula-structure) nil))
 				(format sem "(assert ~s )~%" (to-smt-dialect (cons 'and (aref (kripke-assertions-futr formula-structure) 0)) :smt2 )))
 			;  past constraints
 			;(format sem "(assert ~s )~%" (to-smt-dialect (cons 'and (aref (kripke-assertions-past formula-structure) 0)) :smt2 ))
-			(if (not (kripke-assertions-past formula-structure))
+			(if (not (eq (kripke-past formula-structure) nil)) 
 				(format sem "(assert ~s )~%" (to-smt-dialect (cons 'and (aref (kripke-assertions-past formula-structure) 1)) :smt2 )))
 			; eventuality
 			(format sem "(assert ~s )~%" (to-smt-dialect (cons 'and (aref (kripke-assertions-evt formula-structure) 0)) :smt2 ))
