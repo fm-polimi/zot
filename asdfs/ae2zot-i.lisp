@@ -630,7 +630,7 @@
 			; moved to I_0
 			;(format sem "(assert ~s )~%" (to-smt-dialect (cons 'and (aref (kripke-assertions-evt formula-structure) 0)) :smt2 ))
 			
-			(format sem "(assert (and (not zot-p-loop_1) (not zot-p-inloop_1) )~%" )
+			(format sem "(assert (and (not zot-p-loop_1) (not zot-p-inloop_1) ) )~%" )
 )))))
 
 
