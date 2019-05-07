@@ -277,8 +277,7 @@
 				  	 ;remove loops between loop-1 and k. Keep periodicity only on k+1 and loop
 				  	 ;(impl ,(the-l i) ,(props-equal (1- i) (kripke-k *PROPS*)))
 					 (iff  ,(the-inloop i) (or ,(the-inloop (1- i)) ,(the-l i)))
-					 (impl ,(the-inloop (1- i)) (not ,(the-l i))))))
-)))
+					 (impl ,(the-inloop (1- i)) (not ,(the-l i)))))))))
 
 
 (defun gen-bool ()
@@ -479,10 +478,13 @@
 	
   	;add main formula and past-ops to position 0 
   	(setf (kripke-assertions-init fma-structure) 
-  		(cons 'and 
-  				(cons (call *PROPS* formula 0)
-  						(aref (kripke-assertions-past *PROPS*) 0))))
-)
+  		(concatenate 'list
+  			(list 'and 
+  				(call *PROPS* formula 0)
+  				`(not ,(the-l 0)) 
+  				`(not ,(the-inloop 0)))
+  			(aref (kripke-assertions-past *PROPS*) 0)
+ 		 	(aref (kripke-assertions-evt *PROPS*) 0) ) ) )
 
 
 (defun manage-transitions (trans the-k)
@@ -604,23 +606,31 @@
 			; write ltl semantics into a file
 			
 			(maphash (lambda (key v)					
-								(loop for i from 0 to 1 do
+								(loop for i from 0 to 2 do
 									(if (or (eq key '**LOOP**) (eq key '**INLOOP**))
 										(when (<= i (kripke-k formula-structure)) (format sem "(declare-fun ~s_~a ( ) Bool )~%" v i))
 										(format sem "(declare-fun ~s_~a ( ) Bool )~%" v i))))
 			  			(kripke-list formula-structure))
-			;  booleans at position 0 and 1
+			;  booleans at position 0, 1 and 2
 			(format sem "(assert ~s )~%" (to-smt-dialect (cons 'and (aref (kripke-assertions-bool formula-structure) 0)) :smt2 ))
 			(format sem "(assert ~s )~%" (to-smt-dialect (cons 'and (aref (kripke-assertions-bool formula-structure) 1)) :smt2 ))
+			(format sem "(assert ~s )~%" (to-smt-dialect (cons 'and (aref (kripke-assertions-bool formula-structure) 2)) :smt2 ))
 			;  future constraints
 			(if (not (eq (kripke-futr formula-structure) nil))
-				(format sem "(assert ~s )~%" (to-smt-dialect (cons 'and (aref (kripke-assertions-futr formula-structure) 0)) :smt2 )))
+				(progn
+					(format sem "(assert ~s )~%" (to-smt-dialect (cons 'and (aref (kripke-assertions-futr formula-structure) 0)) :smt2 ))
+					(format sem "(assert ~s )~%" (to-smt-dialect (cons 'and (aref (kripke-assertions-futr formula-structure) 1)) :smt2 ))) )
 			;  past constraints
 			;(format sem "(assert ~s )~%" (to-smt-dialect (cons 'and (aref (kripke-assertions-past formula-structure) 0)) :smt2 ))
 			(if (not (eq (kripke-past formula-structure) nil)) 
-				(format sem "(assert ~s )~%" (to-smt-dialect (cons 'and (aref (kripke-assertions-past formula-structure) 1)) :smt2 )))
+				(progn 
+					(format sem "(assert ~s )~%" (to-smt-dialect (cons 'and (aref (kripke-assertions-past formula-structure) 1)) :smt2 ))
+					(format sem "(assert ~s )~%" (to-smt-dialect (cons 'and (aref (kripke-assertions-past formula-structure) 2)) :smt2 ))) )
 			; eventuality
-			(format sem "(assert ~s )~%" (to-smt-dialect (cons 'and (aref (kripke-assertions-evt formula-structure) 0)) :smt2 ))
+			; moved to I_0
+			;(format sem "(assert ~s )~%" (to-smt-dialect (cons 'and (aref (kripke-assertions-evt formula-structure) 0)) :smt2 ))
+			
+			(format sem "(assert (and (not zot-p-loop_1) (not zot-p-inloop_1) )~%" )
 )))))
 
 
