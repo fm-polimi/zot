@@ -212,13 +212,15 @@
   (floor val (kripke-numvar kk)))
 
 
-
+(declaim (inline the-l))
 (defun the-l (i)
   (call *PROPS* '**LOOP** i))
 
+(declaim (inline the-inloop))
 (defun the-inloop (i)
   (call *PROPS* '**INLOOP** i))
 
+(declaim (inline LoopExists))
 (defun LoopExists ()
   (call *PROPS* '**INLOOP** (kripke-k *PROPS*)))
 
@@ -502,6 +504,39 @@
 	  (mapcar (lambda (x)
 		    (call-recur x i)) trans))))
 
+(defun trivial-and (fma)
+	(and 
+		(eq (car fma) 'and)
+		(eq (cdr fma) nil)))
+
+
+(defun manage-item-constraints (fma i)
+  (if (symbolp fma) 
+  		(call *PROPS* fma i)
+  		;fma
+		(if (and (car fma) (cdr fma))     ; (op B) or (op ()) or (() () () ...)
+			(cond 
+				((eq (car fma) 'not) (list 'not (manage-item-constraints (second fma) i)))
+				((eq (car fma) 'and) 
+					(if (third fma)   
+						(cons 'and
+							(mapcar #'(lambda (x) (manage-item-constraints x i)) 
+										(cdr fma))) ; (and A B)      
+						(manage-item-constraints (second fma) i)))   ; (and A) - so, remove and
+				((eq (car fma) 'impl) 
+					(if (trivial-and (third fma))  ;(impl (and x) (and))
+							t
+							(list 'impl
+									(manage-item-constraints (second fma) i)
+									(manage-item-constraints (third fma) i))))
+				(t
+					(mapcar #'(lambda (x) (manage-item-constraints x i)) 
+						fma)))		
+					
+			t) ;(and) this case must return true
+))
+
+
 
 
 (defun to-smt-dialect (f smt)
@@ -591,6 +626,16 @@
 					(if (or (eq i 0) (eq i 1))
 						(format k "(assert (! ~s :interpolation-group g1))~%" (to-smt-dialect (cons 'and (aref (kripke-assertions-evt formula-structure) i)) :smt2 ))
 						(format k "(assert (! ~s :interpolation-group g2))~%" (to-smt-dialect (cons 'and (aref (kripke-assertions-evt formula-structure) i)) :smt2 )))))
+
+			(if *zot-item-constraints*
+				(progn 
+					(format k "~%; item constraints ~%")
+					(loop for i from 0 to (1+ (kripke-k formula-structure)) do
+						(if (or (eq i 0) (eq i 1))
+							(format k "(assert (! ~a :interpolation-group g1))~%" (to-smt-dialect (manage-item-constraints *zot-item-constraints* i) :smt2 ))
+							(format k "(assert (! ~a :interpolation-group g2))~%" (to-smt-dialect (manage-item-constraints *zot-item-constraints* i) :smt2 ))))))
+
+
 					
 			(format k "~%(check-sat) ~%")
 			(format k "(get-value ~a ) ~%" 
@@ -639,9 +684,9 @@
 
 (defun zot (the-time spec 
 		     &key 
-		     (loop-free nil) 
-		     (transitions nil)
-		     (negate-transitions nil)
+		     ;(loop-free nil) 
+		     ;(transitions nil)
+		     ;(negate-transitions nil)
 		     (declarations nil)) 
 
   (setf trio-utils:*metric-operators* nil)
@@ -649,6 +694,8 @@
   (let ((formula (deneg (trio-to-ltl spec))))
     (setf *PROPS* (make-kripke the-time formula))
     (format t "This is ae2Zot-interpolating LTL~%")
+    (format t "~s~%" *zot-item-constraints*)
+    (format t "~s~%" (manage-item-constraints *zot-item-constraints* 0))
 
     (let ((undeclared (set-difference (kripke-prop *PROPS*) declarations)))
       (if (and declarations undeclared)
@@ -666,4 +713,7 @@
 					(format t "~%done processing formula~%")))
 				  
 			  (to-smt-and-back *PROPS* :mathsat :smt-lib 'smt2))))))
+
+
+
 
