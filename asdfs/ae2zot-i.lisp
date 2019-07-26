@@ -644,8 +644,8 @@
 					(loop for i from 0 to (kripke-k formula-structure) append
 						(cons
 							(the-l i)
-							(loop for x being the element of (kripke-prop formula-structure) collect
-						 		(call *PROPS* x i))))))
+								(loop for x being the element of (kripke-prop formula-structure) collect
+						 			(call *PROPS* x i))))))
 			(format k "(get-interpolant (g1))")
 			
 			; write ltl semantics into a file
@@ -694,9 +694,7 @@
   (let ((formula (deneg (trio-to-ltl spec))))
     (setf *PROPS* (make-kripke the-time formula))
     (format t "This is ae2Zot-interpolating LTL~%")
-    (format t "~s~%" *zot-item-constraints*)
-    (format t "~s~%" (manage-item-constraints *zot-item-constraints* 0))
-
+   
     (let ((undeclared (set-difference (kripke-prop *PROPS*) declarations)))
       (if (and declarations undeclared)
 			(format t "Error: undeclared propositions ~S~%" undeclared)
