@@ -234,7 +234,8 @@
 				   :if-does-not-exist :create)
 		 (if *zot-debug* 
 		     (tohist-debug ff (cadr h) the-kripke) 
-		     (tohist       ff (cadr h) the-kripke))
+		     (format t "dummy history") ; (tohist       ff (cadr h) the-kripke)
+		     )
 		 t)
 	       (progn
 		 (format t "~%---------UNSAT---------~%")
