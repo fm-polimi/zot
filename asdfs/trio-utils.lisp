@@ -1027,57 +1027,118 @@
 ;;-----------------------------------------------------------------------
 
 (defun item-constraints (varname len cur)
-  (unless (< cur 0)
-    (let ((cur1 0)(cur2 0))
-      (-> (append '(and) 
-		(loop for i = cur then (1- i)
-		      until (or (eql (mod (floor (1- len) (expt 2 i)) 2) 0) (< i 0))
-		      do (setf cur1 i)
-		      collect
+	(unless (< cur 0)
+		(let ((cur1 0)(cur2 0))
 
-		      (pred varname i)
-		      ))
-	  (append '(and) 
-		  (loop for i = (1- cur1) then (1- i)
-			until (or (eql (mod (floor (1- len) (expt 2 i)) 2) 1) (< i 0)) collect
-			(progn
-			  (setf cur2 i)
-			  (list 'not (pred varname i))))
-		  (when (> cur2 0)
-		    (list (item-constraints varname len (1- cur2)))))))))
+			; if cur = 0 
+			(if (= cur 0)
+
+				; then check immediately if |domain|-1 (the last element in the set) is even or odd and set bit 0 accordingly
+				(if (eql (mod (1- len) 2) 1)
+					't
+					(list 'not (pred varname 0)))
+				
+				; else cur > 0
+				(if (and (eql (mod (1- (+ (1- len) (expt 2 (1+ cur)))) 2) 0) (< (expt 2 (1+ cur)) (1- len)) )
+					; check 
+					't
+
+					; otherwise go on and check the bits from cur until 0
+					(-> 
+						(append '(and) 
+							(loop 
+								for i = cur then (1- i)
+								until (or (eql (mod (floor (1- len) (expt 2 i)) 2) 0) (< i 0))
+								do (setf cur1 i)
+								collect (pred varname i)))
+
+						(append '(and) 
+							(loop 
+								for i = (1- cur1) then (1- i)
+								until (or (eql (mod (floor (1- len) (expt 2 i)) 2) 1) (< i 0)) 
+								collect
+									(progn
+										(setf cur2 i)
+										(list 'not (pred varname i))))
+				  			(when (> cur2 0)
+								(list (item-constraints varname len (1- cur2)))))))))))
 
 
 ;;-----------------------------------------------------------------------
 ;; Define-item is based on a base 2 counter, starting from 0
 ;;-----------------------------------------------------------------------
 (defmacro define-item (varname domain) 
-   (let ((_f_name (intern (concatenate 'string (symbol-name varname) "=")))
-	(the-val (gensym)))
+   (let (
+			; _f_name is the function name of the form "item=" that is used to assign 
+			; a value of the domain to the variable "item"
+			(_f_name (intern (concatenate 'string (symbol-name varname) "=")))
 
-    `(if (= 1 (length ,domain))
+			; _f_name_eq is the function name of the form "<item>" that is used to constraint 
+			; the value of "item" between two positions of the LTL model. "<item>" forces the value of
+ 			; "item" in the next position to be equal to the value in the current position
+			(_f_name_eq (intern (concatenate 'string "<" (concatenate 'string (symbol-name varname) ">")))) 
 
-      (defun ,_f_name (,the-val)
-	 (-P- ,varname ,the-val))
+			; _f_name_neq is the negation of _f_name_eq semantics
+			(_f_name_neq (intern (concatenate 'string "^<" (concatenate 'string (symbol-name varname) ">")))) 
+
+			; the-val is a new fresh Lisp symbol
+			(the-val (gensym)) )
+
+	
+		`(if (= 1 (length ,domain))
+			(defun ,_f_name (,the-val)
+	 			(-P- ,varname ,the-val))
 
       ; --- |domain| > 1 ---
-      (progn
-	 (unless *zot-item-constraints*
-	   (setf *zot-item-constraints* '(and)))
-	 (setf *zot-item-constraints*
-	       (append *zot-item-constraints* (list (item-constraints  ',varname (length ,domain) 
-								       (floor (log (1- (length ,domain)) 2)))))
-	       )
+      	(progn
+				
+				; add to *zot-item-constraints* the contraints on the domain of the item by means of function item-constraints 
+				; Constraints are defined only for domains whose length is not a power of 2
+				(if (not (eql (length ,domain) (expt 2 (ceiling (log (length ,domain) 2)))))
+					(progn
+						; if *zot-item-constraints* is not defined then create an empty list 'and
+			 			(unless *zot-item-constraints* (setf *zot-item-constraints* '(and)))
+		
+						(setf *zot-item-constraints*
+				    		(append *zot-item-constraints* 
+								(list (item-constraints ',varname (length ,domain)
+									(floor (log (1- (length ,domain)) 2))))))))
 
-	 (setf (gethash (symbol-name ',varname) *items*) ,domain)
-	 (defun ,_f_name (,the-val)
-	   t
-	   (append '(and) 
-		 (loop for i from 0 to (floor (log (1- (length ,domain)) 2)) collect
-		       (if (eql (mod (floor (position ,the-val ,domain) (expt 2 i)) 2) 0)
-			 (list 'not 
-			       (-P- ,varname i))
-			 (-P- ,varname i)))))))))
+				; add the item name and its domain to variable *items*
+	 			(setf (gethash (symbol-name ',varname) *items*) ,domain)
 
+				; define the helper function item= 
+				; the-val is a new fresh symbol produced by gensym Lisp function
+				; the function calculates the binary expansion of the value in the-value symbol. If the i-th digit is 1 then -P- enforces the itemname_i
+			 	(defun ,_f_name (,the-val)
+					t
+					(append '(and) 
+					 			(loop for i from 0 to (floor (log (1- (length ,domain)) 2)) collect
+							 		(if (eql (mod (floor (position ,the-val ,domain) (expt 2 i)) 2) 0)
+						 				(list 'not (-P- ,varname i))
+						 				(-P- ,varname i)))))
+
+				; ------------------------------------------------------------------------------------------
+				; REMARK: the following two functions are available only for plugins managing iff operator ;
+				; ------------------------------------------------------------------------------------------
+
+				; define the helper function <item>
+				; the function builds constraints of the form (item_i <=> (next item_i)) to enforce equality of all the digits 
+				(defun ,_f_name_eq ()
+					t
+					(append '(and) 
+					 			(loop for i from 0 to (floor (log (1- (length ,domain)) 2)) collect
+									(list 'iff (-P- ,varname i) (list 'next (-P- ,varname i))))))
+
+				; define the helper function ^<item>
+				; the function builds constraints of the form ((not item_i) <=> (next item_i)) to enforce inequality of at least one digit 
+				(defun ,_f_name_neq ()
+					t
+					(append '(or) 
+					 			(loop for i from 0 to (floor (log (1- (length ,domain)) 2)) collect
+									(list 'iff (list 'not (-P- ,varname i)) (list 'next (-P- ,varname i))))))))))
+
+ 
 
 
  

@@ -42,6 +42,7 @@
 	   :kripke-assertions-evt
 	   :kripke-assertions-last
 	   :kripke-assertions-init
+	   :kripke-nbit
 	   :call
 	   :back-call
 	   :back-call-time))
@@ -61,6 +62,8 @@
    (sf-past     :accessor kripke-past :type list)	    ; list of used past-tense subformulae
    (max-prop    :accessor kripke-maximum :type fixnum)   ; used propositions maximum
 
+	(nbit        :accessor kripke-nbit :type fixnum)
+	
    (assertions-bool :accessor kripke-assertions-bool :type vector)
    (assertions-futr :accessor kripke-assertions-futr :type vector)      
    (assertions-past :accessor kripke-assertions-past :type vector)
