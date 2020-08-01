@@ -63,22 +63,54 @@
 				 (ecase smt-lib (:smt (cons "-smt" '("-st" "output.smt.txt"))) (:smt2 (cons "-smt2" '("-st" "pp.decimal=true" "output.smt.txt")))) :input
 				 t :output "output.1.txt" :error t :search t :if-output-exists :supersede))
 
+		;boolector with default configuration
+	    ; (:boolector
+	    ;  (format t "boolector...~% ")(force-output)
+	    ;  (sb-ext:run-program "boolector"
+				 ; '("-m" "output.smt.txt") :input
+				 ; t :output "output.1.txt" :error t :search t :if-output-exists :supersede))
+		
+		(:boolector
+	     (format t "boolector...~%" )(force-output)
+	     (progn
+	     	(sb-ext:run-program "boolector"
+				 '("-rwl" "2" "--beta-reduce-all" "-dam" "-dai" "output.smt.txt") :input t :wait
+				 t :output "zottmp1" :error t :search t :if-output-exists :supersede)
+	     	(sb-ext:run-program "aigtocnf"
+				 '("zottmp1") :input t :wait
+				 t :output "zottmp2" :error t :search t :if-output-exists :supersede)
+	     	(sb-ext:run-program "cadical"
+				 '("-q" "zottmp2") :input t :wait
+				 t :output "output.1.txt" :error t :search t :if-output-exists :supersede)))
+
+		(:yices2
+	     (format t "yices2...~% ")(force-output)
+	     (sb-ext:run-program "yices-smt2"
+				 '("output.smt.txt") :input
+				 t :output "output.1.txt" :error t :search t :if-output-exists :supersede))
+
 	    (:yices 
 	     (format t "yices...~% ")(force-output)
 	     (sb-ext:run-program "yices"
 				 '("-m" "output.smt.txt") :input
 				 t :output "output.1.txt" :error t :search t :if-output-exists :supersede))
+	    
+		(:cvc4
+	     (format t "cvc4...~% ")(force-output)
+	     (time (sb-ext:run-program "cvc4"
+				       '("-L" "smt2.0" "--bv-eq-solver" "--bv-propagate" "--bitblast" "eager" "output.smt.txt" ) :input
+				       t :output "output.1.txt" :error t :search t :if-output-exists :supersede)))
+	    
 	    (:cvc3
 	     (format t "cvc3...~% ")(force-output)
 	     (time (sb-ext:run-program "cvc3"
 				       '("-lang" "smtlib" "-stats" "+model" "output.smt.txt" ) :input
 				       t :output "output.1.txt" :error t :search t :if-output-exists :supersede)))
-	    (:mathsat
+		(:mathsat
 	     (format t "mathsat... ~% ")(force-output)
 	     (time (sb-ext:run-program "mathsat"
-				       '("-input=smt" "-solve" "-print_model" "-logic=QF_IDL" "output.smt.txt") :input
+				       '("-theory.bv.bit_blast_mode=2" "output.smt.txt") :input
 				       t :output "output.1.txt" :error t :search t :if-output-exists :supersede)))))
-
 
   (let ((call-shell #+clisp   #'ext:shell
 		    #+ecl     #'ext:system
@@ -93,6 +125,10 @@
 			  (format t "z3...~% ")(force-output)
 			 (funcall call-shell "z3 -smt -st output-hist.smt.txt > output.1.txt"))
 
+			 (:boolector
+			  (format t "boolector...~% ")(force-output)
+			  (funcall call-shell "boolector -m output.smt.txt > output.1.txt"))
+			 
 			 (:yices 
 			  (format t "yices...~% ")(force-output)
 			  (funcall call-shell "yices -m output.smt.txt > output.1.txt"))
@@ -114,11 +150,12 @@
 
 
   ;; --- parse the output of the SMT ---
-  (let ((val (with-open-file (ff "output.1.txt" :direction :input)
-	       (not (eq 'unsat (read ff))))))
+(let ((val (not (or
+	(with-open-file (ff "output.1.txt" :direction :input) (eq 'unsat (read ff)))
+	(with-open-file (ff "output.1.txt" :direction :input) (string-equal "s UNSATISFIABLE" (read-line ff))))))) ;;Mehdi: Added "s UNSATISFIABLE" for CaDiCaL SAT-solver.
     (format t (if val "---SAT---~%" "---UNSAT---~%"))
     (force-output)
-    (when (and val (eq smt-solver :z3))
+    (when (and val (or (eq smt-solver :z3) (eq smt-solver :boolector)))
       (cond
       	((eq bitvector :t) (translate-bvsmt2-output (kripke-k the-kripke)))
       	((eq arith-bitvector :t) (translate-abvsmt2-output (kripke-k the-kripke) loops))
@@ -562,7 +599,7 @@
                (do ((line1 (read-line stream nil) (read-line stream nil)))
                   ((null line1))
                   (when (> (length line1) 5) (when (string= (subseq line1 0 6) "(model") (progn (setf nomodel nil) (return)))))))
-(when nomodel (progn (format t "The plugin is used for completeness check, and by default no model is returned. Enable the flag getLFmodel in order to include the model.") (return-from translate-abvsmt2-output nil)))
+(when nomodel (progn (format t "Either the solver does not produce standard smt2 SAT output or the plugin is used for completeness check, and by default no model is returned. Enable the flag getLFmodel in order to include the model.") (return-from translate-abvsmt2-output nil)))
                   	
 (setf *read-default-float-format* 'double-float)
 (setq ap-val  (make-hash-table :test #'equal))		;; Key: AP name,											Value: value
