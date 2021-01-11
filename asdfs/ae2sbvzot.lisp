@@ -1491,6 +1491,7 @@
              (l-strictly-monotonic nil) ; ##NEW
 				 (paired-clocks nil)
 				 (no-periodic-regions nil)
+				 (dry-run nil)
 		     )
 
   (setf *smt-metric-futr-operators* smt-metric-futr)
@@ -1840,7 +1841,9 @@
 			(format k "(exit)")
 )))
 
-		    (to-smt-and-back *PROPS* smt-solver :smt-lib :smt2 :arith-bitvector :t)
+		(if dry-run
+				t
+		    (to-smt-and-back *PROPS* smt-solver :smt-lib :smt2 :arith-bitvector :t))
 		  )))))))
 
 
